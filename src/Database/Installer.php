@@ -16,7 +16,7 @@
  *
  * Struktur tabel:
  * - app_agencies       : Data agency
- * - app_divisiones     : Data division per agency
+ * - app_divisions     : Data division per agency
  * - app_agency_membership_feature_groups : Grup fitur membership
  * - app_agency_membership_features       : Fitur-fitur membership
  * - app_agency_membership_levels         : Level membership
@@ -47,7 +47,7 @@ class Installer {
     // Complete list of tables to install, in dependency order
     private static $tables = [
         'app_agencies',
-        'app_divisiones',
+        'app_divisions',
         'app_agency_membership_feature_groups',
         'app_agency_membership_features',
         'app_agency_membership_levels',
@@ -62,7 +62,7 @@ class Installer {
         'app_agency_membership_features' => Tables\AgencyMembershipFeaturesDB::class,
         'app_agency_membership_levels' => Tables\AgencyMembershipLevelsDB::class,
         'app_agency_memberships' => Tables\AgencyMembershipsDB::class,
-        'app_divisiones' => Tables\DivisionsDB::class,
+        'app_divisions' => Tables\DivisionsDB::class,
         'app_agency_employees' => Tables\AgencyEmployeesDB::class
     ];
 

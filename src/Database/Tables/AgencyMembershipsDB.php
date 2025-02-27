@@ -21,7 +21,7 @@
  * - WordPress $wpdb
  * - app_agency_membership_levels table
  * - app_agencies table
- * - app_divisiones table
+ * - app_divisions table
  *
  * Changelog:
  * 1.0.1 - 2024-02-09
@@ -90,7 +90,7 @@ class AgencyMembershipsDB {
         $wpdb->query("ALTER TABLE {$table_name} 
             ADD CONSTRAINT `fk_membership_division`
             FOREIGN KEY (division_id)
-            REFERENCES `{$wpdb->prefix}app_divisiones` (id)
+            REFERENCES `{$wpdb->prefix}app_divisions` (id)
             ON DELETE CASCADE");
             
         // Tambahkan foreign key constraint ke membership levels table

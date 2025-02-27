@@ -293,7 +293,7 @@
                 this.form.data('agency-id', agency.id);
 
                 // Trigger event for other components
-                $(document).trigger('agency:edit:shown', [customer]);
+                $(document).trigger('agency:edit:shown', [agency]);
 
                 // Log success
                 console.log('Agency data loaded successfully');

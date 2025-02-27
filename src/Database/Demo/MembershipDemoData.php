@@ -82,7 +82,7 @@ class MembershipDemoData extends AbstractDemoData {
             $tables = [
                 'app_agency_memberships',
                 'app_agency_membership_levels',
-                'app_divisiones'
+                'app_divisions'
             ];
 
             foreach ($tables as $table) {
@@ -99,7 +99,7 @@ class MembershipDemoData extends AbstractDemoData {
 
             // Check for existing divisiones
             $division_count = $wpdb->get_var("
-                SELECT COUNT(*) FROM {$wpdb->prefix}app_divisiones 
+                SELECT COUNT(*) FROM {$wpdb->prefix}app_divisions 
                 WHERE status = 'active'
             ");
             if ($division_count == 0) {
@@ -129,7 +129,7 @@ class MembershipDemoData extends AbstractDemoData {
             // Get all active divisiones
             $divisiones = $wpdb->get_results("
                 SELECT b.*, c.user_id as agency_user_id 
-                FROM {$wpdb->prefix}app_divisiones b
+                FROM {$wpdb->prefix}app_divisions b
                 JOIN {$wpdb->prefix}app_agencies c ON b.agency_id = c.id
                 WHERE b.status = 'active'
             ");

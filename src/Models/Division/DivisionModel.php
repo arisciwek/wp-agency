@@ -43,7 +43,7 @@ class DivisionModel {
 
     public function __construct() {
         global $wpdb;
-        $this->table = $wpdb->prefix . 'app_divisiones';
+        $this->table = $wpdb->prefix . 'app_divisions';
         $this->agency_table = $wpdb->prefix . 'app_agencies';
         $this->agencyModel = new AgencyModel();
         $this->cache = new AgencyCacheManager();   
@@ -391,7 +391,7 @@ class DivisionModel {
     public function getByAgency($agency_id) {
         global $wpdb;
         
-        $table = $wpdb->prefix . 'app_divisiones';
+        $table = $wpdb->prefix . 'app_divisions';
         
         $query = $wpdb->prepare(
             "SELECT id, name, address, phone, email, status 

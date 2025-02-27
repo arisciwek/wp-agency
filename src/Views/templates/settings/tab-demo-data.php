@@ -109,7 +109,7 @@ if (!current_user_can('manage_options')) {
                 <p><?php _e('Generate sample agency data with WordPress users.', 'wp-agency'); ?></p>
                 <button type="button" 
                         class="button button-primary agency-generate-demo-data" 
-                        data-type="customer"
+                        data-type="agency"
                         data-nonce="<?php echo wp_create_nonce('generate_demo_agency'); ?>">
                     <?php _e('Generate Agencys', 'wp-agency'); ?>
                 </button>
@@ -122,7 +122,7 @@ if (!current_user_can('manage_options')) {
                 <button type="button" 
                         class="button button-primary agency-generate-demo-data" 
                         data-type="branch"
-                        data-requires="customer"
+                        data-requires="agency"
                         data-check-nonce="<?php echo wp_create_nonce('check_demo_agency'); ?>"
                         data-nonce="<?php echo wp_create_nonce('generate_demo_division'); ?>">
                     <?php _e('Generate Divisiones', 'wp-agency'); ?>

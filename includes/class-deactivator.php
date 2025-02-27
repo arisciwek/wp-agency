@@ -58,7 +58,7 @@ class WP_Agency_Deactivator {
                 // First level - no dependencies
                 'app_agency_memberships',  // Drop this first as it references both agencies and levels
                 'app_agency_employees',    // Drop this next as it references agencies and divisiones
-                'app_divisiones',             // Drop this after employees as it only references agencies
+                'app_divisions',             // Drop this after employees as it only references agencies
                 // Second level - referenced by others
                 'app_agency_membership_levels',  // Can now be dropped as 
                 'app_agency_membership_features',  // Can now be dropped as memberships is gone
@@ -136,7 +136,7 @@ class WP_Agency_Deactivator {
                         FROM {$wpdb->usermeta} um2 
                         WHERE um2.user_id = u.ID 
                         AND um2.meta_key = 'wp_capabilities'
-                        AND um2.meta_value LIKE '%customer%'
+                        AND um2.meta_value LIKE '%agency%'
                     )
                 )
             ");

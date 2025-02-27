@@ -283,7 +283,7 @@ class DivisionValidator {
         global $wpdb;
         
         $division_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}app_divisiones WHERE agency_id = %d",
+            "SELECT COUNT(*) FROM {$wpdb->prefix}app_divisions WHERE agency_id = %d",
             $agency_id
         ));
 
@@ -307,7 +307,7 @@ class DivisionValidator {
 
         // Get current division type
         $current_division = $wpdb->get_row($wpdb->prepare(
-            "SELECT type FROM {$wpdb->prefix}app_divisiones 
+            "SELECT type FROM {$wpdb->prefix}app_divisions 
              WHERE id = %d AND agency_id = %d",
             $division_id, $agency_id
         ));
@@ -319,7 +319,7 @@ class DivisionValidator {
 
         // Count remaining 'pusat' divisiones excluding current division
         $pusat_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}app_divisiones 
+            "SELECT COUNT(*) FROM {$wpdb->prefix}app_divisions 
              WHERE agency_id = %d AND type = 'pusat' AND id != %d",
             $agency_id, $division_id
         ));
@@ -339,7 +339,7 @@ class DivisionValidator {
         
         // Get division details including agency_id and type
         $division = $wpdb->get_row($wpdb->prepare(
-            "SELECT type, agency_id FROM {$wpdb->prefix}app_divisiones WHERE id = %d",
+            "SELECT type, agency_id FROM {$wpdb->prefix}app_divisions WHERE id = %d",
             $division_id
         ));
 
@@ -354,7 +354,7 @@ class DivisionValidator {
 
         // Count active non-pusat divisiones
         $active_divisiones = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}app_divisiones 
+            "SELECT COUNT(*) FROM {$wpdb->prefix}app_divisions 
              WHERE agency_id = %d 
              AND type = 'cabang' 
              AND status = 'active'

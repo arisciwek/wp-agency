@@ -37,7 +37,7 @@
      public function __construct() {
          global $wpdb;
          $this->table = $wpdb->prefix . 'app_agencies';
-         $this->division_table = $wpdb->prefix . 'app_divisiones';
+         $this->division_table = $wpdb->prefix . 'app_divisions';
          $this->employee_table = $wpdb->prefix . 'app_agency_employees';
          $this->cache = new AgencyCacheManager();
      }

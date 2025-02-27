@@ -101,7 +101,7 @@ class AgencyMembershipFeaturesDB {
 
         // Tambahkan foreign key constraint dengan query langsung
         $wpdb->query("ALTER TABLE {$table_features} 
-            ADD CONSTRAINT `fk_feature_group_id` 
+            ADD CONSTRAINT `fk_agency_feature_group_id` 
             FOREIGN KEY (group_id) 
             REFERENCES {$table_groups} (id) 
             ON DELETE CASCADE");
