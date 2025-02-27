@@ -121,7 +121,7 @@ if (!current_user_can('manage_options')) {
                 <p><?php _e('Generate division offices for existing agencies.', 'wp-agency'); ?></p>
                 <button type="button" 
                         class="button button-primary agency-generate-demo-data" 
-                        data-type="branch"
+                        data-type="division"
                         data-requires="agency"
                         data-check-nonce="<?php echo wp_create_nonce('check_demo_agency'); ?>"
                         data-nonce="<?php echo wp_create_nonce('generate_demo_division'); ?>">
@@ -136,7 +136,7 @@ if (!current_user_can('manage_options')) {
                 <button type="button" 
                         class="button button-primary agency-generate-demo-data" 
                         data-type="employee"
-                        data-requires="branch"
+                        data-requires="division"
                         data-check-nonce="<?php echo wp_create_nonce('check_demo_division'); ?>"
                         data-nonce="<?php echo wp_create_nonce('generate_demo_employee'); ?>">
                     <?php _e('Generate Employees', 'wp-agency'); ?>

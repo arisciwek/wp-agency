@@ -11,7 +11,7 @@
     </div>
     
     <div class="wi-panel-content">
-        <table id="branches-table" class="display" style="width:100%">
+        <table id="divisions-table" class="display" style="width:100%">
             <thead>
                 <tr>
                     <th>Nama Perusahan</th>

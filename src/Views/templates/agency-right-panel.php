@@ -27,7 +27,7 @@
 foreach ([
     'agency/partials/_agency_details.php',
     'agency/partials/_agency_membership.php',
-    'branch/partials/_agency_division_list.php',
+    'division/partials/_agency_division_list.php',
     'employee/partials/_employee_list.php'
 ] as $template) {
     include_once WP_AGENCY_PATH . 'src/Views/templates/' . $template;
