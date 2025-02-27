@@ -1,0 +1,175 @@
+/**
+ * Main Settings Page Styles
+ *
+ * @package     WP_Agency
+ * @subpackage  Assets/CSS/Settings
+ * @version     2.0.0
+ * @author      arisciwek
+ *
+ * Path: /wp-agency/assets/css/settings/settings-style.css
+ *
+ * Description: Main stylesheet for all settings pages in WP Agency Plugin.
+ *              Handles:
+ *              - Main layout structure
+ *              - Tab navigation for all settings pages
+ *              - Common form elements
+ *              - Shared UI components across settings
+ *
+ * Dependencies:
+ * - WordPress Admin CSS
+ * - common-style.css
+ *
+ * Changelog:
+ * 2.0.0 - 2024-01-15
+ * - Refactored to separate common navigation styles
+ * - Added shared settings components
+ * - Improved documentation
+ *
+ * 1.0.0 - 2024-01-07
+ * - Initial version
+ */
+
+/* Tab Navigation - Global Settings */
+.nav-tab-wrapper {
+    padding-left: 20px;
+    margin-bottom: 0;
+    border-bottom: 1px solid #c3c4c7;
+    padding-bottom: 0;
+    clear: both;
+}
+
+.nav-tab {
+    background: #f8fafc;
+    border: 1px solid #c3c4c7;
+    border-bottom: none;
+    margin: 0 4px -1px 0;
+    padding: 12px 20px;
+    font-size: 14px;
+    line-height: 1.71428571;
+    font-weight: 600;
+    color: #50575e;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.nav-tab:hover {
+    background: #f1f5f9;
+    color: #2563eb;
+    border-color: #c3c4c7;
+}
+
+.nav-tab-active,
+.nav-tab-active:hover {
+    margin-bottom: -1px;
+    background: #fff;
+    border-bottom: 1px solid #fff;
+    color: #2563eb;
+}
+
+/* Content Areas */
+.tab-content {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-top: none;
+    padding: 20px;
+    margin-top: -1px;
+}
+
+/* Common Settings Components */
+.settings-section {
+    margin: 20px 0;
+    padding: 20px;
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.settings-header {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* Form Elements */
+.settings-form {
+    max-width: 800px;
+}
+
+.settings-form .form-table {
+    margin-top: 0;
+}
+
+.settings-form th {
+    padding: 20px 10px 20px 0;
+    width: 200px;
+    vertical-align: top;
+}
+
+.settings-form .description {
+    margin: 5px 0 0;
+    font-style: italic;
+    color: #666;
+}
+
+/* Submit Button Area */
+.settings-submit {
+    padding: 20px;
+    margin: 20px 0 0;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    text-align: right;
+}
+
+.button-primary {
+    padding: 6px 20px;
+    height: auto;
+    line-height: 1.4;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+/* Loading States */
+.spinner.is-active {
+    visibility: visible;
+    float: none;
+    margin: 4px 10px;
+}
+
+/* Messages & Notifications */
+.settings-error {
+    margin: 0 0 20px 0;
+}
+
+/* Responsive Adjustments */
+@media screen and (max-width: 782px) {
+    .nav-tab-wrapper {
+        padding-left: 10px;
+    }
+
+    .nav-tab {
+        padding: 8px 12px;
+        margin: 0 2px -1px;
+        font-size: 13px;
+    }
+
+    .settings-form th {
+        padding: 10px 0;
+        width: 100%;
+        display: block;
+    }
+    
+    .settings-form td {
+        padding: 10px 0;
+        display: block;
+    }
+
+    .tab-content {
+        padding: 15px;
+    }
+
+    .settings-section {
+        padding: 15px;
+        margin: 15px 0;
+    }
+}

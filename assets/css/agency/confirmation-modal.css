@@ -1,0 +1,171 @@
+/**
+ * Modal Component Styles
+ *
+ * @package     WP_Agency
+ * @subpackage  Assets/CSS/Components
+ * @version     1.0.0
+ * @author      arisciwek
+ *
+ * Path: /wp-agency/assets/css/components/confirmation-modal.css
+ *
+ * Description: Styling untuk reusable modal component.
+ *              Includes themes, animations, dan responsive design.
+ *              Terintegrasi dengan WordPress admin styles.
+ *
+ * Features:
+ * - Theme variations (danger/warning/info/success)
+ * - Responsive design
+ * - Smooth animations
+ * - Accessible styling
+ * - WordPress admin integration
+ *
+ * Changelog:
+ * 1.0.0 - 2024-12-07
+ * - Initial styling
+ * - Added theme variations
+ * - Added animations
+ * - Added responsive styles
+ */
+
+/**
+ * Modal Component Styles
+ *
+ * @package     WP_Agency
+ * @subpackage  Assets/CSS/Components
+ * @version     1.0.0
+ */
+
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none; 
+    justify-content: center;
+    align-items: center;
+    z-index: 999999;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+/* Modal Container */
+.modal {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    max-width: 400px;
+    width: 90%;
+    position: relative;
+}
+
+/* Modal Header */
+.modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.modal-title h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.modal-icon {
+    font-size: 18px;
+}
+
+.modal-close {
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: #374151;
+}
+
+/* Modal Body */
+.modal-body {
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #374151;
+}
+
+.modal-body p {
+    margin: 0;
+}
+
+/* Modal Footer */
+.modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* Button Styles */
+.modal .button {
+    min-width: 80px;
+    text-align: center;
+}
+
+/* Danger Button */
+.modal .button-danger {
+    background: #dc2626 !important;
+    border-color: #b91c1c !important;
+    color: #fff !important;
+}
+
+.modal .button-danger:hover {
+    background: #b91c1c !important;
+    border-color: #991b1b !important;
+}
+
+.modal .button-danger:focus {
+    box-shadow: 0 0 0 1px #fff, 0 0 0 3px #dc2626 !important;
+}
+
+/* Modal Type Variations */
+.modal.type-danger .modal-icon {
+    color: #dc2626;
+}
+
+.modal.type-warning .modal-icon {
+    color: #f59e0b;
+}
+
+/* Responsive Adjustments */
+@media screen and (max-width: 782px) {
+    .modal {
+        width: calc(100% - 32px);
+        margin: 16px;
+    }
+    
+    .modal-footer {
+        flex-direction: row-reverse; /* Ubah urutan button di mobile */
+    }
+    
+    .modal .button {
+        flex: 1; /* Button mengisi space yang tersedia */
+    }
+}

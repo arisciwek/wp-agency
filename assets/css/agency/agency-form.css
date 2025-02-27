@@ -1,0 +1,273 @@
+/**
+ * Agency Form Styles
+ *
+ * @package     WP_Agency
+ * @subpackage  Assets/CSS
+ * @version     1.0.0
+ * @author      arisciwek
+ *
+ * Path: assets/css/agency-form.css
+ *
+ * Description: Styling untuk form agency.
+ *              Includes validation states, loading indicators,
+ *              dan toast notifications.
+ *              Mengikuti WordPress admin styling conventions.
+ */
+
+/* Layout & Grid */
+.modal-content .row {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+@media (min-width: 783px) {
+    .modal-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+    }
+}
+
+/* Form Sections */
+.agency-form-section {
+    background: #fff;
+    padding: 20px;
+    border-radius: 4px;
+    border: 1px solid #dcdcde;
+    margin-bottom: 30px;
+}
+
+.agency-form-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.agency-form-section h4 {
+    margin: 0 0 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dcdcde;
+}
+
+/* Form Groups */
+.wp-agency-form-group {
+    position: relative;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.wp-agency-form-group label {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    display: block;
+    clear: both;
+}
+
+.wp-agency-form-group input[type="text"],
+.wp-agency-form-group select {
+    width: 100%;
+    max-width: 25em;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.wp-agency-form-group input[type="text"]:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+/* Form Validation States */
+.wp-agency-form-group input.error {
+    border-color: #d63638;
+}
+
+.wp-agency-form-group .form-error {
+    display: block;
+    color: #d63638;
+    font-size: 12px;
+    margin-top: 5px;
+    font-style: italic;
+}
+
+/* Loading States */
+.wp-agency-form-group.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.wp-agency-form-group.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.7);
+    z-index: 1;
+}
+
+.wp-agency-form-group.loading .spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Field Descriptions */
+.field-description {
+    font-size: 0.875rem;
+    color: #646970;
+    margin-top: 0.25rem;
+    display: block;
+    order: 3;
+}
+
+/* Required Fields */
+.required-field:after {
+    content: ' *';
+    color: #d63638;
+    margin-left: 4px;
+}
+
+/* Modal Structure */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 160000;
+}
+
+.modal-container {
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 860px;
+    margin: auto;
+    position: relative;
+    animation: modalFadeIn 0.3s ease;
+    z-index: 1000;
+}
+
+/* Modal Header */
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    position: relative;
+}
+
+.modal-header h3 {
+    margin: 0;
+    padding-right: 2rem;
+}
+
+.modal-close {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+}
+
+.modal-close:hover {
+    background-color: #f3f4f6;
+    color: #1f2937;
+}
+
+/* Modal Content */
+.modal-content {
+    padding: 20px;
+}
+
+/* Modal Footer */
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #dcdcde;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background: #f6f7f7;
+}
+
+/* Animations */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Help Text Styling */
+.wp-agency-form-group .help-text-toggle {
+    color: #2271b1;
+    text-decoration: none;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.wp-agency-form-group .help-text {
+    display: none;
+    margin-top: 10px;
+    padding: 10px;
+    background: #f0f6fc;
+    border-left: 4px solid #72aee6;
+}
+
+.wp-agency-form-group .help-text.visible {
+    display: block;
+}
+
+/* Responsive Adjustments */
+@media screen and (max-width: 782px) {
+    .wp-agency-form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .wp-agency-form-group input[type="text"] {
+        max-width: none;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer button {
+        width: 100%;
+    }
+    
+    .wp-agency-form-group .submit-wrapper {
+        padding: 15px;
+        flex-direction: column;
+    }
+}

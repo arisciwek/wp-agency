@@ -1,0 +1,692 @@
+/**
+ * Employee Styles
+ *
+ * @package     WP_Agency
+ * @subpackage  Assets/CSS/Employee
+ * @version     1.0.0
+ * @author      arisciwek
+ *
+ * Path: /wp-agency/assets/css/employee/employee.css
+ *
+ * Description: Styling untuk komponen employee (karyawan).
+ *              Includes table styling, form modals,
+ *              dan responsive adjustments.
+ *              Mengikuti WordPress admin styling conventions.
+ *
+ * Changelog:
+ * 1.0.0 - 2024-01-12
+ * - Initial styling
+ * - Added table styles
+ * - Added modal styles
+ * - Added responsive styles
+ */
+
+/* Employee List Container */
+.wp-agency-employee-content {
+    margin-top: 20px;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+}
+
+/* Header Actions */
+.wp-agency-employee-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #ccd0d4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.employee-header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* DataTable Customization */
+.wi-table-container {
+    padding: 20px;
+}
+
+#employee-table {
+    width: 100% !important;
+    margin-top: 15px;
+}
+
+#employee-table thead th {
+    background: #f5f5f5;
+    font-weight: 600;
+    padding: 12px;
+    white-space: nowrap;
+}
+
+#employee-table tbody td {
+    padding: 12px;
+    vertical-align: middle;
+}
+
+#employee-table .column-actions {
+    text-align: center;
+    width: 150px; /* Wider than division for additional status toggle */
+    white-space: nowrap;
+}
+
+/* Status Badge Styling */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.status-active {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-inactive {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Action Buttons */
+.button.view-employee,
+.button.edit-employee,
+.button.delete-employee,
+.button.toggle-status {
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    line-height: 28px;
+    text-align: center;
+    margin: 0 2px;
+}
+
+.button .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 1.4;
+}
+
+/* Form Styling */
+.employee-form-group {
+    margin-bottom: 20px;
+}
+
+.employee-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.employee-form-group input[type="text"],
+.employee-form-group input[type="email"],
+.employee-form-group input[type="tel"],
+.employee-form-group select {
+    width: 100%;
+    max-width: 25em;
+}
+
+.employee-form-group .description {
+    color: #666;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* Required Field Indicator */
+.required-field::after {
+    content: '*';
+    color: #d63638;
+    margin-left: 4px;
+}
+
+/* Form Validation States */
+.employee-form-group .error {
+    border-color: #d63638;
+}
+
+.employee-form-group .form-error {
+    color: #d63638;
+    font-size: 12px;
+    margin-top: 5px;
+    display: block;
+}
+
+/* Active Row Highlight */
+#employee-table tr.highlight {
+    background-color: #f0f6fc !important;
+    transition: background-color 0.5s ease;
+}
+
+/* Loading States */
+.employee-loading-state,
+.empty-state,
+.error-state {
+    padding: 40px;
+    text-align: center;
+}
+
+.employee-loading-state .spinner {
+    float: none;
+    margin: 0 auto 10px;
+}
+
+.empty-state-content,
+.error-state-content {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.empty-state-content .dashicons,
+.error-state-content .dashicons {
+    width: 48px;
+    height: 48px;
+    font-size: 48px;
+    color: #757575;
+    margin-bottom: 15px;
+}
+
+.empty-state-content h4,
+.error-state-content h4 {
+    margin: 0 0 2px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.empty-state-content p,
+.error-state-content p {
+    margin: 0 0 15px;
+    color: #757575;
+}
+
+.error-state .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.error-state .dashicons {
+    color: inherit;
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    margin: 0;
+}
+
+/* Export buttons section */
+.export-actions {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-top: 1px solid #e2e4e7;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.export-actions .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.employee-modal .modal-content {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+/* Responsive Adjustments */
+@media screen and (max-width: 782px) {
+    .wp-agency-employee-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .employee-header-actions {
+        justify-content: flex-end;
+    }
+
+    .wi-table-container {
+        padding: 10px;
+        overflow-x: auto;
+    }
+
+    #employee-table {
+        min-width: 800px; /* Wider than division for more columns */
+    }
+
+    #employee-table th,
+    #employee-table td {
+        padding: 8px;
+    }
+
+    .button.view-employee,
+    .button.edit-employee,
+    .button.delete-employee,
+    .button.toggle-status {
+        width: 28px;
+        height: 28px;
+        line-height: 26px;
+    }
+
+    .employee-form-group input[type="text"],
+    .employee-form-group input[type="email"],
+    .employee-form-group input[type="tel"],
+    .employee-form-group select {
+        max-width: 100%;
+    }
+
+    .export-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .export-actions .button {
+        justify-content: center;
+    }
+}
+
+/* Custom Toast Styles for Employee */
+.employee-toast {
+    position: relative;
+    padding: 12px 35px 12px 15px;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 14px;
+    min-width: 250px;
+    max-width: 400px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    margin-bottom: 10px;
+}
+
+.employee-toast-success {
+    background-color: #218838;
+}
+
+.employee-toast-error {
+    background-color: #C82333;
+}
+
+.employee-toast-warning {
+    background-color: #E0A800;
+}
+
+.employee-toast-info {
+    background-color: #138496;
+}
+
+#employee-toast-container {
+    position: fixed;
+    top: 32px;
+    right: 20px;
+    z-index: 160001;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 100%;
+    pointer-events: none;
+}
+
+/* DataTables Specific Customization */
+.dataTables_wrapper .dataTables_filter {
+    margin-bottom: 1em;
+}
+
+.dataTables_wrapper .dataTables_length select {
+    min-width: 60px;
+}
+
+.dataTables_wrapper .dataTables_info {
+    padding-top: 1em;
+}
+
+.dataTables_wrapper .dataTables_paginate {
+    padding-top: 1em;
+}
+
+/* Print Styles */
+@media print {
+    .wp-agency-employee-header,
+    .dataTables_filter,
+    .dataTables_length,
+    .dataTables_paginate,
+    .column-actions {
+        display: none !important;
+    }
+
+    .status-badge {
+        border: 1px solid #000 !important;
+        color: #000 !important;
+        background: none !important;
+    }
+}
+
+/* Departemen Checkboxes Styling */
+.department-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    padding: 10px;
+}
+
+.checkbox-wrapper {
+    padding: 12px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+/* Finance - Warna Biru */
+.checkbox-wrapper:has(input[name="finance"]) {
+    background: #E3F2FD;
+    border-left: 4px solid #2196F3;
+}
+
+.checkbox-wrapper:has(input[name="finance"]:checked) {
+    background: #2196F3;
+    color: white;
+}
+
+/* Operation - Warna Hijau */
+.checkbox-wrapper:has(input[name="operation"]) {
+    background: #E8F5E9;
+    border-left: 4px solid #4CAF50;
+}
+
+.checkbox-wrapper:has(input[name="operation"]:checked) {
+    background: #4CAF50;
+    color: white;
+}
+
+/* Legal - Warna Ungu */
+.checkbox-wrapper:has(input[name="legal"]) {
+    background: #F3E5F5;
+    border-left: 4px solid #9C27B0;
+}
+
+.checkbox-wrapper:has(input[name="legal"]:checked) {
+    background: #9C27B0;
+    color: white;
+}
+
+/* Purchase - Warna Orange */
+.checkbox-wrapper:has(input[name="purchase"]) {
+    background: #FFF3E0;
+    border-left: 4px solid #FF9800;
+}
+
+.checkbox-wrapper:has(input[name="purchase"]:checked) {
+    background: #FF9800;
+    color: white;
+}
+
+/* Hover Effect */
+.checkbox-wrapper:hover {
+    transform: translateX(5px);
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Checkbox Custom Style */
+.checkbox-wrapper input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* Layout dan Card Styling */
+.modal-content {
+   display: flex;
+   gap: 20px;
+}
+
+.row {
+   width: 50%;
+}
+
+.employee-form-section {
+   background: #fff;
+   border-radius: 8px;
+   padding: 20px;
+   margin-bottom: 20px;
+   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.employee-form-section h4 {
+   margin: 0 0 15px;
+   padding: 10px;
+   font-size: 14px;
+   font-weight: 600;
+   border-bottom: 2px solid #e0e0e0;
+}
+
+/* Form Groups */
+.employee-form-group {
+   margin-bottom: 15px;
+}
+
+.employee-form-group label {
+   display: block;
+   margin-bottom: 8px;
+   font-weight: 500;
+}
+
+.employee-form-group input,
+.employee-form-group select {
+   width: 100%;
+   padding: 8px;
+   border: 1px solid #ddd;
+   border-radius: 4px;
+}
+
+/* Status Styling */
+#edit-employee-status {
+   padding: 8px;
+   border-radius: 4px;
+}
+
+#edit-employee-status option[value="active"] {
+   color: #4CAF50;
+}
+
+#edit-employee-status option[value="inactive"] {
+   color: #f44336;
+}
+
+/* Required Fields */
+.required-field::after {
+   content: '*';
+   color: #f44336;
+   margin-left: 4px;
+}
+
+/* Description Text */
+.description {
+   font-size: 12px;
+   color: #666;
+   margin-top: 4px;
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+   .modal-content {
+       flex-direction: column;
+   }
+   
+   .row {
+       width: 100%;
+   }
+}
+
+/* Modal Styling */
+.modal-overlay {
+   background: rgba(0, 0, 0, 0.5);
+   z-index: 160000;
+}
+
+.modal-container {
+   max-width: 1024px;
+   max-height: 90vh;
+   background: #f8f9fa;
+}
+
+.modal-header {
+   background: #fff;
+   padding: 15px 20px;
+   border-bottom: 1px solid #ddd;
+}
+
+.modal-header h3 {
+   margin: 0;
+   font-size: 16px;
+   font-weight: 600;
+}
+
+.modal-close {
+   padding: 5px;
+   font-size: 20px;
+   color: #666;
+}
+
+/* Footer */
+.modal-footer {
+   background: #fff;
+   padding: 15px 20px;
+   border-top: 1px solid #ddd;
+   display: flex;
+   justify-content: flex-end;
+   gap: 10px;
+}
+
+.button.cancel-edit {
+   color: #666;
+}
+
+.button.button-primary {
+   background: #2196F3;
+}
+
+.spinner {
+   margin: 4px 10px 0;
+}
+
+/* Loading State */
+.loading .spinner {
+   visibility: visible;
+}
+
+.loading .button {
+   opacity: 0.7;
+   pointer-events: none;
+}
+
+/* Section Headers */
+.section-header {
+   background: #ddd;
+   padding: 1px 15px;
+   margin: -20px -20px 20px -20px;
+   border-radius: 8px 8px 0 0;
+   border-bottom: 2px solid #3e3939;
+}
+
+/* Department Colors */
+.section-header.finance {
+   background: #E3F2FD;
+   border-bottom: 2px solid #2196F3;
+}
+
+.section-header.operation {
+   background: #E8F5E9; 
+   border-bottom: 2px solid #4CAF50;
+}
+
+.section-header.legal {
+   background: #F3E5F5;
+   border-bottom: 2px solid #9C27B0;
+}
+
+.section-header.purchase {
+   background: #FFF3E0;
+   border-bottom: 2px solid #FF9800;
+}
+
+/* Department Badges untuk DataTable */
+.department-badge {
+    display: inline-block;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 500;
+    color: #fff;
+    margin-right: 3px;
+    margin-bottom: 3px;
+    white-space: nowrap;
+}
+
+/* Department Colors */
+.department-badge.finance {
+    background-color: #2196F3;  /* Biru */
+}
+
+.department-badge.operation {
+    background-color: #4CAF50;  /* Hijau */
+}
+
+.department-badge.legal {
+    background-color: #9C27B0;  /* Ungu */
+}
+
+.department-badge.purchase {
+    background-color: #FF9800;  /* Orange */
+}
+
+/* Container untuk badges dalam table cell */
+.department-badges-container {
+    min-height: 24px;  /* Untuk konsistensi tinggi cell saat tidak ada badge */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+/* Style untuk teks dash ketika tidak ada department */
+.department-badges-container.empty {
+    color: #666;
+    padding: 4px 0;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 782px) {
+    .department-badges-container {
+        min-width: 200px;  /* Prevent badges from getting too cramped */
+    }
+}
+
+.npwp-input-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.npwp-input-group input {
+    text-align: center;
+    border: 1px solid #ddd;
+    padding: 5px;
+}
+
+.npwp-input-group .separator {
+    margin: 0 2px;
+    color: #666;
+}
+
+.npwp-segment {
+    width: auto;
+}
