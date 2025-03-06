@@ -24,7 +24,7 @@
 (function($) {
     'use strict';
 
-    const Edit.DivisionForm = {
+    const EditDivisionForm = {
         modal: null,
         form: null,
 
@@ -44,7 +44,7 @@
             $(document).on('click', '.edit-division', (e) => {
                 const id = $(e.currentTarget).data('id');
                 if (id) {
-                    this.loa.DivisionData(id);
+                    this.loadDivisionData(id);
                 }
             });
 
@@ -60,7 +60,7 @@
             });
         },
 
-        async loa.DivisionData(id) {
+        async loadDivisionData(id) {
             try {
                 const response = await $.ajax({
                     url: wpAgencyData.ajaxUrl,
@@ -371,8 +371,8 @@
     // Initialize when document is ready
     $(document).ready(() => {
         console.log('Edit modal visibility:', $('#edit-division-modal').is(':visible'));
-        window.Edit.DivisionForm = Edit.DivisionForm;
-        Edit.DivisionForm.init();
+        window.EditDivisionForm = EditDivisionForm;
+        EditDivisionForm.init();
     });
 
 })(jQuery);
