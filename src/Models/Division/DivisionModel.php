@@ -30,10 +30,10 @@ use WPAgency\Models\Agency\AgencyModel;
 class DivisionModel {
 
     // Cache keys - pindahkan dari AgencyCacheManager ke sini untuk akses langsung
-    private const KEY_BRANCH = 'division';
-    private const KEY_AGENCY_BRANCH_LIST = 'agency_division_list';
-    private const KEY_AGENCY_BRANCH = 'agency_division';
-    private const KEY_BRANCH_LIST = 'division_list';
+    private const KEY_DIVISION = 'division';
+    private const KEY_AGENCY_DIVISION_LIST = 'agency_division_list';
+    private const KEY_AGENCY_DIVISION = 'agency_division';
+    private const KEY_DIVISION_LIST = 'division_list';
     private const CACHE_EXPIRY = 7200; // 2 hours in seconds
 
     private $table;
@@ -156,7 +156,7 @@ class DivisionModel {
         global $wpdb;
 
         // Cek cache dulu
-        $cached = $this->cache->get(self::KEY_BRANCH, $id);
+        $cached = $this->cache->get(self::KEY_DIVISION, $id);
         if ($cached !== null) {
             return $cached;
         }
@@ -171,7 +171,7 @@ class DivisionModel {
 
         // Simpan ke cache
         if ($result) {
-            $this->cache->set(self::KEY_BRANCH, $data, self::CACHE_EXPIRY, $id);
+            $this->cache->set(self::KEY_DIVISION, $result, self::CACHE_EXPIRY, $id);
         }
         
         return $result;
@@ -225,8 +225,8 @@ class DivisionModel {
 
         if ($result === false) {
             error_log('Update division error: ' . $wpdb->last_error);
-            $this->cache->delete(self::KEY_BRANCH, $id);
-            $this->cache->delete(self::KEY_BRANCH_LIST);          
+            $this->cache->delete(self::KEY_DIVISION, $id);
+            $this->cache->delete(self::KEY_DIVISION_LIST);          
             return false;
         }
 
