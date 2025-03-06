@@ -75,12 +75,12 @@ class AgencyCacheManager {
     private const KEY_USER_AGENCYS = 'user_agencies';
 
     // Cache keys for divisiones
-    private const KEY_AGENCY_BRANCH_LIST = 'agency_division_list';
-    private const KEY_AGENCY_BRANCH = 'agency_division';
-    private const KEY_BRANCH = 'division';
-    private const KEY_BRANCH_LIST = 'division_list';
-    private const KEY_BRANCH_STATS = 'division_stats';
-    private const KEY_USER_BRANCHES = 'user_divisiones';
+    private const KEY_AGENCY_DIVISION_LIST = 'agency_division_list';
+    private const KEY_AGENCY_DIVISION = 'agency_division';
+    private const KEY_DIVISION = 'division';
+    private const KEY_DIVISION_LIST = 'division_list';
+    private const KEY_DIVISION_STATS = 'division_stats';
+    private const KEY_USER_DIVISIONS = 'user_divisiones';
 
     // Cache keys for employees
     private const KEY_EMPLOYEE = 'employee';
@@ -104,10 +104,10 @@ class AgencyCacheManager {
             'agency_list' => self::KEY_AGENCY_LIST,
             'agency_stats' => self::KEY_AGENCY_STATS,
             'user_agencies' => self::KEY_USER_AGENCYS,
-            'division' => self::KEY_BRANCH,
-            'division_list' => self::KEY_BRANCH_LIST,
-            'division_stats' => self::KEY_BRANCH_STATS,
-            'user_divisiones' => self::KEY_USER_BRANCHES,
+            'division' => self::KEY_DIVISION,
+            'division_list' => self::KEY_DIVISION_LIST,
+            'division_stats' => self::KEY_DIVISION_STATS,
+            'user_divisiones' => self::KEY_USER_DIVISIONS,
             'employee' => self::KEY_EMPLOYEE,
             'employee_list' => self::KEY_EMPLOYEE_LIST,
             'employee_stats' => self::KEY_EMPLOYEE_STATS,
