@@ -25,7 +25,7 @@
 (function($) {
     'use strict';
 
-    const Create.DivisionForm = {
+    const CreateDivisionForm = {
         modal: null,
         form: null,
         agencyId: null,
@@ -297,8 +297,8 @@
 
     // Initialize when document is ready
     $(document).ready(() => {
-        window.Create.DivisionForm = Create.DivisionForm;
-        Create.DivisionForm.init();
+        window.CreateDivisionForm = CreateDivisionForm;
+        CreateDivisionForm.init();
     });
 
 })(jQuery);
