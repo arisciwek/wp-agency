@@ -37,7 +37,7 @@ class SettingsController {
 
     // Add this to your SettingsController or appropriate controller class
     public function register_ajax_handlers() {
-        add_action('wp_ajax_reset_permissions', [$this, 'handle_reset_permissions']);
+        add_action('wp_ajax_reset_agency_permissions', [$this, 'handle_reset_agency_permissions']);
         add_action('wp_ajax_agency_generate_demo_data', [$this, 'handle_generate_demo_data']);
         add_action('wp_ajax_agency_check_demo_data', [$this, 'handle_check_demo_data']);
     
@@ -115,7 +115,7 @@ class SettingsController {
 
 
 
-    public function handle_reset_permissions() {
+    public function handle_reset_agency_permissions() {
         try {
             // Verify nonce
             check_ajax_referer('wp_agency_reset_permissions', 'nonce');

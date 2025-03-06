@@ -83,7 +83,7 @@ public function enqueue_frontend_assets() {
         // Toast component
         wp_enqueue_script(
             'wp-agency-toast',
-            WP_AGENCY_URL . 'assets/js/agency/toast.js',
+            WP_AGENCY_URL . 'assets/js/agency/agency-toast.js',
             ['jquery'],
             $this->version,
             true
@@ -225,7 +225,7 @@ public function enqueue_frontend_assets() {
         if (get_query_var('wp_agency_register')) {
             // Enqueue registration-specific scripts
             wp_enqueue_script('jquery-validate', 'https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js', ['jquery'], '1.19.5', true);
-            wp_enqueue_script('wp-agency-toast', WP_AGENCY_URL . 'assets/js/agency/toast.js', ['jquery'], $this->version, true);
+            wp_enqueue_script('wp-agency-toast', WP_AGENCY_URL . 'assets/js/agency/agency-toast.js', ['jquery'], $this->version, true);
             wp_enqueue_script('wp-agency-register', WP_AGENCY_URL . 'assets/js/auth/register.js', ['jquery', 'jquery-validate', 'wp-agency-toast'], $this->version, true);
             
             // Localize script
@@ -251,7 +251,7 @@ public function enqueue_frontend_assets() {
                 case 'permissions':
                     wp_enqueue_script(
                         'wp-agency-permissions-tab',
-                        WP_AGENCY_URL . 'assets/js/settings/permissions-tab-script.js',
+                        WP_AGENCY_URL . 'assets/js/settings/agency-permissions-tab-script.js',
                         ['jquery', 'wp-agency-settings'],
                         $this->version,
                         true
@@ -365,7 +365,7 @@ public function enqueue_frontend_assets() {
             wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js', ['jquery'], '1.13.7', true);
             wp_enqueue_script('jquery-inputmask', 'https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.8/jquery.inputmask.min.js', array('jquery'), null, true);
             // Components
-            wp_enqueue_script('agency-toast', WP_AGENCY_URL . 'assets/js/agency/agency-toast.js', ['jquery'], $this->version, true);
+            wp_enqueue_script('wp-agency-toast', WP_AGENCY_URL . 'assets/js/agency/agency-toast.js', ['jquery'], $this->version, true);
             wp_enqueue_script('confirmation-modal', WP_AGENCY_URL . 'assets/js/agency/confirmation-modal.js', ['jquery'], $this->version, true);
             // Division toast
             wp_enqueue_script('division-toast', WP_AGENCY_URL . 'assets/js/division/division-toast.js', ['jquery'], $this->version, true);
@@ -375,15 +375,15 @@ public function enqueue_frontend_assets() {
 
 
             // Agency scripts - path fixed according to tree.md
-            wp_enqueue_script('agency-datatable', WP_AGENCY_URL . 'assets/js/agency/agency-datatable.js', ['jquery', 'datatables', 'agency-toast'], $this->version, true);
-            wp_enqueue_script('create-agency-form', WP_AGENCY_URL . 'assets/js/agency/create-agency-form.js', ['jquery', 'jquery-validate', 'agency-toast'], $this->version, true);
-            wp_enqueue_script('edit-agency-form', WP_AGENCY_URL . 'assets/js/agency/edit-agency-form.js', ['jquery', 'jquery-validate', 'agency-toast'], $this->version, true);
+            wp_enqueue_script('agency-datatable', WP_AGENCY_URL . 'assets/js/agency/agency-datatable.js', ['jquery', 'datatables', 'wp-agency-toast'], $this->version, true);
+            wp_enqueue_script('create-agency-form', WP_AGENCY_URL . 'assets/js/agency/create-agency-form.js', ['jquery', 'jquery-validate', 'wp-agency-toast'], $this->version, true);
+            wp_enqueue_script('edit-agency-form', WP_AGENCY_URL . 'assets/js/agency/edit-agency-form.js', ['jquery', 'jquery-validate', 'wp-agency-toast'], $this->version, true);
 
             wp_enqueue_script('agency',
                 WP_AGENCY_URL . 'assets/js/agency/agency-script.js',
                 [
                     'jquery',
-                    'agency-toast',
+                    'wp-agency-toast',
                     'agency-datatable',
                     'create-agency-form',
                     'edit-agency-form'
@@ -393,21 +393,21 @@ public function enqueue_frontend_assets() {
             );
 
             // Division scripts
-            wp_enqueue_script('division-datatable', WP_AGENCY_URL . 'assets/js/division/division-datatable.js', ['jquery', 'datatables', 'agency-toast', 'agency'], $this->version, true);
+            wp_enqueue_script('division-datatable', WP_AGENCY_URL . 'assets/js/division/division-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);
             wp_enqueue_script('division-toast', WP_AGENCY_URL . 'assets/js/division/division-toast.js', ['jquery'], $this->version, true);
             // Update dependencies untuk form
             wp_enqueue_script('create-division-form', WP_AGENCY_URL . 'assets/js/division/create-division-form.js', ['jquery', 'jquery-validate', 'division-toast', 'division-datatable'], $this->version, true);
             wp_enqueue_script('edit-division-form', WP_AGENCY_URL . 'assets/js/division/edit-division-form.js', ['jquery', 'jquery-validate', 'division-toast', 'division-datatable'], $this->version, true);
 
             // Employee scripts - mengikuti pola division yang sudah berhasil
-            wp_enqueue_script('employee-datatable', WP_AGENCY_URL . 'assets/js/employee/employee-datatable.js', ['jquery', 'datatables', 'agency-toast', 'agency'], $this->version, true);
+            wp_enqueue_script('employee-datatable', WP_AGENCY_URL . 'assets/js/employee/employee-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);
             wp_enqueue_script('employee-toast', WP_AGENCY_URL . 'assets/js/employee/employee-toast.js', ['jquery'], $this->version, true);
             wp_enqueue_script('create-employee-form', WP_AGENCY_URL . 'assets/js/employee/create-employee-form.js', ['jquery', 'jquery-validate', 'employee-toast', 'employee-datatable'], $this->version, true);
             wp_enqueue_script('edit-employee-form', WP_AGENCY_URL . 'assets/js/employee/edit-employee-form.js', ['jquery', 'jquery-validate', 'employee-toast', 'employee-datatable'], $this->version, true);
             wp_enqueue_script(
                 'wp-agency-membership',
                 WP_AGENCY_URL . 'assets/js/agency/agency-membership.js',
-                ['jquery', 'wp-agency', 'agency-toast'],
+                ['jquery', 'wp-agency', 'wp-agency-toast'],
                 WP_AGENCY_VERSION,
                 true
             );
@@ -427,11 +427,11 @@ public function enqueue_frontend_assets() {
             wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js', ['jquery'], '1.13.7', true);
             
             // Components
-            wp_enqueue_script('agency-toast', WP_AGENCY_URL . 'assets/js/agency/agency-toast.js', ['jquery'], $this->version, true);
+            wp_enqueue_script('wp-agency-toast', WP_AGENCY_URL . 'assets/js/agency/agency-toast.js', ['jquery'], $this->version, true);
 
             // Company scripts
-            wp_enqueue_script('company-datatable', WP_AGENCY_URL . 'assets/js/company/company-datatable.js', ['jquery', 'datatables', 'agency-toast'], $this->version, true);
-            wp_enqueue_script('company-script', WP_AGENCY_URL . 'assets/js/company/company-script.js', ['jquery', 'company-datatable', 'agency-toast'], $this->version, true);
+            wp_enqueue_script('company-datatable', WP_AGENCY_URL . 'assets/js/company/company-datatable.js', ['jquery', 'datatables', 'wp-agency-toast'], $this->version, true);
+            wp_enqueue_script('company-script', WP_AGENCY_URL . 'assets/js/company/company-script.js', ['jquery', 'company-datatable', 'wp-agency-toast'], $this->version, true);
 
             // Localize script
             wp_localize_script('company-script', 'wpAgencyData', [

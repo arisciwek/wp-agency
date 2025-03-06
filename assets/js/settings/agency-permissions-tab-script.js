@@ -89,7 +89,7 @@
                 url: wpAgencyData.ajaxUrl,
                 type: 'POST',
                 data: {
-                    action: 'reset_permissions',
+                    action: 'reset_agency_permissions',
                     nonce: wpAgencyData.nonce  // Changed this line
                 },
                 success: function(response) {

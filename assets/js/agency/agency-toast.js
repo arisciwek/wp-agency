@@ -6,23 +6,14 @@
  * @version     1.0.0
  * @author      arisciwek
  *
- * Path: assets/js/components/agency-toast.js
+ * Path: assets/js/agency/agency-toast.js
  *
  * Description: Komponen toast notification khusus untuk manajemen agency.
  *              Menangani feedback untuk operasi CRUD agency.
  *              Support queue system untuk multiple notifications.
  *              Includes custom styling dan animations.
  */
- /**
-  * Agency Toast Component
-  *
-  * @package     WP_Agency
-  * @subpackage  Assets/JS/Components
-  * @version     1.1.0
-  * @author      arisciwek
-  */
-
- const AgencyToast = {
+ const wpAgencyToast = {
      container: null,
      queue: [],
      isProcessing: false,
@@ -209,4 +200,5 @@
  };
 
  // Expose for global use
- window.AgencyToast = AgencyToast;
+window.wpAgencyToast = wpAgencyToast;
+window.AgencyToast = wpAgencyToast;
