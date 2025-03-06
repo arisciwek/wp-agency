@@ -506,12 +506,16 @@ public function createPdfButton() {
 
     private function getAgencyTableData($start = 0, $length = 10, $search = '', $orderColumn = 'code', $orderDir = 'asc') {
         try {
+
             // Validasi permission yang sudah bekerja di handleDataTableRequest()
             $hasPermission = current_user_can('view_agency_list');
+
+            // Dapatkan role/capability user saat ini
+            $access = $this->validator->validateAccess(0); 
+
             $this->logPermissionCheck(
                 'view_agency_list',
-                get_current_user_id(),
-                0,
+                $access['access_type'],  // Langsung gunakan access_type yang sudah ada                0,
                 null,
                 $hasPermission
             );
@@ -562,10 +566,13 @@ public function createPdfButton() {
                 $additionalParams['type'] = sanitize_text_field($_POST['type']);
             }
 
+            // Dapatkan role/capability user saat ini
+            $access = $this->validator->validateAccess(0); 
+
             // Check cache first
             $cached_result = $this->cache->getDataTableCache(
                 'agency_list',          // Specific context for main agency listing
-                get_current_user_id(),
+                $access['access_type'],  // Langsung gunakan access_type yang sudah ada
                 $start,
                 $length,
                 $search,
@@ -605,10 +612,13 @@ public function createPdfButton() {
                 'data' => $data,
             ];
 
+            // Dapatkan role/capability user saat ini
+            $access = $this->validator->validateAccess(0); 
+
             // Set cache
             $this->cache->setDataTableCache(
                 'agency_list',         // Same context as get
-                get_current_user_id(),
+                $access['access_type'],  // Langsung gunakan access_type yang sudah ada
                 $start,
                 $length,
                 $search,
@@ -637,15 +647,9 @@ public function createPdfButton() {
     private function generateActionButtons($agency) {
         $actions = '';
         
-        // Debug logging
-        // $this->debug_log("==== Generating Action Buttons for Agency ID: {$agency->id} ====");
-        
         // Dapatkan relasi user dengan agency ini
         $relation = $this->validator->getUserRelation($agency->id);
         
-        // Log relasi untuk debugging
-        // $this->debug_log("User Relation for buttons:", $relation);
-
         // View Button - selalu tampilkan jika punya akses view
         if ($this->validator->canView($relation)) {
             $actions .= sprintf(
@@ -945,9 +949,12 @@ public function createPdfButton() {
                 throw new \Exception('Failed to create demo agency');
             }
 
+            // Dapatkan role/capability user saat ini
+            $user_access_level = $this->validator->getAccessLevel();
+
             // Clear relevant caches
             $this->cache->invalidateAgencyCache($data['id']);
-            $this->cache->delete('agency_total_count', get_current_user_id());
+            $this->cache->delete('agency_total_count', $user_access_level);
             $this->cache->invalidateDataTableCache('agency_list');
 
             return true;

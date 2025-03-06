@@ -220,7 +220,7 @@ class AgencyCacheManager {
 
     public function getDataTableCache(
         string $context,      // Misal: 'agency_list', 'agency_history', 'division_list', dll
-        int $userId,
+        string $access_type,
         int $start,
         int $length,
         string $search,
@@ -229,7 +229,7 @@ class AgencyCacheManager {
         ?array $additionalParams = null  // Parameter tambahan spesifik untuk context
     ) {
         // Validate required parameters
-        if (empty($context) || !$userId || !is_numeric($start) || !is_numeric($length)) {
+        if (empty($context) || !$access_type || !is_numeric($start) || !is_numeric($length)) {
             $this->debug_log('Invalid parameters in getDataTableCache');
             return null;
         }
@@ -239,7 +239,7 @@ class AgencyCacheManager {
             $components = [
                 "datatable",      // prefix
                 $context,         // specific context
-                (string)$userId,
+                (string)$access_type,
                 (string)$start,
                 (string)$length,
                 md5($search),
@@ -264,7 +264,7 @@ class AgencyCacheManager {
 
     public function setDataTableCache(
         string $context,
-        int $userId,
+        string $access_type,
         int $start,
         int $length,
         string $search,
@@ -274,7 +274,7 @@ class AgencyCacheManager {
         ?array $additionalParams = null
     ) {
         // Validate required parameters
-        if (empty($context) || !$userId || !is_numeric($start) || !is_numeric($length)) {
+        if (empty($context) || !$access_type || !is_numeric($start) || !is_numeric($length)) {
             $this->debug_log('Invalid parameters in setDataTableCache');
             return false;
         }
@@ -283,7 +283,7 @@ class AgencyCacheManager {
         $components = [
             "datatable",
             $context,
-            (string)$userId,
+            (string)$access_type,
             (string)$start,
             (string)$length,
             md5($search),
