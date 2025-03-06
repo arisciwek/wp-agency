@@ -86,8 +86,8 @@
                 .on('click', '.edit-division', (e) => {
                     e.preventDefault();
                     const id = $(e.currentTarget).data('id');
-                    if (id && window.Edi.DivisionForm) {
-                        window.Edi.DivisionForm.loa.DivisionData(id);
+                    if (id && window.EditDivisionForm) {
+                        window.EditDivisionForm.loadDivisionData(id);
                     }
                 });
                 
