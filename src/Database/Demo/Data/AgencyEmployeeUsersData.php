@@ -11,7 +11,7 @@
  *
  * Description: Static employee user data for demo generation.
  *              Used by WPUserGenerator and AgencyEmployeeDemoData.
- *              60 users total (2 per division × 30 divisiones)
+ *              60 users total (2 per division × 30 divisions)
  *              User IDs: 42-101
  */
 

@@ -547,7 +547,7 @@
      * Get total division count for a specific agency
      * 
      * Used for:
-     * 1. Agency deletion validation - prevent deletion if agency has divisiones
+     * 1. Agency deletion validation - prevent deletion if agency has divisions
      * 2. Display division count in agency detail panel
      * 
      * Note: This method does NOT handle permission filtering as it's used for 
@@ -555,7 +555,7 @@
      * For permission-based division counting, use getTotalDivisionsByPermission() instead.
      *
      * @param int $id Agency ID
-     * @return int Total number of divisiones owned by the agency
+     * @return int Total number of divisions owned by the agency
      */
     public function getDivisionCount(int $id): int {
         // Check cache first

@@ -132,7 +132,7 @@ if (!current_user_can('manage_options')) {
             <!-- Employees -->
             <div class="demo-data-card">
                 <h4><?php _e('Employees', 'wp-agency'); ?></h4>
-                <p><?php _e('Generate employee data for divisiones.', 'wp-agency'); ?></p>
+                <p><?php _e('Generate employee data for divisions.', 'wp-agency'); ?></p>
                 <button type="button" 
                         class="button button-primary agency-generate-demo-data" 
                         data-type="employee"

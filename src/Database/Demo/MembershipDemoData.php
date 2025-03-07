@@ -25,7 +25,7 @@
  *
  * Order of operations:
  * 1. Validate prerequisites (development mode, tables, data)
- * 2. Get all active divisiones
+ * 2. Get all active divisions
  * 3. For each division:
  *    - Get random level
  *    - Generate dates based on level settings
@@ -35,7 +35,7 @@
  * Changelog:
  * 1.0.0 - 2024-02-09
  * - Initial version
- * - Added membership generation for divisiones
+ * - Added membership generation for divisions
  * - Added random level assignment
  * - Added trial and payment handling
  */
@@ -97,13 +97,13 @@ class MembershipDemoData extends AbstractDemoData {
                 throw new \Exception('No membership levels found');
             }
 
-            // Check for existing divisiones
+            // Check for existing divisions
             $division_count = $wpdb->get_var("
                 SELECT COUNT(*) FROM {$wpdb->prefix}app_divisions 
                 WHERE status = 'active'
             ");
             if ($division_count == 0) {
-                throw new \Exception('No active divisiones found');
+                throw new \Exception('No active divisions found');
             }
 
             return true;
@@ -126,15 +126,15 @@ class MembershipDemoData extends AbstractDemoData {
         $current_date = current_time('mysql');
 
         try {
-            // Get all active divisiones
-            $divisiones = $wpdb->get_results("
+            // Get all active divisions
+            $divisions = $wpdb->get_results("
                 SELECT b.*, c.user_id as agency_user_id 
                 FROM {$wpdb->prefix}app_divisions b
                 JOIN {$wpdb->prefix}app_agencies c ON b.agency_id = c.id
                 WHERE b.status = 'active'
             ");
 
-            foreach ($divisiones as $division) {
+            foreach ($divisions as $division) {
                 // Get random membership level
                 $level = $this->getRandomLevel();
                 

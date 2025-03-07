@@ -83,7 +83,7 @@
                     // Store agency ID for division loading
                     this.agencyId = response.data.agency_id;
                     
-                    // Load divisiones then show form
+                    // Load divisions then show form
                     await this.loadDivisions(response.data.agency_id, response.data.division_id);
                     this.showEditForm(response.data);
                 } else {
@@ -101,7 +101,7 @@
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
                     data: {
-                        action: 'get_agency_divisiones',
+                        action: 'get_agency_divisions',
                         agency_id: agencyId,
                         nonce: wpAgencyData.nonce
                     }
@@ -120,7 +120,7 @@
                     });
                 }
             } catch (error) {
-                console.error('Load divisiones error:', error);
+                console.error('Load divisions error:', error);
                 AgencyToast.error('Gagal memuat daftar cabang');
             }
         },
@@ -134,7 +134,7 @@
             // Reset form first
             this.resetForm();
 
-            // Load divisiones first
+            // Load divisions first
             await this.loadDivisions(data.agency_id, data.division_id);
 
             // Populate form data

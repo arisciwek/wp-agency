@@ -125,8 +125,8 @@ class SelectListHooks {
             }
 
             if ($agency_id) {
-                $divisiones = $this->division_model->getByAgency($agency_id);
-                foreach ($divisiones as $division) {
+                $divisions = $this->division_model->getByAgency($agency_id);
+                foreach ($divisions as $division) {
                     $options[$division->id] = esc_html($division->name);
                 }
 

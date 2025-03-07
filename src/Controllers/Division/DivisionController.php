@@ -57,7 +57,7 @@ class DivisionController {
         // Register AJAX handlers
         add_action('wp_ajax_handle_division_datatable', [$this, 'handleDataTableRequest']);
         add_action('wp_ajax_nopriv_handle_division_datatable', [$this, 'handleDataTableRequest']);
-        add_action('wp_ajax_get_agency_divisiones', [$this, 'getAgencyDivisions']);
+        add_action('wp_ajax_get_agency_divisions', [$this, 'getAgencyDivisions']);
 
         // Register other endpoints
         add_action('wp_ajax_get_division', [$this, 'show']);
@@ -164,7 +164,7 @@ class DivisionController {
                 throw new \Exception('Division not found');
             }
 
-            // Get all divisiones for this agency
+            // Get all divisions for this agency
             $existing_pusat = $this->model->findPusatByAgency($division->agency_id);
             
             // If changing to 'pusat' and there's already a pusat division
@@ -241,8 +241,6 @@ class DivisionController {
         }
     }
 
-
-
     /**
      * Log debug messages to file
      */
@@ -273,8 +271,8 @@ class DivisionController {
         $current_user_id = get_current_user_id();
         $agency = $this->agencyModel->find($division->agency_id);
         $actions = '';
-
-        if ($this->validator->canViewDivision($division, $agency)) {
+        $relation = $this->validator->getUserRelation($division->id);
+        if (!$this->validator->canViewDivision($relation)) {
             $actions .= sprintf(
                 '<button type="button" class="button view-division" data-id="%d" title="%s">
                     <i class="dashicons dashicons-visibility"></i>
@@ -284,7 +282,7 @@ class DivisionController {
             );
         }
 
-        if ($this->validator->canEditDivision($division, $agency)) {
+        if ($this->validator->canEditDivision($relation)) {
             $actions .= sprintf(
                 '<button type="button" class="button edit-division" data-id="%d" title="%s">
                     <i class="dashicons dashicons-edit"></i>
@@ -294,7 +292,7 @@ class DivisionController {
             );
         }
 
-        if ($this->validator->canDeleteDivision($division, $agency)) {
+        if ($this->validator->canDeleteDivision($relation)) {
             $type_validation = $this->validator->validateDivisionTypeDelete($division->id);
             if ($type_validation['valid']) {
                 $actions .= sprintf(
@@ -333,10 +331,13 @@ class DivisionController {
                 $orderBy = 'name';
             }
 
+            // Dapatkan role/capability user saat ini
+            $access = $this->validator->validateAccess(0); 
+
             // Check cache first
             $cached_result = $this->cache->getDataTableCache(
                 'division_list',
-                get_current_user_id(),
+                $access['access_type'],
                 $start, 
                 $length,
                 $search,
@@ -367,8 +368,8 @@ class DivisionController {
             $data = [];
             foreach ($result['data'] as $division) {
                 // Validate access
-                $agency = $this->agencyModel->find($division->agency_id);
-                if (!$this->validator->canViewDivision($division, $agency)) {
+                $relation = $this->validator->getUserRelation($division->id);
+                if (!$this->validator->canViewDivision($relation)) {
                     continue;
                 }
 
@@ -404,10 +405,13 @@ class DivisionController {
                 'data' => $data,
             ];
 
+            // Dapatkan role/capability user saat ini
+            $access = $this->validator->validateAccess(0); 
+
             // Cache the result
             $this->cache->setDataTableCache(
                 'division_list',
-                get_current_user_id(),
+                $access['access_type'],
                 $start,
                 $length, 
                 $search,
@@ -446,14 +450,8 @@ class DivisionController {
                     throw new \Exception('Division not found');
                 }
 
-                // Get agency data untuk permission check
-                $agency = $this->agencyModel->find($division->agency_id);
-                if (!$agency) {
-                    throw new \Exception('Agency not found');
-                }
-
-                // Permission check di awal
-                if (!$this->validator->canEditDivision($division, $agency)) {
+                $relation = $this->validator->getUserRelation($division->id);
+                if (!$this->validator->canEditDivision($relation)) {
                     throw new \Exception('Anda tidak memiliki izin untuk mengedit cabang ini.');
                 }
 
@@ -511,21 +509,9 @@ class DivisionController {
                     throw new \Exception('Division not found');
                 }
 
-                // Get agency data
-                $agency = $this->agencyModel->find($division->agency_id);
-                if (!$agency) {
-                    throw new \Exception('Agency not found');
-                }
-
-                // Permission check di awal
-                if (!$this->validator->canViewDivision($division, $agency)) {
+                $relation = $this->validator->getUserRelation($division->id);
+                if (!$this->validator->canViewDivision($relation)) {
                     throw new \Exception('Anda tidak memiliki izin untuk melihat detail cabang ini.');
-                }
-
-                // Business logic validation dengan data yang sudah ada
-                $errors = $this->validator->validateView($division, $agency);
-                if (!empty($errors)) {
-                    throw new \Exception(reset($errors));
                 }
 
                 wp_send_json_success([
@@ -631,13 +617,9 @@ class DivisionController {
             if (!$id) {
                 throw new \Exception('Invalid division ID');
             }
-            
-            // Get division and agency for permission check
-            $division = $this->model->find($id);
-            $agency = $this->agencyModel->find($division->agency_id);
-            
-            // Check edit permission first (since delete requires edit)
-            if (!$this->validator->canEditDivision($division, $agency)) {
+
+            $relation = $this->validator->getUserRelation($division->id);
+            if (!$this->validator->canEditDivision($relation)) {
                 throw new \Exception('Permission denied');
             }
             
@@ -674,9 +656,9 @@ class DivisionController {
                 throw new \Exception('Anda tidak memiliki akses untuk melihat data cabang');
             }
 
-            $divisiones = $this->model->getByAgency($agency_id);
+            $divisions = $this->model->getByAgency($agency_id);
 
-            wp_send_json_success($divisiones);
+            wp_send_json_success($divisions);
 
         } catch (\Exception $e) {
             wp_send_json_error([
@@ -699,10 +681,12 @@ class DivisionController {
             if (!$division_id) {
                 throw new \Exception('Gagal membuat demo division');
             }
+            // Dapatkan role/capability user saat ini
+            $access = $this->validator->validateAccess(0); 
 
             // Clear semua cache yang terkait
             $this->cache->delete('division', $division_id);
-            $this->cache->delete('division_total_count', get_current_user_id());
+            $this->cache->delete('division_total_count', $access['access_type']);
             $this->cache->delete('agency_division', $data['agency_id']);
             $this->cache->delete('agency_division_list', $data['agency_id']);
             

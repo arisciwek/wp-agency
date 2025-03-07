@@ -41,7 +41,7 @@ class PermissionModel {
         'view_division_detail' => 'Lihat Detail Division',
         'view_own_division' => 'Lihat Division Sendiri',
         'add_division' => 'Tambah Division',
-        'edit_all_divisiones' => 'Edit Semua Division',
+        'edit_all_divisions' => 'Edit Semua Division',
         'edit_own_division' => 'Edit Division Sendiri',
         'delete_division' => 'Hapus Division',
 
@@ -75,7 +75,7 @@ class PermissionModel {
                 'view_division_detail',
                 'view_own_division',
                 'add_division',
-                'edit_all_divisiones',
+                'edit_all_divisions',
                 'edit_own_division',
                 'delete_division'
             ]

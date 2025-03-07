@@ -1,6 +1,6 @@
 # WP Agency WordPress Plugin
 
-A comprehensive WordPress plugin for managing Agencyn administrative regions (agencies and divisiones/cities) with an emphasis on data integrity, user permissions, and performance.
+A comprehensive WordPress plugin for managing Agencyn administrative regions (agencies and divisions/cities) with an emphasis on data integrity, user permissions, and performance.
 
 ## 🚀 Features
 
@@ -25,9 +25,9 @@ A comprehensive WordPress plugin for managing Agencyn administrative regions (ag
 - Toast notifications system
 
 ### Data Management
-- Automatic code generation for agencies and divisiones
+- Automatic code generation for agencies and divisions
 - Data validation with comprehensive error checking
-- Relationship management between agencies and divisiones
+- Relationship management between agencies and divisions
 - Bulk operations support
 - Export capabilities (optional feature)
 
@@ -105,10 +105,10 @@ A comprehensive WordPress plugin for managing Agencyn administrative regions (ag
 4. Right panel shows detailed information
 
 ### Division Management
-1. Select a agency to view its divisiones
+1. Select a agency to view its divisions
 2. Use the division tab in the right panel
-3. Manage divisiones with similar actions:
-   - Add new divisiones
+3. Manage divisions with similar actions:
+   - Add new divisions
    - Edit existing ones
    - Delete as needed
 

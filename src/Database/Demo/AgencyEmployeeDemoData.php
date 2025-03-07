@@ -56,7 +56,7 @@ class AgencyEmployeeDemoData extends AbstractDemoData {
             );
             
             if ($division_count == 0) {
-                throw new \Exception('No divisiones found - please generate division data first');
+                throw new \Exception('No divisions found - please generate division data first');
             }
 
             // 3. Validasi static data untuk employee users

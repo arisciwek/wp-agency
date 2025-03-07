@@ -45,7 +45,7 @@ defined('ABSPATH') || exit;
                         </div>
                         <div class="wi-stat-box">
                             <h3>Total Division</h3>
-                            <p class="wi-stat-number" id="total-divisiones">0</p>
+                            <p class="wi-stat-number" id="total-divisions">0</p>
                         </div>
                     </div>
                 </div>

@@ -21,7 +21,7 @@ class WP_Agency_Agency_Detail_Provider implements WP_DocGen_Provider {
         return [
             'agency_name' => $this->agency->name,
             'agency_code' => $this->agency->code,
-            'total_divisiones' => $this->agency->division_count,
+            'total_divisions' => $this->agency->division_count,
             'created_date' => date('d F Y H:i', strtotime($this->agency->created_at)),
             'updated_date' => date('d F Y H:i', strtotime($this->agency->updated_at)),
             'npwp' => $this->agency->npwp ?? '-',

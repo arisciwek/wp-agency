@@ -86,7 +86,7 @@ class AgencyMembershipsDB {
             REFERENCES `{$wpdb->prefix}app_agencies` (id)
             ON DELETE CASCADE");
             
-        // Tambahkan foreign key constraint ke divisiones table
+        // Tambahkan foreign key constraint ke divisions table
         $wpdb->query("ALTER TABLE {$table_name} 
             ADD CONSTRAINT `fk_membership_division`
             FOREIGN KEY (division_id)

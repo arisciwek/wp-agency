@@ -9,7 +9,7 @@
  *
  * Path: /wp-agency/src/Database/Tables/DivisionsDB.php
  *
- * Description: Mendefinisikan struktur tabel divisiones.
+ * Description: Mendefinisikan struktur tabel divisions.
  *              Table prefix yang digunakan adalah 'app_'.
  *              Includes field untuk integrasi wilayah.
  *              Menyediakan foreign key ke agencies table.

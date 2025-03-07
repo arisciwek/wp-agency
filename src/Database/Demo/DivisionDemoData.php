@@ -53,7 +53,7 @@
  * 1. Validate agency_ids dan user_ids
  * 2. Validate provinces & regencies tables
  * 3. Generate pusat division setiap agency
- * 4. Generate cabang divisiones (1-2 per agency)
+ * 4. Generate cabang divisions (1-2 per agency)
  * 5. Track generated division IDs
  *
  * Changelog:
@@ -79,10 +79,11 @@ class DivisionDemoData extends AbstractDemoData {
     private $used_emails = [];
     private $agency_ids;
     private $user_ids;
+    private $divisionController;
     protected $division_users = [];
 
     // Format nama division
-    private static $divisiones = [
+    private static $divisions = [
         ['id' => 1, 'name' => '%s Kantor Pusat'],       // Kantor Pusat
         ['id' => 2, 'name' => '%s Division %s'],         // Division Regional
         ['id' => 3, 'name' => '%s Division %s']          // Division Area
@@ -203,7 +204,7 @@ class DivisionDemoData extends AbstractDemoData {
         }
         
         if ($this->shouldClearData()) {
-            // Delete existing divisiones
+            // Delete existing divisions
             $this->wpdb->query("DELETE FROM {$this->wpdb->prefix}app_divisions WHERE id > 0");
             
             // Reset auto increment
@@ -250,7 +251,7 @@ class DivisionDemoData extends AbstractDemoData {
                     $generated_count++;
                 }
 
-                // Check for existing cabang divisiones
+                // Check for existing cabang divisions
                 $existing_cabang_count = $this->wpdb->get_var($this->wpdb->prepare(
                     "SELECT COUNT(*) FROM {$this->wpdb->prefix}app_divisions 
                      WHERE agency_id = %d AND type = 'cabang'",
@@ -258,7 +259,7 @@ class DivisionDemoData extends AbstractDemoData {
                 ));
 
                 if ($existing_cabang_count > 0) {
-                    $this->debug("Cabang divisiones exist for agency {$agency_id}, skipping...");
+                    $this->debug("Cabang divisions exist for agency {$agency_id}, skipping...");
                 } else {
                     $this->generateCabangDivisions($agency);
                     $generated_count++;
@@ -266,14 +267,14 @@ class DivisionDemoData extends AbstractDemoData {
             }
 
             if ($generated_count === 0) {
-                $this->debug('No new divisiones were generated - all divisiones already exist');
+                $this->debug('No new divisions were generated - all divisions already exist');
             } else {
                 // Reset auto increment only if we added new data
                 $this->wpdb->query(
                     "ALTER TABLE {$this->wpdb->prefix}app_divisions AUTO_INCREMENT = " . 
                     (count($this->division_ids) + 1)
                 );
-                $this->debug("Division generation completed. Total new divisiones processed: {$generated_count}");
+                $this->debug("Division generation completed. Total new divisions processed: {$generated_count}");
             }
 
         } catch (\Exception $e) {
@@ -344,7 +345,7 @@ class DivisionDemoData extends AbstractDemoData {
     }
 
     /**
-     * Generate cabang divisiones
+     * Generate cabang divisions
      */
     private function generateCabangDivisions($agency): void {
         // Generate 1-2 cabang per agency

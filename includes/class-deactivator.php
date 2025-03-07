@@ -57,7 +57,7 @@ class WP_Agency_Deactivator {
             $tables = [
                 // First level - no dependencies
                 'app_agency_memberships',  // Drop this first as it references both agencies and levels
-                'app_agency_employees',    // Drop this next as it references agencies and divisiones
+                'app_agency_employees',    // Drop this next as it references agencies and divisions
                 'app_divisions',             // Drop this after employees as it only references agencies
                 // Second level - referenced by others
                 'app_agency_membership_levels',  // Can now be dropped as 

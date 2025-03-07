@@ -55,7 +55,7 @@
                 detailsPanel: $('#agency-details'),
                 stats: {
                     totalAgencys: $('#total-agencies'),
-                    totalDivisions: $('#total-divisiones')
+                    totalDivisions: $('#total-divisions')
                 }
             };
 
@@ -513,8 +513,8 @@
                             // Bind click event using delegation
                             $('#tombol-tambah-division').off('click', '#add-division-btn')
                                 .on('click', '#add-division-btn', () => {
-                                    if (window.Creat.DivisionForm) {
-                                        window.Creat.DivisionForm.showModal(this.currentId);
+                                    if (window.CreateDivisionForm) {
+                                        window.CreateDivisionForm.showModal(this.currentId);
                                     }
                                 });
                         }
@@ -594,7 +594,7 @@
 
 
         /**
-         * Load agency statistics including total agencies and divisiones.
+         * Load agency statistics including total agencies and divisions.
          * Uses getCurrentAgencyId() to determine which agency's stats to load.
          * Updates stats display via updateStats() when data is received.
          * 
@@ -633,7 +633,7 @@
 
         updateStats(stats) {
             $('#total-agencies').text(stats.total_agencies);
-            $('#total-divisiones').text(stats.total_divisiones);
+            $('#total-divisions').text(stats.total_divisions);
             $('#total-employees').text(stats.total_employees);
         }
 

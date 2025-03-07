@@ -949,12 +949,11 @@ public function createPdfButton() {
                 throw new \Exception('Failed to create demo agency');
             }
 
-            // Dapatkan role/capability user saat ini
-            $user_access_level = $this->validator->getAccessLevel();
+            $access = $this->validator->validateAccess(0); 
 
             // Clear relevant caches
             $this->cache->invalidateAgencyCache($data['id']);
-            $this->cache->delete('agency_total_count', $user_access_level);
+            $this->cache->delete('agency_total_count', $access['access_type']);
             $this->cache->invalidateDataTableCache('agency_list');
 
             return true;

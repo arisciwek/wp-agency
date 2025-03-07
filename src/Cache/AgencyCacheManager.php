@@ -74,13 +74,13 @@ class AgencyCacheManager {
     private const KEY_AGENCY_STATS = 'agency_stats';
     private const KEY_USER_AGENCYS = 'user_agencies';
 
-    // Cache keys for divisiones
+    // Cache keys for divisions
     private const KEY_AGENCY_DIVISION_LIST = 'agency_division_list';
     private const KEY_AGENCY_DIVISION = 'agency_division';
     private const KEY_DIVISION = 'division';
     private const KEY_DIVISION_LIST = 'division_list';
     private const KEY_DIVISION_STATS = 'division_stats';
-    private const KEY_USER_DIVISIONS = 'user_divisiones';
+    private const KEY_USER_DIVISIONS = 'user_divisions';
 
     // Cache keys for employees
     private const KEY_EMPLOYEE = 'employee';
@@ -107,7 +107,7 @@ class AgencyCacheManager {
             'division' => self::KEY_DIVISION,
             'division_list' => self::KEY_DIVISION_LIST,
             'division_stats' => self::KEY_DIVISION_STATS,
-            'user_divisiones' => self::KEY_USER_DIVISIONS,
+            'user_divisions' => self::KEY_USER_DIVISIONS,
             'employee' => self::KEY_EMPLOYEE,
             'employee_list' => self::KEY_EMPLOYEE_LIST,
             'employee_stats' => self::KEY_EMPLOYEE_STATS,
@@ -304,7 +304,7 @@ class AgencyCacheManager {
     /**
      * Invalidate DataTable cache for specific context
      * 
-     * @param string $context Context name (e.g. 'agency_list', 'agency_divisiones')
+     * @param string $context Context name (e.g. 'agency_list', 'agency_divisions')
      * @param array|null $filters Additional filters that were used (e.g. ['agency_id' => 123])
      * @return bool True if cache was invalidated, false otherwise
      */

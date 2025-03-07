@@ -37,7 +37,7 @@
  *    - This is ownership-based permission, not capability-based
  * 
  * 2. Regular User Rights:
- *    - Users with edit_own_division can only edit divisiones they created
+ *    - Users with edit_own_division can only edit divisions they created
  *    - Created_by field determines ownership for regular users
  * 
  * 3. Staff Rights:
@@ -45,12 +45,12 @@
  *    - View rights are automatic for agency scope
  * 
  * 4. Administrator Rights:
- *    - Only administrators use edit_all_divisiones capability
+ *    - Only administrators use edit_all_divisions capability
  *    - This is for system-wide access, not agency-scope access
  *    
  * Example:
- * - If user is agency owner: Can edit all divisiones under their agency
- * - If user has edit_own_division: Can only edit divisiones where created_by matches
+ * - If user is agency owner: Can edit all divisions under their agency
+ * - If user has edit_own_division: Can only edit divisions where created_by matches
  * - If user has edit_division: System administrator with full access
  */
 
@@ -71,11 +71,15 @@ class DivisionValidator {
     public function validateAccess(int $division_id): array {
         $relation = $this->getUserRelation($division_id);
         
+        // Dapatkan data division untuk mendapatkan agency_id
+        $division = $this->division_model->find($division_id);
+        $agency_id = $division ? $division->agency_id : 0;
+        
         return [
             'has_access' => $this->canViewDivision($relation),
             'access_type' => $this->getAccessType($relation),
             'relation' => $relation,
-            'agency_id' => $agency_id // Tambahkan ini
+            'agency_id' => $agency_id
         ];
     }
     
@@ -86,34 +90,68 @@ class DivisionValidator {
         return 'none';
     }
 
-    public function canViewDivision($division, $agency): bool {
+    /**
+     * Get user relation with division
+     *
+     * @param int $division_id
+     * @return array Array containing is_admin, is_owner, is_employee flags
+     */
+    public function getUserRelation(int $division_id): array {
+        global $wpdb;
         $current_user_id = get_current_user_id();
 
-        // 1. Agency Owner Check - highest priority
-        if ((int)$agency->user_id === (int)$current_user_id) {
-            return true;
+        // Default relation
+        $relation = [
+            'is_admin' => current_user_can('edit_all_divisions'),
+            'is_owner' => false,
+            'is_employee' => false,
+            'is_division_admin' => false
+        ];
+
+        // Jika tidak ada division_id, kembalikan default
+        if (!$division_id) {
+            return $relation;
         }
 
-        // 2. Division Admin Check
-        if ((int)$division->user_id === (int)$current_user_id) {
-            return true;
+        // Dapatkan data division
+        $division = $this->division_model->find($division_id);
+        if (!$division) {
+            return $relation;
         }
 
-        // 3. Staff Check (dari AgencyEmployees)
-        if ($this->isStaffMember($current_user_id, $division->id)) {
-            return true;
+        // Dapatkan data agency
+        $agency = $this->agency_model->find($division->agency_id);
+        if (!$agency) {
+            return $relation;
         }
 
-        // 4. System Admin Check
-        if (current_user_can('view_division_detail')) {
-            return true;
-        }
+        // Cek apakah user adalah agency owner
+        $relation['is_owner'] = ((int)$agency->user_id === $current_user_id);
 
-        $can_view = apply_filters('wp_agency_can_view_division', false, $division, $agency, $current_user_id);
-        if ($can_view) {
-            return true;
-        }
+        // Cek apakah user adalah division admin
+        $relation['is_division_admin'] = ((int)$division->user_id === $current_user_id);
 
+        // Cek apakah user adalah employee di division ini
+        $is_employee = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_employees 
+             WHERE division_id = %d 
+             AND user_id = %d 
+             AND status = 'active'",
+            $division_id,
+            $current_user_id
+        ));
+
+        $relation['is_employee'] = (int)$is_employee > 0;
+
+        return $relation;
+    }
+
+    public function canViewDivision(array $relation): bool {
+        if ($relation['is_admin']) return true;
+        if ($relation['is_owner'] && current_user_can('view_own_division')) return true;
+        if ($relation['is_division_admin'] && current_user_can('view_own_division')) return true;
+        if ($relation['is_employee'] && current_user_can('view_division_detail')) return true;
+        
         return false;
     }
 
@@ -134,55 +172,19 @@ class DivisionValidator {
         return apply_filters('wp_agency_can_create_division', false, $agency_id, $current_user_id);
     }
 
-    public function canEditDivision($division, $agency) {
-        $current_user_id = get_current_user_id();
-
-        // 1. Agency Owner Check - highest priority
-        $is_agency_owner = ((int)$agency->user_id === (int)$current_user_id);
-        if ($is_agency_owner) {
-            return true;
-        }
-
-        // 2. Division Admin Check
-        if ((int)$division->user_id === (int)$current_user_id && current_user_can('edit_own_division')) {
-            return true;
-        }
-
-        // 3. System Admin Check  
-        if (current_user_can('edit_all_divisiones')) {
-            return true;
-        }
+    public function canEditDivision(array $relation): bool {
+        if ($relation['is_admin']) return true;
+        if ($relation['is_owner'] && current_user_can('edit_own_division')) return true;
+        if ($relation['is_division_admin'] && current_user_can('edit_own_division')) return true;
         
-        $can_edit = apply_filters('wp_agency_can_edit_division', false, $division, $agency, $current_user_id);
-        if ($can_edit) {
-            return true;
-        }
-
         return false;
-
     }
 
-    public function canDeleteDivision($division, $agency): bool {
-        $current_user_id = get_current_user_id();
-
-        // 1. Agency Owner Check - highest priority
-        if ((int)$agency->user_id === (int)$current_user_id) {
-            return true;
-        }
-
-        // 2. Division Admin Check
-        // Harus admin division DAN punya capability delete_division
-        if ((int)$division->user_id === (int)$current_user_id && 
-            current_user_can('edit_own_division')) {
-            return true;
-        }
-
-        // 3. Staff TIDAK bisa delete
-        // 4. System Admin dengan delete_division bisa delete semua
-        if (current_user_can('delete_division')) {
-            return true;
-        }
-
+    public function canDeleteDivision(array $relation): bool {
+        if ($relation['is_admin'] && current_user_can('delete_division')) return true;
+        if ($relation['is_owner']) return true;
+        if ($relation['is_division_admin'] && current_user_can('delete_division')) return true;
+        
         return false;
     }
 
@@ -317,7 +319,7 @@ class DivisionValidator {
             return ['valid' => true];
         }
 
-        // Count remaining 'pusat' divisiones excluding current division
+        // Count remaining 'pusat' divisions excluding current division
         $pusat_count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}app_divisions 
              WHERE agency_id = %d AND type = 'pusat' AND id != %d",
@@ -352,8 +354,8 @@ class DivisionValidator {
             return ['valid' => true];
         }
 
-        // Count active non-pusat divisiones
-        $active_divisiones = $wpdb->get_var($wpdb->prepare(
+        // Count active non-pusat divisions
+        $active_divisions = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}app_divisions 
              WHERE agency_id = %d 
              AND type = 'cabang' 
@@ -363,7 +365,7 @@ class DivisionValidator {
             $division_id
         ));
 
-        if ($active_divisiones > 0) {
+        if ($active_divisions > 0) {
             return [
                 'valid' => false,
                 'message' => 'Tidak dapat menghapus kantor pusat karena masih ada cabang aktif'

@@ -40,7 +40,7 @@ function get_capability_description($capability) {
         'view_division_detail' => __('Memungkinkan melihat detail informasi cabang', 'wp-agency'),
         'view_own_division' => __('Memungkinkan melihat cabang yang ditugaskan', 'wp-agency'),
         'add_division' => __('Memungkinkan menambahkan data cabang baru', 'wp-agency'),
-        'edit_all_divisiones' => __('Memungkinkan mengedit semua data cabang', 'wp-agency'),
+        'edit_all_divisions' => __('Memungkinkan mengedit semua data cabang', 'wp-agency'),
         'edit_own_division' => __('Memungkinkan mengedit hanya cabang yang ditugaskan', 'wp-agency'),
         'delete_division' => __('Memungkinkan menghapus data cabang', 'wp-agency'),
 

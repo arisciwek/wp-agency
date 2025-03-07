@@ -329,10 +329,10 @@ class DivisionModel {
 
     /**
      * Get total division count based on user permission
-     * Only users with 'view_division_list' capability can see all divisiones
+     * Only users with 'view_division_list' capability can see all divisions
      * 
      * @param int|null $id Optional agency ID for filtering
-     * @return int Total number of divisiones
+     * @return int Total number of divisions
      */
 
     public function getTotalCount($agency_id): int {

@@ -78,7 +78,7 @@
             this.agencyId = agencyId;
             this.form.find('#employee-agency-id').val(agencyId);
 
-            // Load divisiones for agency
+            // Load divisions for agency
             this.loadDivisions(agencyId);
 
             // Reset and show form
@@ -96,7 +96,7 @@
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
                     data: {
-                        action: 'get_agency_divisiones',
+                        action: 'get_agency_divisions',
                         agency_id: agencyId,
                         nonce: wpAgencyData.nonce
                     }
@@ -114,7 +114,7 @@
                     EmployeeToast.error('Gagal memuat data cabang');
                 }
             } catch (error) {
-                console.error('Load divisiones error:', error);
+                console.error('Load divisions error:', error);
                 EmployeeToast.error('Gagal memuat data cabang');
             }
         },
