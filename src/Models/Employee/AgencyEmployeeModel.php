@@ -43,63 +43,62 @@ class AgencyEmployeeModel {
         $this->cache = new AgencyCacheManager();
     }
 
-public function create(array $data): ?int {
-    global $wpdb;
+    public function create(array $data): ?int {
+        global $wpdb;
 
-    $result = $wpdb->insert(
-        $this->table,
-        [
-            'agency_id' => $data['agency_id'],  // Ambil agency_id dari data
-            'division_id' => $data['division_id'],
-            'user_id' => get_current_user_id(),
-            'name' => $data['name'],
-            'position' => $data['position'],
-            'finance' => $data['finance'],
-            'operation' => $data['operation'],
-            'legal' => $data['legal'],
-            'purchase' => $data['purchase'],
-            'keterangan' => $data['keterangan'],
-            'email' => $data['email'],
-            'phone' => $data['phone'],
-            'created_by' => get_current_user_id(),
-            'created_at' => current_time('mysql'),
-            'updated_at' => current_time('mysql'),
-            'status' => $data['status'] ?? 'active'
-        ],
-        [
-            '%d', // agency_id
-            '%d', // division_id
-            '%d', // user_id
-            '%s', // name
-            '%s', // position
-            '%d', // finance
-            '%d', // operation
-            '%d', // legal
-            '%d', // purchase
-            '%s', // keterangan
-            '%s', // email
-            '%s', // phone
-            '%d', // created_by
-            '%s', // created_at
-            '%s', // updated_at
-            '%s'  // status
-        ]
-    );
+        $result = $wpdb->insert(
+            $this->table,
+            [
+                'agency_id' => $data['agency_id'],
+                'division_id' => $data['division_id'],
+                'user_id' => get_current_user_id(),
+                'name' => $data['name'],
+                'position' => $data['position'],
+                'finance' => $data['finance'],
+                'operation' => $data['operation'],
+                'legal' => $data['legal'],
+                'purchase' => $data['purchase'],
+                'keterangan' => $data['keterangan'],
+                'email' => $data['email'],
+                'phone' => $data['phone'],
+                'created_by' => get_current_user_id(),
+                'created_at' => current_time('mysql'),
+                'updated_at' => current_time('mysql'),
+                'status' => $data['status'] ?? 'active'
+            ],
+            [
+                '%d', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s'
+            ]
+        );
 
-    if ($result === false) {
-        return null;
+        if ($result === false) {
+            return null;
+        }
+
+        $employee_id = (int) $wpdb->insert_id;
+        
+        // Invalidasi cache terkait agency_employee
+        $this->cache->delete('agency_active_employee_count', (string)$data['agency_id']);
+        $this->cache->delete('agency_employee_count', (string)$data['agency_id']);
+        $this->cache->delete('division_agency_employee_list', (string)$data['division_id']);
+        $this->cache->invalidateDataTableCache('agency_employee_list', [
+            'agency_id' => $data['agency_id']
+        ]);
+
+        return $employee_id;
     }
-
-    // Clear cache untuk agency yang bersangkutan
-    $this->cache->delete('agency_active_employee_count', (string)$data['agency_id']);
-
-    return (int) $wpdb->insert_id;
-}
 
     public function find(int $id): ?object {
         global $wpdb;
 
-        return $wpdb->get_row($wpdb->prepare("
+        // Cek cache terlebih dahulu
+        $cached_employee = $this->cache->get('agency_employee', $id);
+        if ($cached_employee !== null) {
+            return $cached_employee;
+        }
+        
+        // Jika tidak ada di cache, ambil dari database
+        $result = $wpdb->get_row($wpdb->prepare("
             SELECT e.*, 
                    c.name as agency_name,
                    b.name as division_name,
@@ -110,12 +109,25 @@ public function create(array $data): ?int {
             LEFT JOIN {$wpdb->users} u ON e.created_by = u.ID
             WHERE e.id = %d
         ", $id));
+        
+        // Simpan ke cache jika ditemukan
+        if ($result) {
+            $this->cache->set('agency_employee', $result, $this->cache::getCacheExpiry(), $id);
+        }
+        
+        return $result;
     }
 
     public function update(int $id, array $data): bool {
         global $wpdb;
 
-        // Only include status in update if it's provided and valid
+        // Simpan data agency_id dan division_id sebelum update
+        $current_employee = $this->find($id);
+        $agency_id = $current_employee->agency_id;
+        $old_division_id = $current_employee->division_id;
+        $new_division_id = $data['division_id'] ?? $old_division_id;
+
+        // Update data
         $updateData = [
             'name' => $data['name'],
             'position' => $data['position'],
@@ -126,52 +138,101 @@ public function create(array $data): ?int {
             'keterangan' => $data['keterangan'],
             'email' => $data['email'],
             'phone' => $data['phone'],
-            'division_id' => $data['division_id'],
+            'division_id' => $new_division_id,
             'updated_at' => current_time('mysql')
         ];
 
         $format = [
-            '%s', // name
-            '%s', // position
-            '%d', // finance
-            '%d', // operation
-            '%d', // legal
-            '%d', // purchase
-            '%s', // keterangan
-            '%s', // email
-            '%s', // phone
-            '%d', // division_id
-            '%s'  // updated_at
+            '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s', '%s', '%d', '%s'
         ];
 
         // Add status to update data if provided and valid
         if (isset($data['status']) && in_array($data['status'], self::VALID_STATUSES)) {
             $updateData['status'] = $data['status'];
-            $format[] = '%s'; // status
+            $format[] = '%s';
         }
 
-        return $wpdb->update(
+        $result = $wpdb->update(
             $this->table,
             $updateData,
             ['id' => $id],
             $format,
             ['%d']
-        ) !== false;
+        );
+
+        if ($result === false) {
+            return false;
+        }
+
+        // Invalidasi cache
+        $this->cache->delete('agency_employee', $id);
+        $this->cache->delete('agency_employee_count', (string)$agency_id);
+        $this->cache->delete('agency_active_employee_count', (string)$agency_id);
+        
+        // Invalidasi cache divisi lama dan baru jika berbeda
+        $this->cache->delete('division_agency_employee_list', (string)$old_division_id);
+        if ($old_division_id != $new_division_id) {
+            $this->cache->delete('division_agency_employee_list', (string)$new_division_id);
+        }
+        
+        // Invalidasi cache datatable
+        $this->cache->invalidateDataTableCache('agency_employee_list', [
+            'agency_id' => $agency_id
+        ]);
+
+        return true;
     }
 
     public function delete(int $id): bool {
         global $wpdb;
 
-        return $wpdb->delete(
+        // Dapatkan data employee sebelum dihapus
+        $employee = $this->find($id);
+        if (!$employee) {
+            return false;
+        }
+        
+        $agency_id = $employee->agency_id;
+        $division_id = $employee->division_id;
+
+        $result = $wpdb->delete(
             $this->table,
             ['id' => $id],
             ['%d']
-        ) !== false;
+        );
+
+        if ($result === false) {
+            return false;
+        }
+
+        // Invalidasi cache
+        $this->cache->delete('agency_employee', $id);
+        $this->cache->delete('agency_employee_count', (string)$agency_id);
+        $this->cache->delete('agency_active_employee_count', (string)$agency_id);
+        $this->cache->delete('division_agency_employee_list', (string)$division_id);
+        $this->cache->invalidateDataTableCache('agency_employee_list', [
+            'agency_id' => $agency_id
+        ]);
+
+        return true;
     }
 
     public function existsByEmail(string $email, ?int $excludeId = null): bool {
         global $wpdb;
 
+        // Generate cache key
+        $cache_key = 'agency_employee_email_' . md5($email);
+        if ($excludeId) {
+            $cache_key .= '_exclude_' . $excludeId;
+        }
+        
+        // Cek cache dulu
+        $cached_result = $this->cache->get($cache_key);
+        if ($cached_result !== null) {
+            return (bool)$cached_result;
+        }
+
+        // Buat query
         $sql = "SELECT EXISTS (SELECT 1 FROM {$this->table} WHERE email = %s";
         $params = [$email];
 
@@ -182,7 +243,13 @@ public function create(array $data): ?int {
 
         $sql .= ") as result";
 
-        return (bool) $wpdb->get_var($wpdb->prepare($sql, $params));
+        // Jalankan query
+        $exists = (bool) $wpdb->get_var($wpdb->prepare($sql, $params));
+        
+        // Simpan ke cache dengan waktu singkat (5 menit)
+        $this->cache->set($cache_key, $exists, 5 * MINUTE_IN_SECONDS);
+        
+        return $exists;
     }
 
     public function getDataTableData(int $agency_id, int $start, int $length, string $search, string $orderColumn, string $orderDir): array {
@@ -298,6 +365,19 @@ public function create(array $data): ?int {
     public function getTotalCount(?int $agency_id = null): int {
         global $wpdb;
 
+        // Generate cache key
+        $cache_key = 'agency_employee_count';
+        if ($agency_id) {
+            $cache_key .= '_' . $agency_id;
+        }
+        
+        // Cek cache dulu
+        $cached_count = $this->cache->get($cache_key);
+        if ($cached_count !== null) {
+            return (int)$cached_count;
+        }
+
+        // Query database
         $sql = "SELECT COUNT(*) FROM {$this->table}";
         $params = [];
 
@@ -310,7 +390,12 @@ public function create(array $data): ?int {
             $sql = $wpdb->prepare($sql, $params);
         }
 
-        return (int) $wpdb->get_var($sql);
+        $count = (int) $wpdb->get_var($sql);
+        
+        // Simpan ke cache
+        $this->cache->set($cache_key, $count, 30 * MINUTE_IN_SECONDS);
+        
+        return $count;
     }
 
     /**
@@ -318,15 +403,30 @@ public function create(array $data): ?int {
      */
     public function getByDivision(int $division_id): array {
         global $wpdb;
+        
+        // Cek cache dulu
+        $cache_key = 'division_agency_employee_list_' . $division_id;
+        $cached_employees = $this->cache->get($cache_key);
+        
+        if ($cached_employees !== null) {
+            return $cached_employees;
+        }
 
-        return $wpdb->get_results($wpdb->prepare("
+        // Query database
+        $employees = $wpdb->get_results($wpdb->prepare("
             SELECT e.*
             FROM {$this->table} e
             WHERE e.division_id = %d
             ORDER BY e.name ASC
         ", $division_id));
+        
+        // Simpan ke cache
+        if ($employees) {
+            $this->cache->set($cache_key, $employees, $this->cache::getCacheExpiry(), $division_id);
+        }
+        
+        return $employees;
     }
-
 
     // Add method to validate status
     public function isValidStatus(string $status): bool {
@@ -340,7 +440,17 @@ public function create(array $data): ?int {
         }
 
         global $wpdb;
-        return $wpdb->update(
+        
+        // Dapatkan data employee sebelum update
+        $employee = $this->find($id);
+        if (!$employee) {
+            return false;
+        }
+        
+        $agency_id = $employee->agency_id;
+        $division_id = $employee->division_id;
+
+        $result = $wpdb->update(
             $this->table,
             [
                 'status' => $status,
@@ -349,9 +459,23 @@ public function create(array $data): ?int {
             ['id' => $id],
             ['%s', '%s'],
             ['%d']
-        ) !== false;
-    }
+        );
 
+        if ($result === false) {
+            return false;
+        }
+
+        // Invalidasi cache
+        $this->cache->delete('agency_employee', $id);
+        $this->cache->delete('agency_employee_count', (string)$agency_id);
+        $this->cache->delete('agency_active_employee_count', (string)$agency_id);
+        $this->cache->delete('division_agency_employee_list', (string)$division_id);
+        $this->cache->invalidateDataTableCache('agency_employee_list', [
+            'agency_id' => $agency_id
+        ]);
+
+        return true;
+    }
 
     /**
      * Get employees in batches for efficient processing
@@ -395,6 +519,24 @@ public function create(array $data): ?int {
     public function bulkUpdate(array $ids, array $data): int {
         global $wpdb;
         
+        // Dapatkan agency_id dan division_id terkait
+        $affected_agencies = [];
+        $affected_divisions = [];
+        
+        foreach ($ids as $id) {
+            $employee = $this->find($id);
+            if ($employee) {
+                $affected_agencies[$employee->agency_id] = true;
+                $affected_divisions[$employee->division_id] = true;
+                
+                // Jika ada perubahan division_id, tambahkan division_id baru
+                if (isset($data['division_id']) && $data['division_id'] != $employee->division_id) {
+                    $affected_divisions[$data['division_id']] = true;
+                }
+            }
+        }
+        
+        // Lakukan update seperti sebelumnya
         $validFields = [
             'division_id',
             'status',
@@ -427,9 +569,44 @@ public function create(array $data): ?int {
         $sql .= ", updated_at = %s";
         $values[] = current_time('mysql');
         
-        return $wpdb->query($wpdb->prepare($sql, $values));
+        $result = $wpdb->query($wpdb->prepare($sql, $values));
+        
+        // Invalidasi cache
+        foreach ($ids as $id) {
+            $this->cache->delete('agency_employee', $id);
+        }
+        
+        foreach (array_keys($affected_agencies) as $agency_id) {
+            $this->cache->delete('agency_employee_count', (string)$agency_id);
+            $this->cache->delete('agency_active_employee_count', (string)$agency_id);
+            $this->cache->invalidateDataTableCache('agency_employee_list', [
+                'agency_id' => $agency_id
+            ]);
+        }
+        
+        foreach (array_keys($affected_divisions) as $division_id) {
+            $this->cache->delete('division_agency_employee_list', (string)$division_id);
+        }
+        
+        return $result;
     }
-
+    
+    public function invalidateEmployeeCache(int $id): void {
+        // Dapatkan data employee
+        $employee = $this->find($id);
+        if (!$employee) {
+            return;
+        }
+        
+        // Invalidasi cache terkait employee ini
+        $this->cache->delete('agency_employee', $id);
+        $this->cache->delete('agency_employee_count', (string)$employee->agency_id);
+        $this->cache->delete('agency_active_employee_count', (string)$employee->agency_id);
+        $this->cache->delete('division_agency_employee_list', (string)$employee->division_id);
+        $this->cache->invalidateDataTableCache('agency_employee_list', [
+            'agency_id' => $employee->agency_id
+        ]);
+    }
 
 }
 
