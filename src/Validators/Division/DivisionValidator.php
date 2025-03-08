@@ -58,29 +58,64 @@ namespace WPAgency\Validators\Division;
 
 use WPAgency\Models\Division\DivisionModel;
 use WPAgency\Models\Agency\AgencyModel;
+use WPAgency\Cache\AgencyCacheManager;
 
 class DivisionValidator {
     private $division_model;
     private $agency_model;
+    private AgencyCacheManager $cache;
 
     public function __construct() {
         $this->division_model = new DivisionModel();
         $this->agency_model = new AgencyModel();
+        $this->cache = new AgencyCacheManager();
     }
 
     public function validateAccess(int $division_id): array {
+        // Cek cache untuk hasil validateAccess terlebih dahulu
+        $cache_key = 'division_access_' . $division_id . '_' . get_current_user_id();
+        $cached_access = $this->cache->get($cache_key);
+        
+        if ($cached_access !== null) {
+            return $cached_access;
+        }
+        
+        // Jika tidak ada di cache, lakukan validasi
         $relation = $this->getUserRelation($division_id);
         
         // Dapatkan data division untuk mendapatkan agency_id
-        $division = $this->division_model->find($division_id);
+        // Gunakan cache jika tersedia
+        $cached_division = $this->cache->get('division', $division_id);
+        
+        if ($cached_division !== null) {
+            $division = $cached_division;
+        } else {
+            $division = $this->division_model->find($division_id);
+        }
+        
         $agency_id = $division ? $division->agency_id : 0;
         
-        return [
+        $access_result = [
             'has_access' => $this->canViewDivision($relation),
             'access_type' => $this->getAccessType($relation),
             'relation' => $relation,
             'agency_id' => $agency_id
         ];
+        
+        // Simpan hasil ke cache dengan waktu lebih singkat (10 menit)
+        // Karena akses permission bisa berubah lebih sering
+        $this->cache->set($cache_key, $access_result, 10 * MINUTE_IN_SECONDS);
+        
+        return $access_result;
+    }
+
+    public function invalidateAccessCache(int $division_id, ?int $user_id = null): void {
+        if ($user_id === null) {
+            $user_id = get_current_user_id();
+        }
+        
+        $cache_key = 'division_access_' . $division_id . '_' . $user_id;
+        $this->cache->delete($cache_key);
     }
     
     private function getAccessType(array $relation): string {
@@ -113,35 +148,46 @@ class DivisionValidator {
             return $relation;
         }
 
-        // Dapatkan data division
-        $division = $this->division_model->find($division_id);
+        // Dapatkan data division dari cache dulu
+        $division = $this->cache->get('division', $division_id);
+        
+        // Jika tidak ada di cache, ambil dari database
+        if ($division === null) {
+            $division = $this->division_model->find($division_id);
+            
+            // Simpan ke cache untuk penggunaan berikutnya
+            if ($division) {
+                $this->cache->set('division', $division, 3600, $division_id);
+            }
+        }
+
         if (!$division) {
             return $relation;
         }
 
-        // Dapatkan data agency
-        $agency = $this->agency_model->find($division->agency_id);
+        // Dapatkan data agency dari cache dulu
+        $agency = $this->cache->get('agency', $division->agency_id);
+        
+        // Jika tidak ada di cache, ambil dari database
+        if ($agency === null) {
+            $agency = $this->agency_model->find($division->agency_id);
+            
+            // Simpan ke cache untuk penggunaan berikutnya
+            if ($agency) {
+                $this->cache->set('agency', $agency, 3600, $division->agency_id);
+            }
+        }
+
         if (!$agency) {
             return $relation;
         }
 
-        // Cek apakah user adalah agency owner
+        // Isi data relation
         $relation['is_owner'] = ((int)$agency->user_id === $current_user_id);
-
-        // Cek apakah user adalah division admin
         $relation['is_division_admin'] = ((int)$division->user_id === $current_user_id);
 
-        // Cek apakah user adalah employee di division ini
-        $is_employee = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_employees 
-             WHERE division_id = %d 
-             AND user_id = %d 
-             AND status = 'active'",
-            $division_id,
-            $current_user_id
-        ));
-
-        $relation['is_employee'] = (int)$is_employee > 0;
+        // Gunakan method dari model untuk cek status employee
+        $relation['is_employee'] = $this->division_model->isEmployeeActive($division_id, $current_user_id);
 
         return $relation;
     }
@@ -280,64 +326,95 @@ class DivisionValidator {
 
         return $sanitized;
     }
-
+    
     public function validateDivisionTypeCreate(string $type, int $agency_id): array {
         global $wpdb;
+        
+        // Cek cache terlebih dahulu
+        $cache_key = 'division_type_create_validation_' . $agency_id . '_' . $type;
+        $cached_result = $this->cache->get($cache_key);
+        
+        if ($cached_result !== null) {
+            return $cached_result;
+        }
         
         $division_count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}app_divisions WHERE agency_id = %d",
             $agency_id
         ));
 
+        $result = ['valid' => true];
+        
         if ($division_count === '0' && $type !== 'pusat') {
-            return [
+            $result = [
                 'valid' => false,
                 'message' => 'Cabang pertama harus bertipe kantor pusat'
             ];
         }
-
-        return ['valid' => true];
+        
+        // Simpan hasil ke cache - 5 menit
+        $this->cache->set($cache_key, $result, 5 * MINUTE_IN_SECONDS);
+        
+        return $result;
     }
 
     public function validateDivisionTypeChange(int $division_id, string $new_type, int $agency_id): array {
         global $wpdb;
         
+        // Cek cache terlebih dahulu
+        $cache_key = 'division_type_change_validation_' . $division_id . '_' . $new_type;
+        $cached_result = $this->cache->get($cache_key);
+        
+        if ($cached_result !== null) {
+            return $cached_result;
+        }
+        
         // If not changing to 'cabang', no validation needed
         if ($new_type !== 'cabang') {
-            return ['valid' => true];
+            $result = ['valid' => true];
+            $this->cache->set($cache_key, $result, 5 * MINUTE_IN_SECONDS);
+            return $result;
         }
 
-        // Get current division type
-        $current_division = $wpdb->get_row($wpdb->prepare(
-            "SELECT type FROM {$wpdb->prefix}app_divisions 
-             WHERE id = %d AND agency_id = %d",
-            $division_id, $agency_id
-        ));
-
-        // If current type is not 'pusat', no validation needed
-        if (!$current_division || $current_division->type !== 'pusat') {
-            return ['valid' => true];
+        // Get current division type - gunakan caching dari DivisionModel.find() jika memungkinkan
+        $division_model = new \WPAgency\Models\Division\DivisionModel();
+        $division = $division_model->find($division_id);
+        
+        // Jika tidak ditemukan division atau type bukan pusat, tidak perlu validasi
+        if (!$division || $division->type !== 'pusat') {
+            $result = ['valid' => true];
+            $this->cache->set($cache_key, $result, 5 * MINUTE_IN_SECONDS);
+            return $result;
         }
 
-        // Count remaining 'pusat' divisions excluding current division
-        $pusat_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}app_divisions 
-             WHERE agency_id = %d AND type = 'pusat' AND id != %d",
-            $agency_id, $division_id
-        ));
-
-        if ($pusat_count === '0') {
-            return [
+        // Hitung jumlah kantor pusat - gunakan metode cached dari DivisionModel
+        $pusat_count = $division_model->countPusatByAgency($agency_id);
+        
+        $result = ['valid' => true];
+        if ($pusat_count <= 1) {
+            $result = [
                 'valid' => false,
                 'message' => 'Minimal harus ada 1 kantor pusat. Tidak bisa mengubah tipe kantor pusat terakhir.'
             ];
         }
-
-        return ['valid' => true];
+        
+        // Simpan hasil ke cache - 5 menit
+        $this->cache->set($cache_key, $result, 5 * MINUTE_IN_SECONDS);
+        
+        return $result;
     }
 
+    // Tambahkan cache untuk validateDivisionTypeDelete
     public function validateDivisionTypeDelete(int $division_id): array {
         global $wpdb;
+        
+        // Cek cache terlebih dahulu
+        $cache_key = 'division_type_delete_validation_' . $division_id;
+        $cached_result = $this->cache->get($cache_key);
+        
+        if ($cached_result !== null) {
+            return $cached_result;
+        }
         
         // Get division details including agency_id and type
         $division = $wpdb->get_row($wpdb->prepare(
@@ -346,12 +423,16 @@ class DivisionValidator {
         ));
 
         if (!$division) {
-            return ['valid' => false, 'message' => 'Division tidak ditemukan'];
+            $result = ['valid' => false, 'message' => 'Division tidak ditemukan'];
+            $this->cache->set($cache_key, $result, 5 * MINUTE_IN_SECONDS);
+            return $result;
         }
 
         // If not pusat, no validation needed
         if ($division->type !== 'pusat') {
-            return ['valid' => true];
+            $result = ['valid' => true];
+            $this->cache->set($cache_key, $result, 5 * MINUTE_IN_SECONDS);
+            return $result;
         }
 
         // Count active non-pusat divisions
@@ -366,13 +447,18 @@ class DivisionValidator {
         ));
 
         if ($active_divisions > 0) {
-            return [
+            $result = [
                 'valid' => false,
                 'message' => 'Tidak dapat menghapus kantor pusat karena masih ada cabang aktif'
             ];
+        } else {
+            $result = ['valid' => true];
         }
-
-        return ['valid' => true];
+        
+        // Simpan hasil ke cache
+        $this->cache->set($cache_key, $result, 5 * MINUTE_IN_SECONDS);
+        
+        return $result;
     }
 
 }

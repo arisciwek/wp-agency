@@ -158,37 +158,83 @@ class DivisionController {
                 throw new \Exception('Missing required parameters');
             }
 
-            // Get current division data
-            $division = $this->model->find($division_id);
+            // Get current division data - cek cache terlebih dahulu
+            $cached_division = $this->cache->get('division', $division_id);
+            
+            if ($cached_division !== null) {
+                $division = $cached_division;
+            } else {
+                // Jika tidak ada dalam cache, ambil dari database
+                $division = $this->model->find($division_id);
+                
+                // Simpan ke cache jika ada
+                if ($division) {
+                    $this->cache->set('division', $division, $this->cache::getCacheExpiry(), $division_id);
+                }
+            }
+
             if (!$division) {
                 throw new \Exception('Division not found');
             }
 
-            // Get all divisions for this agency
-            $existing_pusat = $this->model->findPusatByAgency($division->agency_id);
-            
-            // If changing to 'pusat' and there's already a pusat division
-            if ($new_type === 'pusat' && $existing_pusat && $existing_pusat->id !== $division_id) {
-                wp_send_json_error([
-                    'message' => sprintf(
-                        'Agency sudah memiliki kantor pusat: %s. Tidak dapat mengubah cabang ini menjadi kantor pusat.',
-                        $existing_pusat->name
-                    ),
-                    'original_type' => $division->type
-                ]);
+            // Jika tidak mengubah tipe (tipe baru sama dengan tipe lama), langsung kembalikan valid
+            if ($division->type === $new_type) {
+                wp_send_json_success(['message' => 'No change in division type']);
+                return;
+            }
+
+            // Untuk perubahan ke tipe 'pusat'
+            if ($new_type === 'pusat') {
+                // Cek cache untuk pusat division yang ada
+                $existing_pusat = $this->cache->get('agency_pusat_division', $division->agency_id);
+                
+                if ($existing_pusat === null) {
+                    // Jika tidak ada dalam cache, ambil dari database
+                    $existing_pusat = $this->model->findPusatByAgency($division->agency_id);
+                    
+                    // Simpan ke cache jika ada
+                    if ($existing_pusat) {
+                        $this->cache->set('agency_pusat_division', $existing_pusat, $this->cache::getCacheExpiry(), $division->agency_id);
+                    }
+                }
+                
+                // Jika sudah ada pusat division dan bukan division yang sedang diedit
+                if ($existing_pusat && $existing_pusat->id !== $division_id) {
+                    wp_send_json_error([
+                        'message' => sprintf(
+                            'Agency sudah memiliki kantor pusat: %s. Tidak dapat mengubah cabang ini menjadi kantor pusat.',
+                            $existing_pusat->name
+                        ),
+                        'original_type' => $division->type
+                    ]);
+                    return;
+                }
             }
             
-            // If changing from 'pusat' to 'cabang', check if this is the only pusat
+            // Untuk perubahan dari 'pusat' ke 'cabang'
             if ($division->type === 'pusat' && $new_type === 'cabang') {
-                $pusat_count = $this->model->countPusatByAgency($division->agency_id);
+                // Cek cache untuk jumlah kantor pusat
+                $pusat_count = $this->cache->get('agency_pusat_count', $division->agency_id);
+                
+                if ($pusat_count === null) {
+                    // Jika tidak ada dalam cache, hitung dari database
+                    $pusat_count = $this->model->countPusatByAgency($division->agency_id);
+                    
+                    // Simpan ke cache
+                    $this->cache->set('agency_pusat_count', $pusat_count, $this->cache::getCacheExpiry(), $division->agency_id);
+                }
+                
+                // Jika ini adalah satu-satunya kantor pusat
                 if ($pusat_count <= 1) {
                     wp_send_json_error([
                         'message' => 'Tidak dapat mengubah tipe menjadi cabang karena ini adalah satu-satunya kantor pusat.',
                         'original_type' => $division->type
                     ]);
+                    return;
                 }
             }
 
+            // Jika semua validasi lulus
             wp_send_json_success(['message' => 'Valid']);
 
         } catch (\Exception $e) {
@@ -431,183 +477,227 @@ class DivisionController {
         }
 
     }
+
     /**
      * Implementation in update() method
      */
+    public function update() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
 
-        public function update() {
-            try {
-                check_ajax_referer('wp_agency_nonce', 'nonce');
+            $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+            if (!$id) {
+                throw new \Exception('Invalid division ID');
+            }
 
-                $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
-                if (!$id) {
-                    throw new \Exception('Invalid division ID');
-                }
+            // Get existing division data
+            $division = $this->model->find($id);
+            if (!$division) {
+                throw new \Exception('Division not found');
+            }
 
-                // Get existing division data
-                $division = $this->model->find($id);
-                if (!$division) {
-                    throw new \Exception('Division not found');
-                }
+            $relation = $this->validator->getUserRelation($division->id);
+            if (!$this->validator->canEditDivision($relation)) {
+                throw new \Exception('Anda tidak memiliki izin untuk mengedit cabang ini.');
+            }
 
-                $relation = $this->validator->getUserRelation($division->id);
-                if (!$this->validator->canEditDivision($relation)) {
-                    throw new \Exception('Anda tidak memiliki izin untuk mengedit cabang ini.');
-                }
+           // Validate input
+           $data = array_filter([
+               'name' => isset($_POST['name']) ? sanitize_text_field($_POST['name']) : null,
+               'type' => isset($_POST['type']) ? sanitize_text_field($_POST['type']) : null,
+               'nitku' => isset($_POST['nitku']) ? sanitize_text_field($_POST['nitku']) : null,
+               'postal_code' => isset($_POST['postal_code']) ? sanitize_text_field($_POST['postal_code']) : null,
+               'latitude' => isset($_POST['latitude']) ? (float)$_POST['latitude'] : null,
+               'longitude' => isset($_POST['longitude']) ? (float)$_POST['longitude'] : null,
+               'address' => isset($_POST['address']) ? sanitize_text_field($_POST['address']) : null,
+               'phone' => isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : null,
+               'email' => isset($_POST['email']) ? sanitize_email($_POST['email']) : null,
+               'provinsi_id' => isset($_POST['provinsi_id']) ? (int)$_POST['provinsi_id'] : null,
+               'regency_id' => isset($_POST['regency_id']) ? (int)$_POST['regency_id'] : null,
+               'user_id' => isset($_POST['user_id']) ? (int)$_POST['user_id'] : null,
+               'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : null
+           ], function($value) { return $value !== null; });
 
-               // Validate input
-               $data = array_filter([
-                   'name' => isset($_POST['name']) ? sanitize_text_field($_POST['name']) : null,
-                   'type' => isset($_POST['type']) ? sanitize_text_field($_POST['type']) : null,
-                   'nitku' => isset($_POST['nitku']) ? sanitize_text_field($_POST['nitku']) : null,
-                   'postal_code' => isset($_POST['postal_code']) ? sanitize_text_field($_POST['postal_code']) : null,
-                   'latitude' => isset($_POST['latitude']) ? (float)$_POST['latitude'] : null,
-                   'longitude' => isset($_POST['longitude']) ? (float)$_POST['longitude'] : null,
-                   'address' => isset($_POST['address']) ? sanitize_text_field($_POST['address']) : null,
-                   'phone' => isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : null,
-                   'email' => isset($_POST['email']) ? sanitize_email($_POST['email']) : null,
-                   'provinsi_id' => isset($_POST['provinsi_id']) ? (int)$_POST['provinsi_id'] : null,
-                   'regency_id' => isset($_POST['regency_id']) ? (int)$_POST['regency_id'] : null,
-                   'user_id' => isset($_POST['user_id']) ? (int)$_POST['user_id'] : null,
-                   'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : null
-               ], function($value) { return $value !== null; });
+            // Business logic validation
+            $errors = $this->validator->validateUpdate($data, $id);
+            if (!empty($errors)) {
+                throw new \Exception(reset($errors));
+            }
 
-                // Business logic validation
-                $errors = $this->validator->validateUpdate($data, $id);
-                if (!empty($errors)) {
-                    throw new \Exception(reset($errors));
-                }
+            // Update data
+            $updated = $this->model->update($id, $data);
 
-                // Update data
-                $updated = $this->model->update($id, $data);
-                if (!$updated) {
-                    throw new \Exception('Failed to update division');
-                }
+            // Tambahkan di dalam method update() setelah update berhasil
+            if ($updated) {
+                // Hapus cache untuk division yang diupdate
+                $this->cache->delete('division', $id);
+                
+                // Hapus juga cache lain yang terkait
+                $agency_id = $division->agency_id;
+                $this->cache->delete('agency_division_list', $agency_id);
+                $this->cache->invalidateDataTableCache('division_list', ['agency_id' => $agency_id]);
+                $this->model->invalidateEmployeeStatusCache($id);
+                $this->validator->invalidateAccessCache($id);
+
+                $updated_division = $this->model->find($id);
+                $this->cache->set('division', $updated_division, $this->cache::getCacheExpiry(), $id);
 
                 wp_send_json_success([
                     'message' => __('Division updated successfully', 'wp-agency'),
-                    'division' => $this->model->find($id)
+                    'division' => $updated_division
                 ]);
-
-            } catch (\Exception $e) {
-                wp_send_json_error(['message' => $e->getMessage()]);
+                return;
+            } else {
+                throw new \Exception('Failed to update division');
             }
+
+        } catch (\Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
         }
+    }
 
-        public function show() {
-            try {
-                check_ajax_referer('wp_agency_nonce', 'nonce');
+    /**
+     * Perubahan pada DivisionController.php
+     * Memindahkan logic cache ke method show()
+     */
+    public function show() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
 
-                $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
-                if (!$id) {
-                    throw new \Exception('Invalid division ID');
-                }
+            $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+            if (!$id) {
+                throw new \Exception('Invalid division ID');
+            }
 
-                // Get division data
+            // Cek cache terlebih dahulu
+            $cached_division = $this->cache->get('division', $id);
+            
+            // Jika ada dalam cache, gunakan data dari cache
+            if ($cached_division !== null) {
+                error_log('DEBUG STATUS FIELD CONTROLLER - Data diambil dari cache');
+                $division = $cached_division;
+            } else {
+                // Jika tidak ada dalam cache, ambil dari database via model
+                error_log('DEBUG STATUS FIELD CONTROLLER - Data diambil dari database');
                 $division = $this->model->find($id);
-                if (!$division) {
-                    throw new \Exception('Division not found');
+                
+                // Jika data berhasil diambil, simpan ke cache untuk penggunaan mendatang
+                if ($division) {
+                    $this->cache->set('division', $division, 3600, $id);
                 }
-
-                $relation = $this->validator->getUserRelation($division->id);
-                if (!$this->validator->canViewDivision($relation)) {
-                    throw new \Exception('Anda tidak memiliki izin untuk melihat detail cabang ini.');
-                }
-
-                wp_send_json_success([
-                    'division' => $division
-                ]);
-
-            } catch (\Exception $e) {
-                wp_send_json_error(['message' => $e->getMessage()]);
             }
+
+            // Periksa apakah division ditemukan
+            if (!$division) {
+                throw new \Exception('Division not found');
+            }
+
+            $relation = $this->validator->getUserRelation($division->id);
+            if (!$this->validator->canViewDivision($relation)) {
+                throw new \Exception('Anda tidak memiliki izin untuk melihat detail cabang ini.');
+            }
+
+            // Kembalikan data division dalam response
+            wp_send_json_success([
+                'division' => $division
+            ]);
+
+        } catch (\Exception $e) {
+            error_log('DEBUG STATUS FIELD CONTROLLER - Error: ' . $e->getMessage());
+            wp_send_json_error(['message' => $e->getMessage()]);
         }
+    }
 
-        public function store() {
-            try {
-                check_ajax_referer('wp_agency_nonce', 'nonce');
+    public function store() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
 
-                $agency_id = isset($_POST['agency_id']) ? (int)$_POST['agency_id'] : 0;
-                if (!$agency_id) {
-                    throw new \Exception('ID Agency tidak valid');
-                }
+            $agency_id = isset($_POST['agency_id']) ? (int)$_POST['agency_id'] : 0;
+            if (!$agency_id) {
+                throw new \Exception('ID Agency tidak valid');
+            }
 
-                // Cek permission
-                if (!$this->validator->canCreateDivision($agency_id)) {
-                    throw new \Exception('Anda tidak memiliki izin untuk menambah cabang');
-                }
+            // Cek permission
+            if (!$this->validator->canCreateDivision($agency_id)) {
+                throw new \Exception('Anda tidak memiliki izin untuk menambah cabang');
+            }
 
-                // Sanitasi input
-                $data = [
-                    'agency_id' => $agency_id,
-                    'name' => sanitize_text_field($_POST['name'] ?? ''),
-                    'type' => sanitize_text_field($_POST['type'] ?? ''),
-                    'nitku' => sanitize_text_field($_POST['nitku'] ?? ''),
-                    'postal_code' => sanitize_text_field($_POST['postal_code'] ?? ''),
-                    'latitude' => (float)($_POST['latitude'] ?? 0),
-                    'longitude' => (float)($_POST['longitude'] ?? 0),
-                    'address' => sanitize_text_field($_POST['address'] ?? ''),
-                    'phone' => sanitize_text_field($_POST['phone'] ?? ''),
-                    'email' => sanitize_email($_POST['email'] ?? ''),
-                    'provinsi_id' => isset($_POST['provinsi_id']) ? (int)$_POST['provinsi_id'] : null,
-                    'regency_id' => isset($_POST['regency_id']) ? (int)$_POST['regency_id'] : null,
-                    'created_by' => get_current_user_id(),
-                    'status' => 'active'
+            // Sanitasi input
+            $data = [
+                'agency_id' => $agency_id,
+                'name' => sanitize_text_field($_POST['name'] ?? ''),
+                'type' => sanitize_text_field($_POST['type'] ?? ''),
+                'nitku' => sanitize_text_field($_POST['nitku'] ?? ''),
+                'postal_code' => sanitize_text_field($_POST['postal_code'] ?? ''),
+                'latitude' => (float)($_POST['latitude'] ?? 0),
+                'longitude' => (float)($_POST['longitude'] ?? 0),
+                'address' => sanitize_text_field($_POST['address'] ?? ''),
+                'phone' => sanitize_text_field($_POST['phone'] ?? ''),
+                'email' => sanitize_email($_POST['email'] ?? ''),
+                'provinsi_id' => isset($_POST['provinsi_id']) ? (int)$_POST['provinsi_id'] : null,
+                'regency_id' => isset($_POST['regency_id']) ? (int)$_POST['regency_id'] : null,
+                'created_by' => get_current_user_id(),
+                'status' => 'active'
+            ];
+
+            // Validasi type division saat create
+            $type_validation = $this->validator->validateDivisionTypeCreate($data['type'], $agency_id);
+            if (!$type_validation['valid']) {
+                throw new \Exception($type_validation['message']);
+            }
+
+            // Buat user untuk admin division jika data admin diisi
+            if (!empty($_POST['admin_email'])) {
+                $user_data = [
+                    'user_login' => sanitize_user($_POST['admin_username']),
+                    'user_email' => sanitize_email($_POST['admin_email']),
+                    'first_name' => sanitize_text_field($_POST['admin_firstname']),
+                    'last_name' => sanitize_text_field($_POST['admin_lastname'] ?? ''),
+                    'user_pass' => wp_generate_password(),
+                    'role' => 'division_admin'
                 ];
 
-                // Validasi type division saat create
-                $type_validation = $this->validator->validateDivisionTypeCreate($data['type'], $agency_id);
-                if (!$type_validation['valid']) {
-                    throw new \Exception($type_validation['message']);
+                $user_id = wp_insert_user($user_data);
+                if (is_wp_error($user_id)) {
+                    throw new \Exception($user_id->get_error_message());
                 }
 
-                // Buat user untuk admin division jika data admin diisi
-                if (!empty($_POST['admin_email'])) {
-                    $user_data = [
-                        'user_login' => sanitize_user($_POST['admin_username']),
-                        'user_email' => sanitize_email($_POST['admin_email']),
-                        'first_name' => sanitize_text_field($_POST['admin_firstname']),
-                        'last_name' => sanitize_text_field($_POST['admin_lastname'] ?? ''),
-                        'user_pass' => wp_generate_password(),
-                        'role' => 'division_admin'
-                    ];
-
-                    $user_id = wp_insert_user($user_data);
-                    if (is_wp_error($user_id)) {
-                        throw new \Exception($user_id->get_error_message());
-                    }
-
-                    $data['user_id'] = $user_id;
-                    
-                    // Kirim email aktivasi
-                    wp_new_user_notification($user_id, null, 'user');
-                }
-
-                // Simpan division
-                $division_id = $this->model->create($data);
-                if (!$division_id) {
-                    if (!empty($user_id)) {
-                        wp_delete_user($user_id); // Rollback user creation jika gagal
-                    }
-                    throw new \Exception('Gagal menambah cabang');
-                }
-
-                // Invalidate cache
-                $this->cache->invalidateDataTableCache('division_list', [
-                    'agency_id' => $agency_id
-                ]);
-
-                wp_send_json_success([
-                    'message' => 'Cabang berhasil ditambahkan',
-                    'division' => $this->model->find($division_id)
-                ]);
-
-            } catch (\Exception $e) {
-                wp_send_json_error([
-                    'message' => $e->getMessage()
-                ]);
+                $data['user_id'] = $user_id;
+                
+                // Kirim email aktivasi
+                wp_new_user_notification($user_id, null, 'user');
             }
+
+            // Simpan division
+            $division_id = $this->model->create($data);
+            if (!$division_id) {
+                if (!empty($user_id)) {
+                    wp_delete_user($user_id); // Rollback user creation jika gagal
+                }
+                throw new \Exception('Gagal menambah cabang');
+            }
+
+            $new_division = $this->model->find($division_id);
+
+            $this->cache->set('division', $new_division, $this->cache::getCacheExpiry(), $division_id);
+            // Invalidate cache
+            $this->cache->invalidateDataTableCache('division_list', [
+                'agency_id' => $agency_id
+            ]);
+            $this->cache->delete('agency_division_list', $agency_id);
+            $this->cache->delete('division_total_count', $agency_id);            
+            
+            wp_send_json_success([
+                'message' => 'Cabang berhasil ditambahkan',
+                'division' => $this->model->find($division_id)
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
         }
+    }
 
     public function delete() {
         try {
@@ -617,9 +707,17 @@ class DivisionController {
             if (!$id) {
                 throw new \Exception('Invalid division ID');
             }
-
-            $relation = $this->validator->getUserRelation($division->id);
-            if (!$this->validator->canEditDivision($relation)) {
+            
+            // Ambil data division terlebih dahulu
+            $division = $this->model->find($id);
+            if (!$division) {
+                throw new \Exception('Division not found');
+            }
+            
+            $agency_id = $division->agency_id;
+            
+            $relation = $this->validator->getUserRelation($id);
+            if (!$this->validator->canDeleteDivision($relation)) {
                 throw new \Exception('Permission denied');
             }
             
@@ -628,12 +726,30 @@ class DivisionController {
             if (!$type_validation['valid']) {
                 throw new \Exception($type_validation['message']);
             }
-            
+
             // Proceed with deletion
             if (!$this->model->delete($id)) {
                 throw new \Exception('Failed to delete division');
             }
+
+            // Hapus cache division
+            $this->cache->delete('division', $id);
+
+            // Hapus cache daftar division agency
+            $this->cache->delete('agency_division_list', $agency_id);
+
+            // Invalidasi cache DataTable
+            $this->cache->invalidateDataTableCache('division_list', ['agency_id' => $agency_id]);
+
+            // Invalidasi cache status karyawan
+            $this->model->invalidateEmployeeStatusCache($id);
+
+            // Invalidasi cache terkait agency
+            $this->cache->invalidateAgencyCache($agency_id);
             
+            // Tambahkan ini: Invalidasi cache akses
+            $this->validator->invalidateAccessCache($id);
+
             wp_send_json_success([
                 'message' => __('Division deleted successfully', 'wp-agency')
             ]);
@@ -641,7 +757,7 @@ class DivisionController {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
     }
-
+    
     public function getAgencyDivisions() {
         try {
             check_ajax_referer('wp_agency_nonce', 'nonce');
@@ -656,7 +772,20 @@ class DivisionController {
                 throw new \Exception('Anda tidak memiliki akses untuk melihat data cabang');
             }
 
+            // Cek cache dulu
+            $cached_divisions = $this->cache->get('agency_division_list', $agency_id);
+            if ($cached_divisions !== null) {
+                wp_send_json_success($cached_divisions);
+                return;
+            }
+
+            // Jika tidak ada di cache, ambil dari database
             $divisions = $this->model->getByAgency($agency_id);
+
+            // Simpan ke cache untuk penggunaan mendatang
+            if ($divisions) {
+                $this->cache->set('agency_division_list', $divisions, $this->cache::getCacheExpiry(), $agency_id);
+            }
 
             wp_send_json_success($divisions);
 
@@ -697,7 +826,8 @@ class DivisionController {
 
             // Cache terkait agency juga perlu diperbarui
             $this->cache->invalidateAgencyCache($data['agency_id']);
-
+            $this->model->invalidateEmployeeStatusCache($id);
+            
             return $division_id;
 
         } catch (\Exception $e) {

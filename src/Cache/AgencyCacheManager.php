@@ -66,7 +66,7 @@ class AgencyCacheManager {
 
     // Cache keys
     private const CACHE_GROUP = 'wp_agency';
-    private const CACHE_EXPIRY = 12 * HOUR_IN_SECONDS;
+    private const CACHE_EXPIRY = 1 * HOUR_IN_SECONDS;
 
     // Cache keys for agencies
     private const KEY_AGENCY = 'agency';

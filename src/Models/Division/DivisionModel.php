@@ -48,10 +48,17 @@ class DivisionModel {
         $this->agencyModel = new AgencyModel();
         $this->cache = new AgencyCacheManager();   
     }
-    
+    // Tambahkan cache untuk findPusatByAgency
     public function findPusatByAgency(int $agency_id): ?object {
         global $wpdb;
-        return $wpdb->get_row($wpdb->prepare(
+        
+        // Cek cache terlebih dahulu
+        $cached = $this->cache->get('agency_pusat_division', $agency_id);
+        if ($cached !== null) {
+            return $cached;
+        }
+        
+        $result = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->table} 
              WHERE agency_id = %d 
              AND type = 'pusat' 
@@ -59,17 +66,58 @@ class DivisionModel {
              LIMIT 1",
             $agency_id
         ));
+        
+        // Simpan ke cache
+        if ($result) {
+            $this->cache->set('agency_pusat_division', $result, self::CACHE_EXPIRY, $agency_id);
+        }
+        
+        return $result;
     }
 
+    // Tambahkan cache untuk countPusatByAgency
     public function countPusatByAgency(int $agency_id): int {
         global $wpdb;
-        return (int)$wpdb->get_var($wpdb->prepare(
+        
+        // Cek cache terlebih dahulu
+        $cached = $this->cache->get('agency_pusat_count', $agency_id);
+        if ($cached !== null) {
+            return (int) $cached;
+        }
+        
+        $count = (int) $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$this->table} 
              WHERE agency_id = %d 
              AND type = 'pusat' 
              AND status = 'active'",
             $agency_id
         ));
+        
+        // Simpan ke cache
+        $this->cache->set('agency_pusat_count', $count, self::CACHE_EXPIRY, $agency_id);
+        
+        return $count;
+    }
+
+    // Tambahkan cache untuk existsByCode
+    public function existsByCode(string $code): bool {
+        global $wpdb;
+        
+        // Cek cache terlebih dahulu
+        $cached = $this->cache->get('division_code_exists', $code);
+        if ($cached !== null) {
+            return (bool) $cached;
+        }
+        
+        $exists = (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT EXISTS (SELECT 1 FROM {$this->table} WHERE code = %s) as result",
+            $code
+        ));
+        
+        // Simpan ke cache dengan expiry lebih pendek
+        $this->cache->set('division_code_exists', $exists, 5 * MINUTE_IN_SECONDS, $code);
+        
+        return $exists;
     }
 
     private function generateDivisionCode(int $agency_id): string {
@@ -155,6 +203,10 @@ class DivisionModel {
     public function find(int $id): ?object {
         global $wpdb;
 
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+        $caller = isset($trace[1]['class']) ? $trace[1]['class'] . '::' . $trace[1]['function'] : 'unknown';
+        error_log("[DivisionModel] DEBUG: find({$id}) called from {$caller}");
+
         // Cek cache dulu
         $cached = $this->cache->get(self::KEY_DIVISION, $id);
         if ($cached !== null) {
@@ -172,8 +224,7 @@ class DivisionModel {
         // Simpan ke cache
         if ($result) {
             $this->cache->set(self::KEY_DIVISION, $result, self::CACHE_EXPIRY, $id);
-        }
-        
+        }        
         return $result;
     }
 
@@ -192,10 +243,10 @@ class DivisionModel {
             'email' => $data['email'] ?? null,
             'provinsi_id' => $data['provinsi_id'] ?? null,
             'regency_id' => $data['regency_id'] ?? null,
-            'user_id' => $data['user_id'] ?? null,
-            'status' => $data['status'] ?? null,
-            'updated_at' => current_time('mysql')
-        ];
+                'user_id' => $data['user_id'] ?? null,
+                'status' => $data['status'] ?? null,
+                'updated_at' => current_time('mysql')
+            ];
 
         // Remove null values
         $updateData = array_filter($updateData, function($value) {
@@ -242,17 +293,22 @@ class DivisionModel {
             ['%d']
         ) !== false;
     }
-    public function existsByCode(string $code): bool {
-        global $wpdb;
-        return (bool) $wpdb->get_var($wpdb->prepare(
-            "SELECT EXISTS (SELECT 1 FROM {$this->table} WHERE code = %s) as result",
-            $code
-        ));
-    }
 
     public function existsByNameInAgency(string $name, int $agency_id, ?int $excludeId = null): bool {
         global $wpdb;
-
+        
+        // Buat cache key yang unik termasuk excludeId jika ada
+        $cache_key = 'division_name_exists_' . $agency_id . '_' . md5($name);
+        if ($excludeId) {
+            $cache_key .= '_exclude_' . $excludeId;
+        }
+        
+        // Cek cache terlebih dahulu
+        $cached_result = $this->cache->get($cache_key);
+        if ($cached_result !== null) {
+            return (bool) $cached_result;
+        }
+        
         $sql = "SELECT EXISTS (SELECT 1 FROM {$this->table}
                 WHERE name = %s AND agency_id = %d";
         $params = [$name, $agency_id];
@@ -264,7 +320,13 @@ class DivisionModel {
 
         $sql .= ") as result";
 
-        return (bool) $wpdb->get_var($wpdb->prepare($sql, $params));
+        $exists = (bool) $wpdb->get_var($wpdb->prepare($sql, $params));
+        
+        // Simpan ke cache dengan waktu yang lebih singkat (5 menit)
+        // karena nama division bisa berubah
+        $this->cache->set($cache_key, $exists, 5 * MINUTE_IN_SECONDS);
+        
+        return $exists;
     }
 
     public function getDataTableData(int $agency_id, int $start, int $length, string $search, string $orderColumn, string $orderDir): array {
@@ -334,10 +396,18 @@ class DivisionModel {
      * @param int|null $id Optional agency ID for filtering
      * @return int Total number of divisions
      */
-
     public function getTotalCount($agency_id): int {
         global $wpdb;
-
+        
+        $current_user_id = get_current_user_id();
+        $cache_key = 'division_total_count_' . $agency_id . '_' . $current_user_id;
+        
+        // Cek cache terlebih dahulu
+        $cached_count = $this->cache->get($cache_key);
+        if ($cached_count !== null) {
+            return (int) $cached_count;
+        }
+        
         // Base query parts
         $select = "SELECT SQL_CALC_FOUND_ROWS r.*, p.name as agency_name";
         $from = " FROM {$this->table} r";
@@ -347,47 +417,37 @@ class DivisionModel {
         $where = " WHERE 1=1";
         $params = [];
 
-        // Debug query building process
-        error_log('Building WHERE clause:');
-        error_log('Initial WHERE: ' . $where);
-        // Cek dulu current_user_id untuk berbagai keperluan 
-        $current_user_id = get_current_user_id();
-
-        // Dapatkan relasi User ID wordpress dengan agency User ID
+        // Cek relasi User ID wordpress dengan agency User ID
         $has_agency = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$this->agency_table} WHERE user_id = %d",
             $current_user_id
         ));
-        error_log('User has agency: ' . ($has_agency > 0 ? 'yes' : 'no'));
 
         if ($has_agency > 0 && current_user_can('view_own_agency') && current_user_can('view_own_division')) {
             $where .= " AND p.user_id = %d";
             $params[] = get_current_user_id();
-            error_log('Added user restriction: ' . $where);
         }
 
         if (current_user_can('edit_all_agency') && current_user_can('edit_all_division')) {
-            error_log('Added user restriction: ' . $where);
+            // Admin bisa melihat semua
         }
-
 
         // Complete query
         $query = $select . $from . $join . $where;
         $final_query = !empty($params) ? $wpdb->prepare($query, $params) : $query;
         
-        error_log('Final Query: ' . $final_query);
-        
         // Execute query
         $wpdb->get_results($final_query);
         
-        // Get total and log
+        // Get total
         $total = (int) $wpdb->get_var("SELECT FOUND_ROWS()");
-        error_log('Total count result: ' . $total);
-        error_log('--- End Debug ---');
-
+        
+        // Simpan ke cache - 10 menit
+        $this->cache->set($cache_key, $total, 10 * MINUTE_IN_SECONDS);
+        
         return $total;
     }
-
+    
     public function getByAgency($agency_id) {
         global $wpdb;
         
@@ -403,6 +463,62 @@ class DivisionModel {
         );
         
         return $wpdb->get_results($query);
+    }
+
+    /**
+     * Cek apakah user adalah employee aktif untuk division tertentu
+     * 
+     * @param int $division_id Division ID
+     * @param int|null $user_id User ID (default: current user)
+     * @return bool True jika user adalah employee aktif
+     */
+    public function isEmployeeActive(int $division_id, ?int $user_id = null): bool {
+        global $wpdb;
+        
+        // Gunakan current user jika user_id tidak diberikan
+        if ($user_id === null) {
+            $user_id = get_current_user_id();
+        }
+        
+        // Kunci cache
+        $cache_key = 'employee_status';
+        
+        // Cek apakah hasil sudah ada di cache
+        $cached_result = $this->cache->get($cache_key, $user_id, $division_id);
+        if ($cached_result !== null) {
+            return (bool) $cached_result;
+        }
+        
+        // Query untuk cek status employee
+        $is_employee = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_employees 
+             WHERE division_id = %d 
+             AND user_id = %d 
+             AND status = 'active'",
+            $division_id,
+            $user_id
+        ));
+        
+        $result = (int)$is_employee > 0;
+        
+        // Simpan hasil ke cache (15 menit)
+        $this->cache->set($cache_key, $result, 15 * MINUTE_IN_SECONDS, $user_id, $division_id);
+        
+        return $result;
+    }
+
+    /**
+     * Invalidasi cache status employee
+     * 
+     * @param int $division_id Division ID
+     * @param int|null $user_id User ID (default: current user)
+     */
+    public function invalidateEmployeeStatusCache(int $division_id, ?int $user_id = null): void {
+        if ($user_id === null) {
+            $user_id = get_current_user_id();
+        }
+        
+        $this->cache->delete('employee_status', $user_id, $division_id);
     }
 
 }
