@@ -166,9 +166,10 @@ class AgencyEmployeeController {
             $data = [];
             foreach ($result['data'] as $employee) {
                 // Get agency for permission check
-                $agency = $this->agencyModel->find($employee->agency_id);
-                if (!$this->validator->canViewEmployee($employee, $agency)) {
-                    continue;
+                // Kode yang benar:
+                $relation = $this->validator->getUserRelation($employee->id);
+                if (!$this->validator->canViewEmployee($relation)) {
+                    throw new \Exception('Anda tidak memiliki izin untuk melihat detail karyawan ini.');
                 }
 
                 $data[] = [
@@ -296,14 +297,12 @@ class AgencyEmployeeController {
      */
     private function generateActionButtons($employee) {
         $actions = '';
-        $current_user_id = get_current_user_id();
         
-        // Get agency untuk validasi
-        $agency = $this->agencyModel->find($employee->agency_id);
-        if (!$agency) return $actions;
-
+        // Dapatkan relasi dan periksa permission
+        $relation = $this->validator->getUserRelation($employee->id);
+        
         // View Button
-        if ($this->validator->canViewEmployee($employee, $agency)) {
+        if ($this->validator->canViewEmployee($relation)) {
             $actions .= sprintf(
                 '<button type="button" class="button view-employee" data-id="%d" title="%s">
                     <i class="dashicons dashicons-visibility"></i>
@@ -314,7 +313,7 @@ class AgencyEmployeeController {
         }
 
         // Edit Button
-        if ($this->validator->canEditEmployee($employee, $agency)) {
+        if ($this->validator->canEditEmployee($relation)) {
             $actions .= sprintf(
                 '<button type="button" class="button edit-employee" data-id="%d" title="%s">
                     <i class="dashicons dashicons-edit"></i>
@@ -325,7 +324,7 @@ class AgencyEmployeeController {
         }
 
         // Delete Button
-        if ($this->validator->canDeleteEmployee($employee, $agency)) {
+        if ($this->validator->canDeleteEmployee($relation)) {
             $actions .= sprintf(
                 '<button type="button" class="button delete-employee" data-id="%d" title="%s">
                     <i class="dashicons dashicons-trash"></i>
@@ -336,7 +335,7 @@ class AgencyEmployeeController {
         }
 
         // Status Toggle Button
-        if ($this->validator->canEditEmployee($employee, $agency)) {
+        if ($this->validator->canEditEmployee($relation)) {
             $newStatus = $employee->status === 'active' ? 'inactive' : 'active';
             $statusTitle = $employee->status === 'active' ? 
                 __('Nonaktifkan', 'wp-agency') : 
@@ -355,8 +354,8 @@ class AgencyEmployeeController {
         }
 
         return $actions;
-
     }
+
     /**
      * Show employee dengan cache
      */
@@ -367,30 +366,21 @@ class AgencyEmployeeController {
            $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
            if (!$id) throw new \Exception('Invalid employee ID');
 
+            // Dapatkan data employee dan verifikasi keberadaannya
             $employee = $this->model->find($id);
             if (!$employee) throw new \Exception('Employee not found');
 
-            $agency = $this->agencyModel->find($employee->agency_id);
-            if (!$agency) throw new \Exception('Agency not found');
-
-            // Tambahkan pengecekan permission
-            if (!$this->validator->canViewEmployee($employee, $agency)) {
+            // Dapatkan relasi dan periksa permission
+            $relation = $this->validator->getUserRelation($id);
+            if (!$this->validator->canViewEmployee($relation)) {
                 throw new \Exception('Anda tidak memiliki izin untuk melihat detail karyawan ini.');
             }
 
-
-
-           // Validate view permission
-           $errors = $this->validator->validateView($id);
-           if (!empty($errors)) {
-               throw new \Exception(reset($errors));
-           }
-
-           // Check cache
-           $employee = $this->cache->get("employee_{$id}");
-           if (!$employee) {
-               $employee = $this->model->find($id);
-               if (!$employee) throw new \Exception('Employee not found');
+           // Check cache untuk data employee yang lengkap
+           $cached_employee = $this->cache->get("employee_{$id}");
+           if ($cached_employee) {
+               $employee = $cached_employee;
+           } else {
                $this->cache->set("employee_{$id}", $employee);
            }
 
@@ -479,13 +469,13 @@ class AgencyEmployeeController {
            $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
            if (!$id) throw new \Exception('Invalid employee ID');
 
+            // Dapatkan data employee dan verifikasi keberadaannya
             $employee = $this->model->find($id);
             if (!$employee) throw new \Exception('Employee not found');
 
-            $agency = $this->agencyModel->find($employee->agency_id);
-            if (!$agency) throw new \Exception('Agency not found');
-
-            if (!$this->validator->canEditEmployee($employee, $agency)) {
+            // Dapatkan relasi dan periksa permission
+            $relation = $this->validator->getUserRelation($id);
+            if (!$this->validator->canEditEmployee($relation)) {
                 throw new \Exception('Anda tidak memiliki izin untuk mengedit karyawan ini.');
             }
 
@@ -538,16 +528,15 @@ class AgencyEmployeeController {
            check_ajax_referer('wp_agency_nonce', 'nonce');
 
            $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-
            if (!$id) throw new \Exception('Invalid employee ID');
 
+            // Dapatkan data employee dan verifikasi keberadaannya
             $employee = $this->model->find($id);
             if (!$employee) throw new \Exception('Employee not found');
 
-            $agency = $this->agencyModel->find($employee->agency_id);
-            if (!$agency) throw new \Exception('Agency not found');
-
-            if (!$this->validator->canDeleteEmployee($employee, $agency)) {
+            // Dapatkan relasi dan periksa permission
+            $relation = $this->validator->getUserRelation($id);
+            if (!$this->validator->canDeleteEmployee($relation)) {
                 throw new \Exception('Anda tidak memiliki izin untuk menghapus karyawan ini.');
             }
 
@@ -582,13 +571,13 @@ class AgencyEmployeeController {
            $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
            if (!$id) throw new \Exception('Invalid employee ID');
 
+            // Dapatkan data employee dan verifikasi keberadaannya
             $employee = $this->model->find($id);
             if (!$employee) throw new \Exception('Employee not found');
 
-            $agency = $this->agencyModel->find($employee->agency_id);
-            if (!$agency) throw new \Exception('Agency not found');
-
-            if (!$this->validator->canEditEmployee($employee, $agency)) {
+            // Dapatkan relasi dan periksa permission
+            $relation = $this->validator->getUserRelation($id);
+            if (!$this->validator->canEditEmployee($relation)) {
                 throw new \Exception('Anda tidak memiliki izin untuk mengubah status karyawan ini.');
             }
 
@@ -596,9 +585,6 @@ class AgencyEmployeeController {
            if (!in_array($status, ['active', 'inactive'])) {
                throw new \Exception('Invalid status');
            }
-
-           $employee = $this->model->find($id);
-           if (!$employee) throw new \Exception('Employee not found');
 
            if (!$this->model->changeStatus($id, $status)) {
                throw new \Exception('Failed to update employee status');
