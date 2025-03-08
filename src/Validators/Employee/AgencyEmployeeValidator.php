@@ -27,41 +27,75 @@ namespace WPAgency\Validators\Employee;
 
 use WPAgency\Models\Employee\AgencyEmployeeModel;
 use WPAgency\Models\Agency\AgencyModel;
+use WPAgency\Cache\AgencyCacheManager;
 
 class AgencyEmployeeValidator {
    private $employee_model;
    private $agency_model;
+   private AgencyCacheManager $cache;
 
    public function __construct() {
        $this->employee_model = new AgencyEmployeeModel();
        $this->agency_model = new AgencyModel(); 
+       $this->cache = new AgencyCacheManager();
    }
 
-   public function canViewEmployee($employee, $agency): bool {
-       $current_user_id = get_current_user_id();
+    public function getUserRelation(int $employee_id): array {
+        global $wpdb;
+        $current_user_id = get_current_user_id();
 
-       // Agency Owner Check
-       if ((int)$agency->user_id === (int)$current_user_id) {
-           return true;
-       }
+        // Cek cache terlebih dahulu
+        $cache_key = 'employee_relation_' . $employee_id . '_' . $current_user_id;
+        $cached_relation = $this->cache->get($cache_key);
+        
+        if ($cached_relation !== null) {
+            return $cached_relation;
+        }
+        
+        // Default relation
+        $relation = [
+            'is_admin' => current_user_can('edit_all_employees'),
+            'is_owner' => false,
+            'is_division_admin' => false,
+            'is_creator' => false
+        ];
 
-       // Division Admin Check
-       if ($this->isDivisionAdmin($current_user_id, $employee->division_id)) {
-           return true;
-       }
+        // Jika tidak ada employee_id, kembalikan default
+        if (!$employee_id) {
+            return $relation;
+        }
 
-       // Staff Check (dari AgencyEmployees)
-       if ($this->isStaffMember($current_user_id, $employee->division_id)) {
-           return true;
-       }
+        // Dapatkan data employee
+        $employee = $this->employee_model->find($employee_id);
+        if (!$employee) {
+            return $relation;
+        }
 
-       // System Admin Check
-       if (current_user_can('view_employee_detail')) {
-           return true;
-       }
+        // Dapatkan data agency
+        $agency = $this->agency_model->find($employee->agency_id);
+        if (!$agency) {
+            return $relation;
+        }
 
-       return apply_filters('wp_agency_can_view_employee', false, $employee, $agency, $current_user_id);
-   }
+        // Isi data relation
+        $relation['is_owner'] = ((int)$agency->user_id === $current_user_id);
+        $relation['is_division_admin'] = $this->isDivisionAdmin($current_user_id, $employee->division_id);
+        $relation['is_creator'] = ((int)$employee->created_by === $current_user_id);
+
+        // Simpan ke cache dengan waktu lebih singkat (10 menit)
+        $this->cache->set($cache_key, $relation, 10 * MINUTE_IN_SECONDS);
+        
+        return $relation;
+    }
+
+   public function canViewEmployee(array $relation): bool {
+        if ($relation['is_admin']) return true;
+        if ($relation['is_owner'] && current_user_can('view_own_employee')) return true;
+        if ($relation['is_division_admin'] && current_user_can('view_division_employee')) return true;
+        if ($relation['is_creator'] && current_user_can('view_own_employee')) return true;
+        
+        return false;
+    }
 
    public function canCreateEmployee($agency_id, $division_id): bool {
        $current_user_id = get_current_user_id();
@@ -85,61 +119,23 @@ class AgencyEmployeeValidator {
        return apply_filters('wp_agency_can_create_employee', false, $agency_id, $division_id, $current_user_id);
    }
 
-   public function canEditEmployee($employee, $agency): bool {
-       $current_user_id = get_current_user_id();
+    public function canEditEmployee(array $relation): bool {
+        if ($relation['is_admin']) return true;
+        if ($relation['is_owner'] && current_user_can('edit_own_employee')) return true;
+        if ($relation['is_division_admin'] && current_user_can('edit_own_employee')) return true;
+        if ($relation['is_creator'] && current_user_can('edit_own_employee')) return true;
+        
+        return false;
+    }
 
-       // Agency Owner Check
-       if ((int)$agency->user_id === (int)$current_user_id) {
-           return true;
-       }
-
-       // Division Admin Check
-       if ($this->isDivisionAdmin($current_user_id, $employee->division_id) && 
-           current_user_can('edit_own_employee')) {
-           return true;
-       }
-
-       // Creator Check
-       if ((int)$employee->created_by === (int)$current_user_id && 
-           current_user_can('edit_own_employee')) {
-           return true;
-       }
-
-       // System Admin Check
-       if (current_user_can('edit_all_employees')) {
-           return true;
-       }
-
-       return apply_filters('wp_agency_can_edit_employee', false, $employee, $agency, $current_user_id);
-   }
-
-   public function canDeleteEmployee($employee, $agency): bool {
-       $current_user_id = get_current_user_id();
-
-       // Agency Owner Check
-       if ((int)$agency->user_id === (int)$current_user_id) {
-           return true;
-       }
-
-       // Division Admin Check
-       if ($this->isDivisionAdmin($current_user_id, $employee->division_id) && 
-           current_user_can('delete_employee')) {
-           return true;
-       }
-
-       // Creator Check
-       if ((int)$employee->created_by === (int)$current_user_id && 
-           current_user_can('delete_employee')) {
-           return true;
-       }
-
-       // System Admin Check
-       if (current_user_can('delete_employee')) {
-           return true;
-       }
-
-       return false;
-   }
+    public function canDeleteEmployee(array $relation): bool {
+        if ($relation['is_admin'] && current_user_can('delete_employee')) return true;
+        if ($relation['is_owner']) return true;
+        if ($relation['is_division_admin'] && current_user_can('delete_employee')) return true;
+        if ($relation['is_creator'] && current_user_can('delete_employee')) return true;
+        
+        return false;
+    }
 
    public function validateCreate(array $data): array {
        $errors = [];
@@ -181,94 +177,82 @@ class AgencyEmployeeValidator {
        return $errors;
    }
 
-   public function validateUpdate(array $data, int $id): array {
-       $errors = [];
+    public function validateUpdate(array $data, int $id): array {
+        $errors = [];
 
-       // Check if employee exists
-       $employee = $this->employee_model->find($id);
-       if (!$employee) {
-           $errors['id'] = __('Karyawan tidak ditemukan.', 'wp-agency');
-           return $errors;
-       }
+        // Check if employee exists
+        $employee = $this->employee_model->find($id);
+        if (!$employee) {
+            $errors['id'] = __('Karyawan tidak ditemukan.', 'wp-agency');
+            return $errors;
+        }
 
-       // Get agency for permission check
-       $agency = $this->agency_model->find($employee->agency_id);
-       if (!$agency) {
-           $errors['agency'] = __('Agency tidak ditemukan.', 'wp-agency');
-           return $errors;
-       }
+        // Get agency for context
+        $agency = $this->agency_model->find($employee->agency_id);
+        if (!$agency) {
+            $errors['agency'] = __('Agency tidak ditemukan.', 'wp-agency');
+            return $errors;
+        }
 
-       // Permission check
-       if (!$this->canEditEmployee($employee, $agency)) {
-           $errors['permission'] = __('Anda tidak memiliki izin untuk mengedit karyawan ini.', 'wp-agency');
-           return $errors;
-       }
+        // Validasi permission yang disesuaikan dengan pola baru
+        $relation = $this->getUserRelation($id);
+        if (!$this->canEditEmployee($relation)) {
+            $errors['permission'] = __('Anda tidak memiliki izin untuk mengedit karyawan ini.', 'wp-agency');
+            return $errors;
+        }
 
-       // Basic data validation
-       $errors = array_merge($errors, $this->validateBasicData($data));
+        // Basic data validation
+        $errors = array_merge($errors, $this->validateBasicData($data));
 
-       // Email uniqueness (excluding current ID)
-       if (!empty($data['email']) && $this->employee_model->existsByEmail($data['email'], $id)) {
-           $errors['email'] = __('Email sudah digunakan.', 'wp-agency');
-       }
+        // Email uniqueness (excluding current ID)
+        if (!empty($data['email']) && $this->employee_model->existsByEmail($data['email'], $id)) {
+            $errors['email'] = __('Email sudah digunakan.', 'wp-agency');
+        }
 
-       // Department validation on update
-       if (!$this->hasAtLeastOneDepartment($data)) {
-           $errors['department'] = __('Minimal satu departemen harus dipilih.', 'wp-agency');
-       }
+        // Department validation on update
+        if (!$this->hasAtLeastOneDepartment($data)) {
+            $errors['department'] = __('Minimal satu departemen harus dipilih.', 'wp-agency');
+        }
 
-       return $errors;
-   }
+        return $errors;
+    }
 
-   public function validateDelete(int $id): array {
-       $errors = [];
+    public function validateDelete(int $id): array {
+        $errors = [];
 
-       // Check if employee exists
-       $employee = $this->employee_model->find($id);
-       if (!$employee) {
-           $errors['id'] = __('Karyawan tidak ditemukan.', 'wp-agency');
-           return $errors;
-       }
+        // Check if employee exists
+        $employee = $this->employee_model->find($id);
+        if (!$employee) {
+            $errors['id'] = __('Karyawan tidak ditemukan.', 'wp-agency');
+            return $errors;
+        }
 
-       // Get agency for permission check
-       $agency = $this->agency_model->find($employee->agency_id);
-       if (!$agency) {
-           $errors['agency'] = __('Agency tidak ditemukan.', 'wp-agency');
-           return $errors;
-       }
+        // Get agency for permission check
+        $agency = $this->agency_model->find($employee->agency_id);
+        if (!$agency) {
+            $errors['agency'] = __('Agency tidak ditemukan.', 'wp-agency');
+            return $errors;
+        }
 
-       // Permission check
-       if (!$this->canDeleteEmployee($employee, $agency)) {
-           $errors['permission'] = __('Anda tidak memiliki izin untuk menghapus karyawan ini.', 'wp-agency');
-       }
+        // Gunakan getUserRelation dan canDeleteEmployee dengan relasi
+        $relation = $this->getUserRelation($id);
+        if (!$this->canDeleteEmployee($relation)) {
+            $errors['permission'] = __('Anda tidak memiliki izin untuk menghapus karyawan ini.', 'wp-agency');
+        }
 
-       return $errors;
-   }
+        return $errors;
+    }
 
-   public function validateView(int $id): array {
-       $errors = [];
+    public function validateView($employee, $agency): array {
+        $errors = [];
+        
+        // Validasi bahwa data yang dibutuhkan ada
+        if (!$employee || !$agency) {
+            $errors['data'] = __('Data tidak valid.', 'wp-agency');
+        }
 
-       // Check if employee exists
-       $employee = $this->employee_model->find($id);
-       if (!$employee) {
-           $errors['id'] = __('Karyawan tidak ditemukan.', 'wp-agency');
-           return $errors;
-       }
-
-       // Get agency for permission check
-       $agency = $this->agency_model->find($employee->agency_id);
-       if (!$agency) {
-           $errors['agency'] = __('Agency tidak ditemukan.', 'wp-agency');
-           return $errors;
-       }
-
-       // Permission check
-       if (!$this->canViewEmployee($employee, $agency)) {
-           $errors['permission'] = __('Anda tidak memiliki izin untuk melihat detail karyawan ini.', 'wp-agency');
-       }
-
-       return $errors;
-   }
+        return $errors;
+    }
 
    private function validateBasicData(array $data): array {
        $errors = [];
@@ -334,4 +318,31 @@ class AgencyEmployeeValidator {
            $user_id, $division_id
        ));
    }
+
+    public function validateAccess(int $employee_id): array {
+        $relation = $this->getUserRelation($employee_id);
+        
+        // Dapatkan data employee untuk mendapatkan agency_id
+        $employee = $this->employee_model->find($employee_id);
+        $agency_id = $employee ? $employee->agency_id : 0;
+        $division_id = $employee ? $employee->division_id : 0;
+        
+        return [
+            'has_access' => $this->canViewEmployee($relation),
+            'access_type' => $this->getAccessType($relation),
+            'relation' => $relation,
+            'agency_id' => $agency_id,
+            'division_id' => $division_id
+        ];
+    }
+
+    private function getAccessType(array $relation): string {
+        if ($relation['is_admin']) return 'admin';
+        if ($relation['is_owner']) return 'owner';
+        if ($relation['is_division_admin']) return 'division_admin';
+        if ($relation['is_creator']) return 'creator';
+        return 'none';
+    }
+
+   
 }

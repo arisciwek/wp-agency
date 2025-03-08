@@ -349,7 +349,6 @@ class AgencyEmployeeModel {
         $total = $wpdb->get_var($total_query);
         error_log('Total Count: ' . $total);
 
-        error_log('Results Data Sample: ' . print_r(array_slice($results, 0, 1), true));
         error_log('=== End Debug Employee DataTable Query ===');
 
         return [
@@ -590,7 +589,7 @@ class AgencyEmployeeModel {
         
         return $result;
     }
-    
+
     public function invalidateEmployeeCache(int $id): void {
         // Dapatkan data employee
         $employee = $this->find($id);

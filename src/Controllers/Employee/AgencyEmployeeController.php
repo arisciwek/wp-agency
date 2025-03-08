@@ -131,10 +131,12 @@ class AgencyEmployeeController {
             $orderColumn = isset($_POST['order'][0]['column']) ? intval($_POST['order'][0]['column']) : 0;
             $orderDir = isset($_POST['order'][0]['dir']) ? sanitize_text_field($_POST['order'][0]['dir']) : 'asc';
 
+            $access = $this->validator->validateAccess(0);
+
             // Check cache first
             $cached_result = $this->cache->getDataTableCache(
                 'agency_employee_list',
-                get_current_user_id(),
+                $access['access_type'],
                 $start,
                 $length,
                 $search,
@@ -199,7 +201,7 @@ class AgencyEmployeeController {
             // Cache the result
             $this->cache->setDataTableCache(
                 'agency_employee_list',
-                get_current_user_id(),
+                $access['access_type'],
                 $start,
                 $length,
                 $search,
