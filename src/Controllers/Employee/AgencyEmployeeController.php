@@ -61,8 +61,7 @@ class AgencyEmployeeController {
         add_action('wp_ajax_update_employee', [$this, 'update']);
         add_action('wp_ajax_delete_employee', [$this, 'delete']);
         add_action('wp_ajax_change_employee_status', [$this, 'changeStatus']);
-
-        add_action('wp_ajax_create_employee_button', [$this, 'createEmployeeButton']);        
+        add_action('wp_ajax_create_employee_button', [$this, 'createEmployeeButton']);
     }
 
     /**
@@ -144,6 +143,8 @@ class AgencyEmployeeController {
                 $orderDir,
                 ['agency_id' => $agency_id]
             );
+
+            error_log("Cache keys getDataTableCache result: " . print_r($cached_result) );
 
             if ($cached_result !== null) {
                 wp_send_json($cached_result);
@@ -359,17 +360,31 @@ class AgencyEmployeeController {
     }
 
     /**
-     * Show employee dengan cache
+     * Show employee dengan cache yang konsisten
      */
     public function show() {
-       try {
-           check_ajax_referer('wp_agency_nonce', 'nonce');
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
 
-           $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-           if (!$id) throw new \Exception('Invalid employee ID');
+            $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+            if (!$id) throw new \Exception('Invalid employee ID');
 
-            // Dapatkan data employee dan verifikasi keberadaannya
-            $employee = $this->model->find($id);
+            // Dapatkan data employee dengan format cache yang konsisten
+            $cached_employee = $this->cache->get('agency_employee', $id);
+            
+            if ($cached_employee !== null) {
+                $employee = $cached_employee;
+            } else {
+                // Ambil dari database jika tidak ada di cache
+                $employee = $this->model->find($id);
+                
+                // Simpan ke cache dengan format yang konsisten
+                if ($employee) {
+                    $this->cache->set('agency_employee', $employee, $this->cache::getCacheExpiry(), $id);
+                }
+            }
+
+            // Verifikasi keberadaan data
             if (!$employee) throw new \Exception('Employee not found');
 
             // Dapatkan relasi dan periksa permission
@@ -378,19 +393,11 @@ class AgencyEmployeeController {
                 throw new \Exception('Anda tidak memiliki izin untuk melihat detail karyawan ini.');
             }
 
-           // Check cache untuk data employee yang lengkap
-           $cached_employee = $this->cache->get("employee_{$id}");
-           if ($cached_employee) {
-               $employee = $cached_employee;
-           } else {
-               $this->cache->set("employee_{$id}", $employee);
-           }
+            wp_send_json_success($employee);
 
-           wp_send_json_success($employee);
-
-       } catch (\Exception $e) {
-           wp_send_json_error(['message' => $e->getMessage()]);
-       }
+        } catch (\Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
     }
 
     /**
@@ -450,6 +457,10 @@ class AgencyEmployeeController {
            ]);
 
            $employee = $this->model->find($id);
+           if ($employee) {
+               $this->cache->set('agency_employee', $employee, $this->cache::getCacheExpiry(), $id);
+           }
+
            wp_send_json_success([
                'message' => __('Karyawan berhasil ditambahkan dan email aktivasi telah dikirim', 'wp-agency'),
                'employee' => $employee
@@ -459,7 +470,6 @@ class AgencyEmployeeController {
            wp_send_json_error(['message' => $e->getMessage()]);
        }
     }
-
 
     /**
      * Update dengan cache invalidation
@@ -504,9 +514,13 @@ class AgencyEmployeeController {
                throw new \Exception('Failed to update employee');
            }
 
-           $this->cache->delete("employee_{$id}");
+            // Hapus cache untuk employee yang diupdate
+            $this->cache->delete('agency_employee', $id);
+
            $employee = $this->model->find($id);
            if ($employee) {
+               $this->cache->set('agency_employee', $employee, $this->cache::getCacheExpiry(), $id);
+ 
                $this->cache->invalidateDataTableCache('agency_employee_list', [
                    'agency_id' => $employee->agency_id
                ]);
@@ -549,7 +563,9 @@ class AgencyEmployeeController {
                throw new \Exception('Failed to delete employee');
            }
 
-           $this->cache->delete("employee_{$id}");
+           // Hapus cache untuk employee yang diupdate
+           $this->cache->delete('agency_employee', $id);
+
            $this->cache->invalidateDataTableCache('agency_employee_list', [
                'agency_id' => $employee->agency_id
            ]);
@@ -575,6 +591,16 @@ class AgencyEmployeeController {
 
             // Dapatkan data employee dan verifikasi keberadaannya
             $employee = $this->model->find($id);
+            if ($employee) {
+                // Simpan data terbaru ke cache
+                $this->cache->set('agency_employee', $employee, $this->cache::getCacheExpiry(), $id);
+                
+                // Invalidasi cache DataTable
+                $this->cache->invalidateDataTableCache('agency_employee_list', [
+                    'agency_id' => $employee->agency_id
+                ]);
+            }
+
             if (!$employee) throw new \Exception('Employee not found');
 
             // Dapatkan relasi dan periksa permission
@@ -592,7 +618,8 @@ class AgencyEmployeeController {
                throw new \Exception('Failed to update employee status');
            }
 
-           $this->cache->delete("employee_{$id}");
+            $this->cache->delete('agency_employee', $id);
+
            $this->cache->invalidateDataTableCache('agency_employee_list', [
                'agency_id' => $employee->agency_id
            ]);
@@ -608,8 +635,9 @@ class AgencyEmployeeController {
        }
     }
     
+
     /**
-     * Khusus untuk membuat demo data employee
+     * Khusus untuk membuat demo data employee tanpa cache
      */
     public function createDemoEmployee(array $data): ?int {
         try {
@@ -623,31 +651,9 @@ class AgencyEmployeeController {
                 throw new \Exception('Gagal membuat demo employee');
             }
 
-            // Clear semua cache yang terkait
-            $this->cache->delete('employee', $employee_id);
-            $this->cache->delete('employee_total_count', get_current_user_id());
-            
-            // Cache untuk relasi dengan agency
-            $this->cache->delete('agency_employee', $data['agency_id']);
-            $this->cache->delete('agency_employee_list', $data['agency_id']);
-            
-            // Cache untuk relasi dengan division
-            $this->cache->delete('division_employee', $data['division_id']);
-            $this->cache->delete('division_employee_list', $data['division_id']);
-            
-            // Invalidate DataTable cache
-            $this->cache->invalidateDataTableCache('agency_employee_list', [
-                'agency_id' => $data['agency_id']
-            ]);
-
-            // Invalidate cache agency dan division
-            $this->cache->invalidateAgencyCache($data['agency_id']);
-            $this->cache->invalidateDataTableCache('division_list', [
-                'agency_id' => $data['agency_id']
-            ]);
+            $this->debug_log("Created employee record with ID: " . $employee_id);
 
             return $employee_id;
-
         } catch (\Exception $e) {
             $this->debug_log('Error creating demo employee: ' . $e->getMessage());
             throw $e;

@@ -151,23 +151,23 @@ class AgencyCacheManager {
      */
     public function get(string $type, ...$keyComponents) {
         $key = $this->generateKey($type, ...$keyComponents);
-        // error_log("Cache key generated: " . $key);
+         error_log("Cache key generated: " . $key);
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            //error_log("Cache attempt - Key: {$key}, Type: {$type}");
+            error_log("Cache attempt - Key: {$key}, Type: {$type}");
         }
         
         $result = wp_cache_get($key, self::CACHE_GROUP);
         
         if ($result === false) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                //error_log("Cache miss - Key: {$key}");
+                error_log("Cache miss - Key: {$key}");
             }
             return null;
         }
         
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            //error_log("Cache hit - Key: {$key}");
+            error_log("Cache hit - Key: {$key}");
         }
         
         return $result;
@@ -185,13 +185,13 @@ class AgencyCacheManager {
             }
 
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                //error_log("Setting cache - Key: {$key}, Type: {$type}, Expiry: {$expiry}s");
+                error_log("Setting cache - Key: {$key}, Type: {$type}, Expiry: {$expiry}s");
             }
             
             return wp_cache_set($key, $value, self::CACHE_GROUP, $expiry);
         } catch (\InvalidArgumentException $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                //error_log("Cache set failed: " . $e->getMessage());
+                error_log("Cache set failed: " . $e->getMessage());
             }
             return false;
         }
@@ -218,15 +218,18 @@ class AgencyCacheManager {
         return wp_cache_get($key, self::CACHE_GROUP) !== false;
     }
 
+    /**
+     * Get cached DataTable data
+     */
     public function getDataTableCache(
-        string $context,      // Misal: 'agency_list', 'agency_history', 'division_list', dll
+        string $context,
         string $access_type,
         int $start,
         int $length,
         string $search,
         string $orderColumn,
         string $orderDir,
-        ?array $additionalParams = null  // Parameter tambahan spesifik untuk context
+        ?array $additionalParams = null
     ) {
         // Validate required parameters
         if (empty($context) || !$access_type || !is_numeric($start) || !is_numeric($length)) {
@@ -235,10 +238,9 @@ class AgencyCacheManager {
         }
         
         try {
-            // Build cache key components
+            // Build components untuk kunci cache
             $components = [
-                "datatable",      // prefix
-                $context,         // specific context
+                $context,         // context specific (agency_list, division_list, etc)
                 (string)$access_type,
                 (string)$start,
                 (string)$length,
@@ -254,7 +256,8 @@ class AgencyCacheManager {
                 }
             }
 
-            return $this->get(...$components);
+            // Gunakan 'datatable' sebagai type, components lainnya sebagai komponen kunci
+            return $this->get('datatable', ...$components);
 
         } catch (\Exception $e) {
             $this->debug_log("Error getting datatable data for context {$context}: " . $e->getMessage());
@@ -262,6 +265,9 @@ class AgencyCacheManager {
         }
     }
 
+    /**
+     * Set DataTable data in cache
+     */
     public function setDataTableCache(
         string $context,
         string $access_type,
@@ -279,10 +285,9 @@ class AgencyCacheManager {
             return false;
         }
 
-        // Build cache key components
+        // Build components untuk kunci cache - SAMA PERSIS dengan getDataTableCache
         $components = [
-            "datatable",
-            $context,
+            $context,         // context specific (agency_list, division_list, etc)
             (string)$access_type,
             (string)$start,
             (string)$length,
@@ -291,22 +296,21 @@ class AgencyCacheManager {
             (string)$orderDir
         ];
 
-        // Add additional parameters if provided
+        // Add additional parameters if provided - SAMA PERSIS dengan getDataTableCache
         if ($additionalParams) {
             foreach ($additionalParams as $key => $value) {
                 $components[] = $key . '_' . md5(serialize($value));
             }
         }
 
+        // Gunakan 'datatable' sebagai type (sama dengan getDataTableCache)
         return $this->set('datatable', $data, 2 * MINUTE_IN_SECONDS, ...$components);
     }
 
+
+
     /**
-     * Invalidate DataTable cache for specific context
-     * 
-     * @param string $context Context name (e.g. 'agency_list', 'agency_divisions')
-     * @param array|null $filters Additional filters that were used (e.g. ['agency_id' => 123])
-     * @return bool True if cache was invalidated, false otherwise
+     * Perbaikan untuk invalidateDataTableCache() di AgencyCacheManager
      */
     public function invalidateDataTableCache(string $context, ?array $filters = null): bool {
         try {
@@ -322,21 +326,24 @@ class AgencyCacheManager {
                 $filters ? json_encode($filters) : 'none'
             ));
 
-            // Base cache key components
-            $components = [
-                'datatable',
-                $context
-            ];
+            // Periksa apakah grup cache ada dan dapat diakses
+            global $wp_object_cache;
+            if (!isset($wp_object_cache->cache[self::CACHE_GROUP]) || empty($wp_object_cache->cache[self::CACHE_GROUP])) {
+                $this->debug_log('Cache group not found or empty - no action needed');
+                return true; // Tidak perlu invalidasi jika tidak ada cache
+            }
 
+            // Base components for cache key
+            $components = ['datatable', $context];
+            
             // If we have filters, create filter-specific invalidation
             if ($filters) {
                 foreach ($filters as $key => $value) {
-                    // Add each filter to components
                     $components[] = sprintf('%s_%s', $key, md5(serialize($value)));
                 }
                 
-                // Delete specific filtered cache
-                $result = $this->delete(...$components);
+                $key = $this->generateKey(...$components);
+                $result = wp_cache_delete($key, self::CACHE_GROUP);
                 
                 $this->debug_log(sprintf(
                     'Invalidated filtered cache for context %s with filters. Result: %s',
@@ -344,10 +351,10 @@ class AgencyCacheManager {
                     $result ? 'success' : 'failed'
                 ));
                 
-                return $result;
+                return true; // Anggap sukses karena tidak ada cache yang perlu dihapus
             }
 
-            // If no filters, do a broader invalidation using deleteByPrefix
+            // If no filters, do a broader invalidation using prefix
             $prefix = implode('_', $components);
             $result = $this->deleteByPrefix($prefix);
 
@@ -357,7 +364,7 @@ class AgencyCacheManager {
                 $result ? 'success' : 'failed'
             ));
 
-            return $result;
+            return true; // Anggap sukses karena tidak ada yang perlu dihapus
 
         } catch (\Exception $e) {
             $this->debug_log('Error in invalidateDataTableCache: ' . $e->getMessage());
@@ -366,42 +373,38 @@ class AgencyCacheManager {
     }
 
     /**
-     * Delete all cache entries that match a prefix
-     * 
-     * @param string $prefix The prefix to match
-     * @return bool True if operation was successful
+     * Improved version of deleteByPrefix
      */
     private function deleteByPrefix(string $prefix): bool {
-        try {
-            global $wp_object_cache;
-
-            // If using WordPress default object cache
-            if (isset($wp_object_cache->cache[self::CACHE_GROUP])) {
-                foreach ($wp_object_cache->cache[self::CACHE_GROUP] as $key => $value) {
-                    if (strpos($key, $prefix) === 0) {
-                        wp_cache_delete($key, self::CACHE_GROUP);
-                    }
-                }
-            } else {
-                // For persistent caching plugins (e.g., Redis, Memcached)
-                // Get all keys in our group (if supported by the caching plugin)
-                $keys = wp_cache_get_multiple([self::CACHE_GROUP . '_keys'], self::CACHE_GROUP);
-                if (!empty($keys)) {
-                    foreach ($keys as $key) {
-                        if (strpos($key, $prefix) === 0) {
-                            wp_cache_delete($key, self::CACHE_GROUP);
-                        }
-                    }
-                }
-            }
-
+        global $wp_object_cache;
+        
+        // Jika grup tidak ada, tidak ada yang perlu dihapus
+        if (!isset($wp_object_cache->cache[self::CACHE_GROUP])) {
+            $this->debug_log('Cache group not found - nothing to delete');
             return true;
-
-        } catch (\Exception $e) {
-            $this->debug_log('Error in deleteByPrefix: ' . $e->getMessage());
-            return false;
         }
+        
+        // Jika grup kosong, tidak ada yang perlu dihapus
+        if (empty($wp_object_cache->cache[self::CACHE_GROUP])) {
+            $this->debug_log('Cache group empty - nothing to delete');
+            return true;
+        }
+        
+        $deleted = 0;
+        $keys = array_keys($wp_object_cache->cache[self::CACHE_GROUP]);
+        
+        foreach ($keys as $key) {
+            if (strpos($key, $prefix) === 0) {
+                $result = wp_cache_delete($key, self::CACHE_GROUP);
+                if ($result) $deleted++;
+            }
+        }
+        
+        $this->debug_log(sprintf('Deleted %d keys with prefix %s', $deleted, $prefix));
+        return true;
     }
+
+    
 
     /**
      * Helper method to generate cache key for DataTable
@@ -459,88 +462,114 @@ class AgencyCacheManager {
         return $this->clearAll();
     }
 
-private function clearCache(): bool {
-    try {
-        global $wp_object_cache;
+    private function clearCache(): bool {
+        try {
+            global $wp_object_cache;
 
-        // Check if using default WordPress object cache
-        if (isset($wp_object_cache->cache[self::CACHE_GROUP])) {
-            if (is_array($wp_object_cache->cache[self::CACHE_GROUP])) {
-                foreach (array_keys($wp_object_cache->cache[self::CACHE_GROUP]) as $key) {
-                    wp_cache_delete($key, self::CACHE_GROUP);
-                }
-            }
-            unset($wp_object_cache->cache[self::CACHE_GROUP]);
-            return true;
-        }
-
-        // Alternative approach for external cache plugins
-        if (function_exists('wp_cache_flush_group')) {
-            // Some caching plugins provide group-level flush
-            return wp_cache_flush_group(self::CACHE_GROUP);
-        }
-
-        // Fallback method - iteratively clear known cache keys
-        $known_types = [
-            'agency',
-            'agency_list',
-            'agency_total_count',
-            'agency_membership',
-            'membership',
-            'division',
-            'division_list',
-            'employee',
-            'employee_list',
-            'datatable'
-        ];
-
-        foreach ($known_types as $type) {
-            if ($cached_keys = wp_cache_get($type . '_keys', self::CACHE_GROUP)) {
-                if (is_array($cached_keys)) {
-                    foreach ($cached_keys as $key) {
+            // Check if using default WordPress object cache
+            if (isset($wp_object_cache->cache[self::CACHE_GROUP])) {
+                if (is_array($wp_object_cache->cache[self::CACHE_GROUP])) {
+                    foreach (array_keys($wp_object_cache->cache[self::CACHE_GROUP]) as $key) {
                         wp_cache_delete($key, self::CACHE_GROUP);
                     }
                 }
+                unset($wp_object_cache->cache[self::CACHE_GROUP]);
+                return true;
             }
+
+            // Alternative approach for external cache plugins
+            if (function_exists('wp_cache_flush_group')) {
+                // Some caching plugins provide group-level flush
+                return wp_cache_flush_group(self::CACHE_GROUP);
+            }
+
+            // Fallback method - iteratively clear known cache keys
+            $known_types = [
+                'agency',
+                'agency_list',
+                'agency_total_count',
+                'agency_membership',
+                'membership',
+                'division',
+                'division_list',
+                'employee',
+                'employee_list',
+                'datatable'
+            ];
+
+            foreach ($known_types as $type) {
+                if ($cached_keys = wp_cache_get($type . '_keys', self::CACHE_GROUP)) {
+                    if (is_array($cached_keys)) {
+                        foreach ($cached_keys as $key) {
+                            wp_cache_delete($key, self::CACHE_GROUP);
+                        }
+                    }
+                }
+            }
+
+            // Also clear the master key list
+            wp_cache_delete('cache_keys', self::CACHE_GROUP);
+
+            return true;
+
+        } catch (\Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Error clearing cache: ' . $e->getMessage());
+            }
+            return false;
         }
-
-        // Also clear the master key list
-        wp_cache_delete('cache_keys', self::CACHE_GROUP);
-
-        return true;
-
-    } catch (\Exception $e) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Error clearing cache: ' . $e->getMessage());
-        }
-        return false;
     }
-}
 
-/**
- * Clear all caches in group with enhanced error handling
- * 
- * @return bool True if cache was cleared successfully
- */
-public function clearAll(): bool {
-    try {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Attempting to clear all caches in group: ' . self::CACHE_GROUP);
+    /**
+     * Clear all caches in group with enhanced error handling
+     * 
+     * @return bool True if cache was cleared successfully
+     */
+    public function clearAll(): bool {
+        try {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Attempting to clear all caches in group: ' . self::CACHE_GROUP);
+            }
+
+            $result = $this->clearCache();
+
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Cache clear result: ' . ($result ? 'success' : 'failed'));
+            }
+
+            return $result;
+        } catch (\Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Error in clearAll(): ' . $e->getMessage());
+            }
+            return false;
         }
-
-        $result = $this->clearCache();
-
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Cache clear result: ' . ($result ? 'success' : 'failed'));
-        }
-
-        return $result;
-    } catch (\Exception $e) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Error in clearAll(): ' . $e->getMessage());
-        }
-        return false;
     }
-}
+
+    /**
+     * Memperlihatkan semua cache keys yang tersimpan
+     */
+    public function dumpCacheKeys() {
+        global $wp_object_cache;
+        
+        if (!defined('WP_DEBUG') || !WP_DEBUG) {
+            return 'Debug mode not enabled';
+        }
+        
+        $output = "Cache keys in " . self::CACHE_GROUP . ":\n";
+        
+        if (isset($wp_object_cache->cache[self::CACHE_GROUP])) {
+            $keys = array_keys($wp_object_cache->cache[self::CACHE_GROUP]);
+            foreach ($keys as $key) {
+                $output .= "- $key\n";
+            }
+            $output .= "Total: " . count($keys) . " keys";
+        } else {
+            $output .= "No keys found or cache group not accessible";
+        }
+        
+        error_log($output);
+        return $output;
+    }
 
 }
