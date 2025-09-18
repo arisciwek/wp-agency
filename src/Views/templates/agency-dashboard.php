@@ -40,12 +40,16 @@ defined('ABSPATH') || exit;
                     <h2>Statistik WP</h2>
                     <div class="wi-stats-container">
                         <div class="wi-stat-box agency-stats">
-                            <h3>Total Agency</h3>
+                            <h3>Total Disnaker</h3>
                             <p class="wi-stat-number"><span id="total-agencies">0</span></p>
                         </div>
                         <div class="wi-stat-box">
-                            <h3>Total Division</h3>
+                            <h3>Total Unit</h3>
                             <p class="wi-stat-number" id="total-divisions">0</p>
+                        </div>
+                        <div class="wi-stat-box">
+                            <h3>Total Karyawan</h3>
+                            <p class="wi-stat-number" id="total-employees">0</p>
                         </div>
                     </div>
                 </div>

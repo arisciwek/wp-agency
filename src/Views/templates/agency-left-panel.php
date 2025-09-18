@@ -6,7 +6,7 @@
 ?>
 <div id="wp-agency-left-panel" class="wp-agency-left-panel">
     <div class="wi-panel-header">
-        <h2>Daftar Agency</h2>
+        <h2>Daftar Disnaker</h2>
 
         <div id="tombol-tambah-agency"></div>
 
@@ -16,8 +16,8 @@
         <table id="agencies-table" class="display" style="width:100%">
             <thead>
                 <tr>
-                    <th>Nama Agency</th>
-                    <th>Cabang</th>
+                    <th>Nama Disnaker</th>
+                    <th>Unit</th>
                     <th>Aksi</th>
                 </tr>
             </thead>

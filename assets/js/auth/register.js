@@ -1,14 +1,14 @@
 /**
- * Agency Registration Form Handler
- * 
+ * Disnaker Registration Form Handler
+ *
  * @package     WP_Agency
  * @subpackage  Assets/JS/Auth
  * @version     1.0.0
  * @author      arisciwek
- * 
+ *
  * Path: /wp-agency/assets/js/auth/register.js
- * 
- * Description: Menangani form registrasi agency:
+ *
+ * Description: Menangani form registrasi disnaker:
  *              - AJAX submission
  *              - Validasi form
  *              - Format NPWP

@@ -9,7 +9,7 @@
  * 
  * Path: /wp-agency/src/Views/templates/forms/edit-agency-form.php
  * 
- * Description: Modal form template untuk edit agency.
+ * Description: Modal form template untuk edit disnaker.
  *              Includes validation, security checks,
  *              dan AJAX submission handling.
  *              Terintegrasi dengan AgencyForm component.
@@ -35,7 +35,7 @@ error_log('Regency select hook exists: ' . (has_action('wilayah_indonesia_regenc
     <div class="modal-container">
         <form id="edit-agency-form" method="post">
             <div class="modal-header">
-                <h3>Edit Agency</h3>
+                <h3>Edit Disnaker</h3>
                 <button type="button" class="modal-close" aria-label="Close">&times;</button>
             </div>
             
@@ -50,7 +50,7 @@ error_log('Regency select hook exists: ' . (has_action('wilayah_indonesia_regenc
                         
                         <div class="wp-agency-form-group">
                             <label for="edit-name" class="required-field">
-                                <?php _e('Nama Agency', 'wp-agency'); ?>
+                                <?php _e('Nama Disnaker', 'wp-agency'); ?>
                             </label>
                             <input type="text" 
                                    id="edit-name" 
@@ -149,7 +149,7 @@ error_log('Regency select hook exists: ' . (has_action('wilayah_indonesia_regenc
                             <select id="edit-user" name="user_id" class="regular-text">
                                 <option value=""><?php _e('Pilih Admin', 'wp-agency'); ?></option>
                                 <?php
-                                $users = get_users(['role__in' => ['Agency']]);
+                                $users = get_users(['role__in' => ['Disnaker']]);
                                 foreach ($users as $user) {
                                     printf(
                                         '<option value="%d">%s</option>',

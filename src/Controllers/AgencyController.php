@@ -34,6 +34,7 @@ namespace WPAgency\Controllers;
 
 use WPAgency\Models\Agency\AgencyModel;
 use WPAgency\Models\Division\DivisionModel;
+use WPAgency\Models\Employee\AgencyEmployeeModel;
 use WPAgency\Validators\AgencyValidator;
 use WPAgency\Cache\AgencyCacheManager;
 
@@ -42,7 +43,8 @@ class AgencyController {
     private AgencyModel $model;
     private AgencyValidator $validator;
     private AgencyCacheManager $cache;
-    private DivisionModel $divisionModel;  // Tambahkan ini
+    private DivisionModel $divisionModel;
+    private AgencyEmployeeModel $employeeModel;
 
     private string $log_file;
 
@@ -64,7 +66,8 @@ class AgencyController {
 
     public function __construct() {
         $this->model = new AgencyModel();
-        $this->divisionModel = new DivisionModel();  // Inisialisasi di constructor
+        $this->divisionModel = new DivisionModel();
+        $this->employeeModel = new AgencyEmployeeModel();
         $this->validator = new AgencyValidator();
         $this->cache = new AgencyCacheManager();
 
@@ -1008,10 +1011,11 @@ public function createPdfButton() {
                 }
             }
             
-            $stats = [
-                'total_agencies' => $this->model->getTotalCount(),
-                'total_divisiones' => $this->divisionModel->getTotalCount($agency_id)
-            ];
+        $stats = [
+            'total_agencies' => $this->model->getTotalCount(),
+            'total_divisions' => $this->divisionModel->getTotalCount($agency_id),
+            'total_employees' => $this->employeeModel->getTotalCount($agency_id)
+        ];
             
             // Cache for 5 minutes
             $this->cache->set($cache_key, $stats, 5 * MINUTE_IN_SECONDS);

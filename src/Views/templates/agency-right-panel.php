@@ -6,7 +6,7 @@
 
 
 <div class="wp-agency-panel-header">
-    <h2>Detail Agency: <span id="agency-header-name"></span></h2>
+    <h2>Detail Disnaker: <span id="agency-header-name"></span></h2>
     <button type="button" class="wp-agency-close-panel">×</button>
 </div>
 
@@ -14,9 +14,9 @@
 
 
 <div class="nav-tab-wrapper">
-    <a href="#" class="nav-tab nav-tab-agency-details nav-tab-active" data-tab="agency-details">Data Agency</a>
+    <a href="#" class="nav-tab nav-tab-agency-details nav-tab-active" data-tab="agency-details">Data Disnaker</a>
     <a href="#" class="nav-tab" data-tab="membership-info">Membership</a>
-    <a href="#" class="nav-tab" data-tab="division-list">Cabang</a>
+    <a href="#" class="nav-tab" data-tab="division-list">Unit</a>
     <a href="#" class="nav-tab" data-tab="employee-list">Staff</a>
 </div>
 

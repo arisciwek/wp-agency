@@ -1,11 +1,11 @@
-# WP Agency WordPress Plugin
+# WP Disnaker WordPress Plugin
 
-A comprehensive WordPress plugin for managing Agencyn administrative regions (agencies and divisions/cities) with an emphasis on data integrity, user permissions, and performance.
+A comprehensive WordPress plugin for managing Disnaker administrative regions (agencies and divisions/cities) with an emphasis on data integrity, user permissions, and performance.
 
 ## 🚀 Features
 
 ### Core Features
-- Full CRUD operations for Agencys and Divisiones/Cities
+- Full CRUD operations for Disnakers and Divisiones/Cities
 - Server-side data processing with DataTables integration
 - Comprehensive permission system for different user roles
 - Intelligent caching system for optimized performance
@@ -14,7 +14,7 @@ A comprehensive WordPress plugin for managing Agencyn administrative regions (ag
 
 ### Dashboard Features
 - Interactive statistics display
-- Agency and division count tracking
+- Disnaker and division count tracking
 - Real-time updates on data changes
 
 ### User Interface
@@ -65,7 +65,7 @@ A comprehensive WordPress plugin for managing Agencyn administrative regions (ag
 1. Download the latest release from the repository
 2. Upload to `/wp-content/plugins/`
 3. Activate the plugin through WordPress admin interface
-4. Navigate to 'WP Agency' in the admin menu
+4. Navigate to 'WP Disnaker' in the admin menu
 5. Configure initial settings under 'Settings' tab
 
 ## 🔧 Configuration
@@ -95,8 +95,8 @@ A comprehensive WordPress plugin for managing Agencyn administrative regions (ag
 
 ## 🎯 Usage
 
-### Agency Management
-1. Navigate to 'WP Agency' menu
+### Disnaker Management
+1. Navigate to 'WP Disnaker' menu
 2. Use the left panel for agency listing
 3. Utilize action buttons for:
    - 👁 View details
@@ -145,7 +145,7 @@ wp-agency/
 - SettingsModel: Configuration storage
 
 #### JavaScript Components
-- Agency management
+- Disnaker management
 - Division management
 - DataTables integration
 - Form validation
@@ -222,7 +222,7 @@ Example integration points:
 
 ### Version 1.0.0
 - Initial release with core functionality
-- Agency and division management
+- Disnaker and division management
 - Permission system implementation
 - Caching system
 - DataTables integration

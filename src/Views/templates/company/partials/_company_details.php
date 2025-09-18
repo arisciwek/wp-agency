@@ -37,7 +37,7 @@ defined('ABSPATH') || exit;
                         <td><span id="company-type"></span></td>
                     </tr>
                     <tr>
-                        <th><?php _e('Agency', 'wp-agency'); ?></th>
+                        <th><?php _e('Disnaker', 'wp-agency'); ?></th>
                         <td><span id="company-agency-name"></span></td>
                     </tr>
                 </table>

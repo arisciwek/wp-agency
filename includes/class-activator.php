@@ -51,11 +51,11 @@ class WP_Agency_Activator {
                 return;
             }
 
-            // 2. Create agency role first if it doesn't exist
+            // 2. Create disnaker role first if it doesn't exist
             if (!get_role('agency')) {
                 add_role(
                     'agency',
-                    __('Agency', 'wp-agency'),
+                    __('Disnaker', 'wp-agency'),
                     [] // Start with empty capabilities
                 );
             }

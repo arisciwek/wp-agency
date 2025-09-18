@@ -30,11 +30,11 @@ defined('ABSPATH') || exit;
             <div class="inside">
                 <table class="form-table">
                     <tr>
-                        <th><?php _e('Nama Agency', 'wp-agency'); ?></th>
+                        <th><?php _e('Nama Disnaker', 'wp-agency'); ?></th>
                         <td><span id="agency-name"></span></td>
                     </tr>
                     <tr>
-                        <th><?php _e('Kode Agency', 'wp-agency'); ?></th>
+                        <th><?php _e('Kode Disnaker', 'wp-agency'); ?></th>
                         <td><span id="agency-code"></span></td>
                     </tr>
                     <tr>
@@ -104,11 +104,11 @@ defined('ABSPATH') || exit;
                         <td><span id="agency-owner"></span></td>
                     </tr>
                     <tr>
-                        <th><?php _e('Jumlah Division', 'wp-agency'); ?></th>
+                        <th><?php _e('Jumlah Unit', 'wp-agency'); ?></th>
                         <td><span id="agency-division-count">0</span></td>
                     </tr>
                     <tr>
-                        <th><?php _e('Jumlah Karyawan', 'wp-agency'); ?></th>
+                        <th><?php _e('Jumlah Staff', 'wp-agency'); ?></th>
                         <td><span id="agency-employee-count">0</span></td>
                     </tr>
                 </table>

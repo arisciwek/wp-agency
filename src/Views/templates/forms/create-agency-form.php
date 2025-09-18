@@ -9,7 +9,7 @@
  * 
  * Path: /wp-agency/src/Views/templates/forms/create-agency-form.php
  * 
- * Description: Template form untuk menambah agency baru.
+ * Description: Template form untuk menambah disnaker baru.
  *              Menggunakan modal dialog untuk tampilan form.
  *              Includes validasi client-side dan permission check.
  *              Terintegrasi dengan AJAX submission dan toast notifications.
@@ -37,7 +37,7 @@ defined('ABSPATH') || exit;
    <div class="modal-container">
        <form id="create-agency-form" method="post">
            <div class="modal-header">
-               <h3>Tambah Agency</h3>
+               <h3>Tambah Disnaker</h3>
                <button type="button" class="modal-close" aria-label="Close">&times;</button>
            </div>
            <div class="modal-content">
@@ -50,7 +50,7 @@ defined('ABSPATH') || exit;
                        
                        <div class="wp-agency-form-group">
                            <label for="agency-name" class="required-field">
-                               <?php _e('Nama Agency', 'wp-agency'); ?>
+                               <?php _e('Nama Disnaker', 'wp-agency'); ?>
                            </label>
                            <input type="text" 
                                   id="agency-name" 
@@ -155,7 +155,7 @@ defined('ABSPATH') || exit;
                            <select id="agency-owner" name="user_id" class="regular-text">
                                <option value=""><?php _e('Pilih Admin', 'wp-agency'); ?></option>
                                <?php
-                               $users = get_users(['role__in' => ['Agency']]);
+                               $users = get_users(['role__in' => ['Disnaker']]);
                                foreach ($users as $user) {
                                    printf(
                                        '<option value="%d">%s</option>',
