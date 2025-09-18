@@ -36,10 +36,10 @@ if (!defined('ABSPATH')) {
                                 <ul class="feature-list">
                                     <?php foreach ($capabilities['staff'] as $feature): ?>
                                         <li class="feature-item">
-                                            <span class="feature-icon <?php echo $feature['value'] ? 'enabled' : 'disabled'; ?>">
-                                                <?php echo $feature['value'] ? '✓' : '✗'; ?>
+                                            <span class="feature-icon <?php echo ($feature['value'] ?? false) ? 'enabled' : 'disabled'; ?>">
+                                                <?php echo ($feature['value'] ?? false) ? '✓' : '✗'; ?>
                                             </span>
-                                            <?php echo esc_html($feature['label']); ?>
+                                            <?php echo esc_html($feature['label'] ?? 'Unknown'); ?>
                                         </li>
                                     <?php endforeach; ?>
                                 </ul>
@@ -53,10 +53,10 @@ if (!defined('ABSPATH')) {
                                 <ul class="feature-list">
                                     <?php foreach ($capabilities['data'] as $feature): ?>
                                         <li class="feature-item">
-                                            <span class="feature-icon <?php echo $feature['value'] ? 'enabled' : 'disabled'; ?>">
-                                                <?php echo $feature['value'] ? '✓' : '✗'; ?>
+                                            <span class="feature-icon <?php echo ($feature['value'] ?? false) ? 'enabled' : 'disabled'; ?>">
+                                                <?php echo ($feature['value'] ?? false) ? '✓' : '✗'; ?>
                                             </span>
-                                            <?php echo esc_html($feature['label']); ?>
+                                            <?php echo esc_html($feature['label'] ?? 'Unknown'); ?>
                                         </li>
                                     <?php endforeach; ?>
                                 </ul>
@@ -70,9 +70,9 @@ if (!defined('ABSPATH')) {
                                 <ul class="feature-list">
                                     <?php foreach ($capabilities['resources'] as $feature): ?>
                                         <li class="feature-item">
-                                            <span class="limit-label"><?php echo esc_html($feature['label']); ?>:</span>
+                                            <span class="limit-label"><?php echo esc_html($feature['label'] ?? 'Unknown'); ?>:</span>
                                             <span class="limit-value">
-                                                <?php echo $feature['value'] === -1 ? '∞' : esc_html($feature['value']); ?>
+                                                <?php echo ($feature['value'] ?? 0) === -1 ? '∞' : esc_html($feature['value'] ?? 0); ?>
                                             </span>
                                         </li>
                                     <?php endforeach; ?>
@@ -87,10 +87,10 @@ if (!defined('ABSPATH')) {
                                <ul class="feature-list">
                                    <?php foreach ($capabilities['communication'] as $feature): ?>
                                        <li class="feature-item">
-                                           <span class="feature-icon <?php echo $feature['value'] ? 'enabled' : 'disabled'; ?>">
-                                               <?php echo $feature['value'] ? '✓' : '✗'; ?>
+                                           <span class="feature-icon <?php echo ($feature['value'] ?? false) ? 'enabled' : 'disabled'; ?>">
+                                               <?php echo ($feature['value'] ?? false) ? '✓' : '✗'; ?>
                                            </span>
-                                           <?php echo esc_html($feature['label']); ?>
+                                           <?php echo esc_html($feature['label'] ?? 'Unknown'); ?>
                                        </li>
                                    <?php endforeach; ?>
                                </ul>

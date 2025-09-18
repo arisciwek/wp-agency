@@ -276,4 +276,19 @@ class MembershipLevelModel {
 
         return $grouped_features;
     }
+
+
+    public function getAllLevels() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'app_agency_membership_levels';
+        
+        $levels = $wpdb->get_results("
+            SELECT * FROM {$table_name}
+            WHERE status = 'active'
+            ORDER BY sort_order ASC
+        ");
+        
+        return $levels;
+    }
+
 }

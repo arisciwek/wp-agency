@@ -24,6 +24,15 @@ define('WP_AGENCY_PATH', plugin_dir_path(__FILE__));
 define('WP_AGENCY_URL', plugin_dir_url(__FILE__));
 define('WP_AGENCY_DEVELOPMENT', false);
 
+add_filter('wp_customer_access_type', 'add_agency_access_type', 10, 2);
+function add_agency_access_type($access_type, $relation) {
+    // Cek apakah user adalah vendor untuk customer ini
+    if ($relation['is_agency'] ?? false) {
+        return 'agency';
+    }
+    return $access_type;
+}
+
 /**
  * Main plugin class
  */
@@ -60,6 +69,8 @@ class WPAgency {
         require_once WP_AGENCY_PATH . 'includes/class-autoloader.php';
         $autoloader = new WPAgencyAutoloader('WPAgency\\', WP_AGENCY_PATH);
         $autoloader->register();
+        
+        load_textdomain('wp-agency', WP_AGENCY_PATH . 'languages/wp-agency-id_ID.mo');
 
         $this->includeDependencies();
         $this->initHooks();

@@ -98,7 +98,7 @@ class AgencyCacheManager {
         return self::CACHE_EXPIRY;
     }
 
-    public static function getCacheKey(string $type): string {
+    public static function _getCacheKey(string $type): string {
         $constants = [
             'agency' => self::KEY_AGENCY,
             'agency_list' => self::KEY_AGENCY_LIST,
@@ -307,8 +307,6 @@ class AgencyCacheManager {
         return $this->set('datatable', $data, 2 * MINUTE_IN_SECONDS, ...$components);
     }
 
-
-
     /**
      * Perbaikan untuk invalidateDataTableCache() di AgencyCacheManager
      */
@@ -403,8 +401,6 @@ class AgencyCacheManager {
         $this->debug_log(sprintf('Deleted %d keys with prefix %s', $deleted, $prefix));
         return true;
     }
-
-    
 
     /**
      * Helper method to generate cache key for DataTable

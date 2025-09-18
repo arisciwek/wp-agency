@@ -444,7 +444,7 @@
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
                     data: {
-                        action: 'get_membership_level_data',
+                        action: 'get_agency_membership_level_data',
                         agency_id: this.currentId,
                         nonce: wpAgencyData.nonce
                     },

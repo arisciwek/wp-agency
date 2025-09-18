@@ -24,6 +24,9 @@ use WPAgency\Controllers\Auth\AgencyRegistrationHandler;
 class WP_Agency_Init_Hooks {
 
     public function init() {
+        // Load text domain - harus di awal sebelum yang lain
+        add_action('init', [$this, 'load_textdomain'], 1);
+        
         // Query vars
         add_filter('query_vars', [$this, 'add_query_vars']);
 
@@ -37,6 +40,21 @@ class WP_Agency_Init_Hooks {
         add_action('wp_ajax_nopriv_wp_agency_register', [$this, 'handle_registration']);
     }
 
+    /**
+     * Load plugin textdomain untuk i18n/l10n.
+     * Menggunakan konstanta WP_AGENCY_PATH yang sudah didefinisikan di file utama.
+     */
+    public function load_textdomain() {
+        // Gunakan konstanta WP_AGENCY_FILE yang sudah ada untuk mendapatkan path yang benar
+        $plugin_rel_path = dirname(plugin_basename(WP_AGENCY_FILE)) . '/languages';
+        
+        load_plugin_textdomain(
+            'wp-agency',
+            false,
+            $plugin_rel_path
+        );
+    }
+    
     public function register_shortcodes() {
         add_shortcode('agency_register_form', array($this, 'render_register_form'));
     }

@@ -25,30 +25,30 @@ use WPAgency\Cache\AgencyCacheManager;
 
 class AgencyMembershipController {
     private AgencyMembershipModel $membership_model;
-    private AgencyMembershipLevelModel $level_model;
+    private MembershipLevelModel $level_model;
     private AgencyCacheManager $cache;
 
     public function __construct() {
         
-        //$this->membership_model = new AgencyMembershipModel();
-        //$this->level_model = new MembershipLevelModel();
-        //$this->cache = new AgencyCacheManager();
+        $this->membership_model = new AgencyMembershipModel();
+        $this->level_model = new MembershipLevelModel();
+        $this->cache = new AgencyCacheManager();
 
         // Register all AJAX endpoints
         add_action('wp_ajax_get_membership_status', [$this, 'getMembershipStatus']);
         add_action('wp_ajax_upgrade_membership', [$this, 'upgradeMembership']);
         add_action('wp_ajax_extend_membership', [$this, 'extendMembership']); 
         add_action('wp_ajax_get_upgrade_options', [$this, 'getUpgradeOptions']);
-/*
+
     	add_action('wp_ajax_get_membership_level', [$this, 'getMembershipLevel']);
 		add_action('wp_ajax_save_membership_level', [$this, 'saveMembershipLevel']);
-        add_action('wp_ajax_get_membership_level_data', [$this, 'getMembershipLevelData']);
-*/
+        add_action('wp_ajax_get_agency_membership_level_data', [$this, 'getMembershipLevelData']);
+
 		$this->membership_model = new AgencyMembershipModel();
 		$this->cache = new AgencyCacheManager();
         return;
     }
-/*
+
 	public function saveMembershipLevel() {
 	   try {
 	       check_ajax_referer('wp_agency_nonce', 'nonce');
@@ -128,7 +128,7 @@ class AgencyMembershipController {
 
 	}
 
-	// Rename dari createUpgradeButton menjadi getMembershipLevelData
+	// Di method getMembershipLevelData()
 	public function getMembershipLevelData() {
 	    try {
 	        check_ajax_referer('wp_agency_nonce', 'nonce');
@@ -138,13 +138,22 @@ class AgencyMembershipController {
 	            throw new \Exception('Invalid agency ID');
 	        }
 
+	        // Cek cache terlebih dahulu
+	        $cache_key = 'membership_level_data_' . $agency_id;
+	        $cached_data = $this->cache->get($cache_key);
+	        if ($cached_data !== null) {
+	            wp_send_json_success($cached_data);
+	            return;
+	        }
+
 	        // Get current membership
 	        $current = $this->membership_model->findByAgency($agency_id);
 	        
 	        error_log('$agency_id ' . $agency_id);
 
 	        // Get membership levels data
-	        $levels = $this->level_model->getAllLevels();
+	        // Jika method getAllLevels() tidak ada, ganti dengan yang tersedia
+	        $levels = $this->level_model->getAllLevels(); // Atau gunakan method lain yang sesuai
 	        
 	        // Format data untuk setiap level
 	        $formatted_levels = [];
@@ -172,10 +181,15 @@ class AgencyMembershipController {
 	            $formatted_levels[$level->slug] = $data;
 	        }
 
-	        wp_send_json_success([
+	        $response_data = [
 	            'current_level' => $current ? $current->level_id : null,
 	            'levels' => $formatted_levels
-	        ]);
+	        ];
+
+	        // Simpan ke cache untuk 30 menit
+	        $this->cache->set($cache_key, $response_data, 30 * MINUTE_IN_SECONDS);
+
+	        wp_send_json_success($response_data);
 
 	    } catch (\Exception $e) {
 	        wp_send_json_error([
@@ -183,7 +197,7 @@ class AgencyMembershipController {
 	        ]);
 	    }
 	}
-*/
+
 	public function createMembership(array $membership_data): int {
 	    try {
 	        // Validate data structure

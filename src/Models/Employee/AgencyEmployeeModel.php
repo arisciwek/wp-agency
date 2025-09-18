@@ -77,6 +77,7 @@ class AgencyEmployeeModel {
 
         $employee_id = (int) $wpdb->insert_id;
         
+
         // Invalidasi cache terkait agency_employee
         $this->cache->delete('agency_active_employee_count', (string)$data['agency_id']);
         $this->cache->delete('agency_employee_count', (string)$data['agency_id']);
@@ -93,6 +94,7 @@ class AgencyEmployeeModel {
 
         // Cek cache terlebih dahulu
         $cached_employee = $this->cache->get('agency_employee', $id);
+
         if ($cached_employee !== null) {
             return $cached_employee;
         }

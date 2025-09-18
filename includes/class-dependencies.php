@@ -421,25 +421,6 @@ public function enqueue_frontend_assets() {
             ]);
         }
 
-        // Script section di method enqueue_scripts()
-        if ($screen->id === 'toplevel_page_perusahaan') {
-            // Core dependencies
-            wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js', ['jquery'], '1.13.7', true);
-            
-            // Components
-            wp_enqueue_script('wp-agency-toast', WP_AGENCY_URL . 'assets/js/agency/agency-toast.js', ['jquery'], $this->version, true);
-
-            // Company scripts
-            wp_enqueue_script('company-datatable', WP_AGENCY_URL . 'assets/js/company/company-datatable.js', ['jquery', 'datatables', 'wp-agency-toast'], $this->version, true);
-            wp_enqueue_script('company-script', WP_AGENCY_URL . 'assets/js/company/company-script.js', ['jquery', 'company-datatable', 'wp-agency-toast'], $this->version, true);
-
-            // Localize script
-            wp_localize_script('company-script', 'wpAgencyData', [
-                'ajaxUrl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('wp_agency_nonce'),
-                'debug' => true
-            ]);
-        }  
     }
 
     private function enqueue_wilayah_handler() {

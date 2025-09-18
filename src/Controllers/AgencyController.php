@@ -103,23 +103,6 @@ class AgencyController {
 
         add_action('wp_ajax_create_pdf_button', [$this, 'createPdfButton']);
 
-        // Debug cache di folder uploads 
-        /*
-        $upload_dir = wp_upload_dir();
-        $debug_file = $upload_dir['basedir'] . '/wp-agency/cache-debug.txt';
-
-        // Capture cache state
-        global $wp_object_cache;
-        $cache_data = print_r($wp_object_cache->cache, true);
-
-        // Append with timestamp
-        $debug_content = "[" . date('Y-m-d H:i:s') . "]\n";
-        $debug_content .= $cache_data . "\n\n";
-
-        // Save to file
-        file_put_contents($debug_file, $debug_content, FILE_APPEND);
-        */
-
     }
 
 public function createPdfButton() {
@@ -361,6 +344,7 @@ public function createPdfButton() {
             ]);
         }
     }
+
     /**
      * Validate agency access - public endpoint untuk AJAX
      * @since 1.0.0
@@ -685,7 +669,6 @@ public function createPdfButton() {
      */
     public function store() {
         try {
-            error_log('Store method called'); // Debug 1
             check_ajax_referer('wp_agency_nonce', 'nonce');
 
             $permission_errors = $this->validator->validatePermission('create');
@@ -704,8 +687,8 @@ public function createPdfButton() {
                 'user_id' => isset($_POST['user_id']) ? (int)$_POST['user_id'] : get_current_user_id(),
                 'created_by' => get_current_user_id()
             ];
-    
-            error_log('Received data: ' . print_r($data, true)); // Debug 2
+        
+            error_log('Received data: ' . print_r($data, true));
 
             $form_errors = $this->validator->validateForm($data);
             if (!empty($form_errors)) {
@@ -718,10 +701,17 @@ public function createPdfButton() {
                 throw new \Exception('Failed to create agency');
             }
             
-            error_log('Created agency ID: ' . $id); // Debug 3
+            error_log('Created agency ID: ' . $id);
 
             $agency = $this->model->find($id);
-            error_log('Found agency: ' . print_r($agency, true)); // Debug 4
+            error_log('Found agency: ' . print_r($agency, true));
+
+            // Simpan agency ke cache
+            $this->cache->set('agency', $agency, $this->cache::getCacheExpiry(), $id);
+            
+            // Invalidasi cache terkait
+            $this->cache->invalidateDataTableCache('agency_list');
+            $this->cache->delete('agency_total_count', get_current_user_id());
 
             wp_send_json_success([
                 'message' => __('Agency berhasil ditambahkan', 'wp-agency'),
@@ -851,14 +841,43 @@ public function createPdfButton() {
                 throw new \Exception('You do not have permission to view this agency');
             }
 
-            // Get agency data
-            $agency = $this->model->find($id);
+            // Cek cache terlebih dahulu
+            $cached_agency = $this->cache->get('agency', $id);
+            
+            if ($cached_agency !== null) {
+                $this->debug_log("Data agency diambil dari cache");
+                $agency = $cached_agency;
+            } else {
+                // Jika tidak ada dalam cache, ambil dari database
+                $this->debug_log("Data agency diambil dari database");
+                $agency = $this->model->find($id);
+                
+                // Simpan ke cache jika ditemukan
+                if ($agency) {
+                    $this->cache->set('agency', $agency, $this->cache::getCacheExpiry(), $id);
+                }
+            }
+
             if (!$agency) {
                 throw new \Exception('Agency not found');
             }
 
-            // Get membership data if needed
-            $membership = $this->model->getMembershipData($id);
+            // Cek cache untuk data membership
+            $cached_membership = $this->cache->get('agency_membership', $id);
+            
+            if ($cached_membership !== null) {
+                $this->debug_log("Data membership diambil dari cache");
+                $membership = $cached_membership;
+            } else {
+                // Jika tidak ada dalam cache, ambil dari database/model
+                $this->debug_log("Data membership diambil dari model");
+                $membership = $this->model->getMembershipData($id);
+                
+                // Simpan ke cache jika data tersedia
+                if ($membership) {
+                    $this->cache->set('agency_membership', $membership, $this->cache::getCacheExpiry(), $id);
+                }
+            }
 
             // Prepare response data
             $response_data = [
@@ -878,6 +897,7 @@ public function createPdfButton() {
             ]);
         }
     }
+
     private function enrichAgencyData($agency, $access, $division_count) {
         return [
             'agency' => array_merge((array)$agency, [
@@ -963,12 +983,22 @@ public function createPdfButton() {
             throw $e;
         }
     }    
+
     public function getStats() {
         try {
             check_ajax_referer('wp_agency_nonce', 'nonce');
-
+            
             // Get agency_id from query param
             $agency_id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+            $current_user_id = get_current_user_id();
+            
+            // Check cache first
+            $cache_key = 'agency_stats_' . $agency_id . '_' . $current_user_id;
+            $cached_stats = $this->cache->get($cache_key);
+            if ($cached_stats !== null) {
+                wp_send_json_success($cached_stats);
+                return;
+            }
             
             // Validate access if agency_id provided
             if ($agency_id) {
@@ -977,14 +1007,17 @@ public function createPdfButton() {
                     throw new \Exception('You do not have permission to view this agency');
                 }
             }
-
+            
             $stats = [
                 'total_agencies' => $this->model->getTotalCount(),
                 'total_divisiones' => $this->divisionModel->getTotalCount($agency_id)
             ];
-
+            
+            // Cache for 5 minutes
+            $this->cache->set($cache_key, $stats, 5 * MINUTE_IN_SECONDS);
+            
             wp_send_json_success($stats);
-
+            
         } catch (\Exception $e) {
             wp_send_json_error([
                 'message' => $e->getMessage()

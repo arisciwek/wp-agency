@@ -38,7 +38,7 @@ class AgencyDemoData extends AbstractDemoData {
 
     // Data statis agency
     private static $agencies = [
-        ['id' => 1, 'name' => 'PT Maju Bersama', 'provinsi_id' => '16', 'regency_id' => '34'],
+        ['id' => 1, 'name' => 'PT Maju Bersama'],
         ['id' => 2, 'name' => 'CV Teknologi Nusantara'],
         ['id' => 3, 'name' => 'PT Sinar Abadi'],
         ['id' => 4, 'name' => 'PT Global Teknindo'],

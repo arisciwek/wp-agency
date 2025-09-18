@@ -100,6 +100,10 @@ class AgencyMembershipModel {
         // Check cache first
         $cached = $this->cache->get('agency_membership', $agency_id);
         if ($cached !== null) {
+            // Konversi array ke object jika yang disimpan di cache adalah array
+            if (is_array($cached)) {
+                $cached = (object) $cached;
+            }
             return $cached;
         }
 
@@ -555,5 +559,5 @@ class AgencyMembershipModel {
 
         return $count;
     }
-
+    
 }

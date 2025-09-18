@@ -69,8 +69,6 @@ class DivisionController {
 
         add_action('wp_ajax_validate_division_access', [$this, 'validateDivisionAccess']);
 
-
-
     }
 
     /**
@@ -826,7 +824,7 @@ class DivisionController {
 
             // Cache terkait agency juga perlu diperbarui
             $this->cache->invalidateAgencyCache($data['agency_id']);
-            $this->model->invalidateEmployeeStatusCache($id);
+            $this->model->invalidateEmployeeStatusCache($division_id);
             
             return $division_id;
 
