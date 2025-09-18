@@ -451,8 +451,7 @@ div#agencies-table_length select {
 .agency-stats,
 .agency-meta {
     background: #fff;
-    padding: 15px;
-    margin-bottom: 15px;
+    padding: 20px;
     border: 1px solid #dcdcde;
     border-radius: 4px;
 }
