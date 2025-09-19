@@ -51,7 +51,7 @@ class AgencyEmployeeModel {
             [
                 'agency_id' => $data['agency_id'],
                 'division_id' => $data['division_id'],
-                'user_id' => get_current_user_id(),
+                'user_id' => $data['user_id'] ?? get_current_user_id(),
                 'name' => $data['name'],
                 'position' => $data['position'],
                 'finance' => $data['finance'],
@@ -61,7 +61,7 @@ class AgencyEmployeeModel {
                 'keterangan' => $data['keterangan'],
                 'email' => $data['email'],
                 'phone' => $data['phone'],
-                'created_by' => get_current_user_id(),
+                'created_by' => $data['created_by'] ?? get_current_user_id(),
                 'created_at' => current_time('mysql'),
                 'updated_at' => current_time('mysql'),
                 'status' => $data['status'] ?? 'active'

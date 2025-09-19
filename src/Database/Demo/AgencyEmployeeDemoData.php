@@ -13,6 +13,8 @@
 namespace WPAgency\Database\Demo;
 
 use WPAgency\Database\Demo\Data\AgencyEmployeeUsersData;
+use WPAgency\Database\Demo\Data\AgencyUsersData;
+use WPAgency\Database\Demo\Data\DivisionUsersData;
 use WPAgency\Controllers\Employee\AgencyEmployeeController;
 
 defined('ABSPATH') || exit;
@@ -82,6 +84,10 @@ class AgencyEmployeeDemoData extends AbstractDemoData {
                 $this->debug('Cleared existing employee data');
             }
 
+            // Clear employee data for demo generation
+            $this->wpdb->query("DELETE FROM {$this->wpdb->prefix}app_agency_employees");
+            $this->debug('Cleared existing employee data for demo');
+
             // Tahap 1: Generate dari user yang sudah ada (agency owners & division admins)
             $this->generateExistingUserEmployees();
 
@@ -98,8 +104,8 @@ class AgencyEmployeeDemoData extends AbstractDemoData {
 
     private function generateExistingUserEmployees(): void {
 
-		// For agency owners (ID 2-11)
-		for ($id = 2; $id <= 11; $id++) {
+		// 1. For agency owners (ID 102-111)
+		for ($id = AgencyUsersData::USER_ID_START; $id <= AgencyUsersData::USER_ID_END; $id++) {
 		    $agency = $this->wpdb->get_row($this->wpdb->prepare(
 		        "SELECT * FROM {$this->wpdb->prefix}app_agencies WHERE user_id = %d",
 		        $id
@@ -130,8 +136,8 @@ class AgencyEmployeeDemoData extends AbstractDemoData {
 		    );
 		} 
 		
-        // 2. Division admins (ID 12-41)
-        for ($id = 12; $id <= 41; $id++) {
+        // 2. Division admins (ID 112-131)
+        for ($id = DivisionUsersData::USER_ID_START; $id <= DivisionUsersData::USER_ID_END; $id++) {
             $division = $this->wpdb->get_row($this->wpdb->prepare(
                 "SELECT * FROM {$this->wpdb->prefix}app_divisions WHERE user_id = %d",
                 $id
@@ -180,9 +186,9 @@ class AgencyEmployeeDemoData extends AbstractDemoData {
     }
 
 private function createEmployeeRecord(
-    int $agency_id, 
-    int $division_id, 
-    int $user_id, 
+    int $agency_id,
+    int $division_id,
+    int $user_id,
     array $departments
 ): void {
     try {
@@ -191,13 +197,39 @@ private function createEmployeeRecord(
             throw new \Exception("WordPress user not found: {$user_id}");
         }
 
+        // Debug logging for user data
+        $this->debug("Processing user_id: {$user_id}, username: {$wp_user->user_login}, display_name: {$wp_user->display_name}, email: {$wp_user->user_email}");
+
+        // Ensure email is correct
+        $expected_email = $wp_user->user_login . '@example.com';
+        if ($wp_user->user_email !== $expected_email) {
+            wp_update_user([
+                'ID' => $user_id,
+                'user_email' => $expected_email
+            ]);
+            $this->debug("Updated email for user {$user_id} from {$wp_user->user_email} to {$expected_email}");
+            // Refresh user data
+            $wp_user = get_userdata($user_id);
+        }
+
         $keterangan = [];
-        if ($user_id >= 2 && $user_id <= 11) $keterangan[] = 'Admin Pusat';
-        if ($user_id >= 12 && $user_id <= 41) $keterangan[] = 'Admin Division';
+        if ($user_id >= AgencyUsersData::USER_ID_START && $user_id <= AgencyUsersData::USER_ID_END) $keterangan[] = 'Admin Pusat';
+        if ($user_id >= DivisionUsersData::USER_ID_START && $user_id <= DivisionUsersData::USER_ID_END) $keterangan[] = 'Admin Division';
         if ($departments['finance']) $keterangan[] = 'Finance'; 
         if ($departments['operation']) $keterangan[] = 'Operation';
         if ($departments['legal']) $keterangan[] = 'Legal';
         if ($departments['purchase']) $keterangan[] = 'Purchase';
+
+        // Check if email already exists in employees table
+        $existing_employee = $this->wpdb->get_var($this->wpdb->prepare(
+            "SELECT id FROM {$this->wpdb->prefix}app_agency_employees WHERE email = %s",
+            $wp_user->user_email
+        ));
+
+        if ($existing_employee) {
+            $this->debug("Email {$wp_user->user_email} already exists in employees table, skipping user {$user_id}");
+            return;
+        }
 
         $employee_data = [
             'agency_id' => $agency_id,

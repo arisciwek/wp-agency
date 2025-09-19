@@ -18,6 +18,10 @@ namespace WPAgency\Database\Demo\Data;
 defined('ABSPATH') || exit;
 
 class DivisionUsersData {
+    // Constants for user ID ranges
+    const USER_ID_START = 112;
+    const USER_ID_END = 131;
+
     // gunakan ID user mulai 112 sampai 141 untuk menghindari bentrok dengan user demo lain
     // setiap agency memiliki 3 user division: pusat, cabang1, cabang2
     // contoh: agency ID 1 (Disnaker Provinsi Aceh) memiliki user division ID 102, 112, 113

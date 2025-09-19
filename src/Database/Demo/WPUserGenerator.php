@@ -50,14 +50,20 @@ class WPUserGenerator {
         // 1. Check if user with this ID already exists using direct DB query
         $existing_user_id = $wpdb->get_var($wpdb->prepare("SELECT ID FROM {$wpdb->users} WHERE ID = %d", $data['id']));
         if ($existing_user_id) {
-            // Get user object for display name check
+            // Get user object for display name and email check
             $existing_user = get_user_by('ID', $data['id']);
+            $expected_email = $data['username'] . '@example.com';
+            $updates = [];
             if ($existing_user && $existing_user->display_name !== $data['display_name']) {
-                wp_update_user([
-                    'ID' => $data['id'],
-                    'display_name' => $data['display_name']
-                ]);
-                $this->debug("Updated user display name: {$data['display_name']} with ID: {$data['id']}");
+                $updates['display_name'] = $data['display_name'];
+            }
+            if ($existing_user && $existing_user->user_email !== $expected_email) {
+                $updates['user_email'] = $expected_email;
+            }
+            if (!empty($updates)) {
+                $updates['ID'] = $data['id'];
+                wp_update_user($updates);
+                $this->debug("Updated user data for ID: {$data['id']}");
             }
             return $existing_user_id;
         }

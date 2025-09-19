@@ -18,6 +18,10 @@ namespace WPAgency\Database\Demo\Data;
 defined('ABSPATH') || exit;
 
 class AgencyUsersData {
+    // Constants for user ID ranges
+    const USER_ID_START = 102;
+    const USER_ID_END = 111;
+
     // gunakan ID user mulai 102 sampai 111 untuk menghindari bentrok dengan user demo lain
     public static $data = [
         ['id' => 102, 'username' => 'admin_aceh', 'display_name' => 'Admin Aceh', 'role' => 'agency'],

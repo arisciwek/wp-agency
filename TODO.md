@@ -1,30 +1,17 @@
-# TODO: Perbaikan Update Angka Division di Dashboard
+# TODO: Fix User ID Ranges in AgencyEmployeeDemoData
 
-## Status: Completed ✅
+## Completed Tasks
+- [x] Add USER_ID_START and USER_ID_END constants to AgencyUsersData.php (102-111)
+- [x] Add USER_ID_START and USER_ID_END constants to DivisionUsersData.php (112-131)
+- [x] Import AgencyUsersData and DivisionUsersData classes in AgencyEmployeeDemoData.php
+- [x] Update generateExistingUserEmployees() to use constants instead of hardcoded values
+  - [x] Agency owners loop: AgencyUsersData::USER_ID_START to USER_ID_END
+  - [x] Division admins loop: DivisionUsersData::USER_ID_START to USER_ID_END
+- [x] Add debug logging in createEmployeeRecord() to output user data
+- [x] Add email correction logic to ensure WP user emails match username@example.com
+- [x] Add check to skip creating employee if email already exists in wp_app_agency_employees
 
-### Tugas yang Telah Diselesaikan:
-- [x] Mengidentifikasi masalah: Key 'total_divisiones' di PHP tidak cocok dengan 'total_divisions' di JS
-- [x] Menambahkan AgencyEmployeeModel ke AgencyController
-- [x] Memperbaiki key dari 'total_divisiones' menjadi 'total_divisions' di getStats()
-- [x] Menambahkan 'total_employees' ke response stats
-- [x] Menambahkan elemen HTML untuk total-employees di agency-dashboard.php
-
-### File yang Dimodifikasi:
-1. `src/Controllers/AgencyController.php`:
-   - Menambahkan import AgencyEmployeeModel
-   - Menambahkan properti $employeeModel
-   - Menginisialisasi $employeeModel di constructor
-   - Memperbaiki getStats() method
-
-2. `src/Views/templates/agency-dashboard.php`:
-   - Menambahkan stat box untuk Total Karyawan
-
-### Testing yang Perlu Dilakukan:
-- [ ] Jalankan halaman dashboard agency
-- [ ] Periksa apakah angka 0 di total-divisions sekarang terupdate dengan jumlah division yang benar
-- [ ] Periksa apakah total-employees juga terupdate
-- [ ] Periksa console browser untuk error JavaScript
-
-### Catatan:
-- Jika masih ada masalah, periksa DivisionModel::getTotalCount() untuk memastikan logika ketika agency_id=0
-- Pastikan user memiliki permission yang cukup untuk melihat stats
+## Notes
+- The duplicate email error should now be resolved by correcting incorrect emails and skipping duplicates
+- WordPress user IDs and table IDs remain unchanged on each demo data generation
+- Debug logs will show user processing details
