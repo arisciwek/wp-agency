@@ -146,23 +146,14 @@ class AgencyDemoData extends AbstractDemoData {
                 // 2. Cek dan buat WP User jika belum ada
                 $wp_user_id = 101 + $agency['id'];  // ID user untuk agency
                 $user_index = $agency['id'] - 1;  // Indeks di AgencyUsersData array (0-based)
-                error_log("Debug: wp_user_id = {$wp_user_id}, user_index = {$user_index} for agency ID: {$agency['id']}");
-
+                
                 // Ambil data user dari static array
-                error_log("Debug: agency_users keys = " . implode(',', array_keys($this->agency_users)));
-                error_log("Debug: user_index exists = " . (isset($this->agency_users[$user_index]) ? 'yes' : 'no'));
                 $user_data = $this->agency_users[$user_index] ?? null;
-                error_log("Debug: user_data = " . json_encode($user_data, true));
                 if (!$user_data) {
                     error_log("Debug: User data not found for wp_user_id: {$wp_user_id}, skipping agency: {$agency['name']}");
                 }
                 $existing_user = get_user_by('ID', $user_data['id']);
-                error_log("Debug: get_user_by result = " . ($existing_user ? print_r($existing_user, true) : 'null'));
-                error_log("Debug: user exists before generation = " . ($existing_user ? 'yes' : 'no'));
-                error_log("Debug: wpdb->users = " . $this->wpdb->users);
-                error_log("Debug: table wp_users exists = " . ($this->wpdb->get_var("SHOW TABLES LIKE 'wp_users'") ? 'yes' : 'no'));
                 $user_exists_db = $this->wpdb->get_var($this->wpdb->prepare("SELECT ID FROM {$this->wpdb->users} WHERE ID = %d", $user_data['id']));
-                error_log("Debug: user with ID {$user_data['id']} exists in DB = " . ($user_exists_db ? 'yes' : 'no'));
                 if ($user_exists_db) {
                     error_log("Debug: user data from DB = " . print_r($this->wpdb->get_row($this->wpdb->prepare("SELECT * FROM {$this->wpdb->users} WHERE ID = %d", $user_data['id'])), true));
                 }
@@ -172,10 +163,9 @@ class AgencyDemoData extends AbstractDemoData {
                     'display_name' => $user_data['display_name'],
                     'role' => 'agency'
                 ]);
-                error_log("Debug: user_id generated = {$user_id}");
+                
                 $user_exists = $this->wpdb->get_var($this->wpdb->prepare("SELECT ID FROM {$this->wpdb->users} WHERE ID = %d", $user_id));
-                error_log("Debug: user exists in DB after generation = " . ($user_exists ? 'yes' : 'no'));
-
+                
                 if (!$user_id) {
                     throw new \Exception("Failed to create WordPress user for agency: {$agency['name']}");
                 }
