@@ -42,19 +42,24 @@ class WPUserGenerator {
 
     public function generateUser($data) {
         global $wpdb;
-        
-        // 1. Check if user with this ID already exists
-        $existing_user = get_user_by('ID', $data['id']);
-        if ($existing_user) {
-            // Update display name if different
-            if ($existing_user->display_name !== $data['display_name']) {
+
+        if (!$this->validate()) {
+            throw new \Exception('Validation failed: cannot create users');
+        }
+
+        // 1. Check if user with this ID already exists using direct DB query
+        $existing_user_id = $wpdb->get_var($wpdb->prepare("SELECT ID FROM {$wpdb->users} WHERE ID = %d", $data['id']));
+        if ($existing_user_id) {
+            // Get user object for display name check
+            $existing_user = get_user_by('ID', $data['id']);
+            if ($existing_user && $existing_user->display_name !== $data['display_name']) {
                 wp_update_user([
                     'ID' => $data['id'],
                     'display_name' => $data['display_name']
                 ]);
                 $this->debug("Updated user display name: {$data['display_name']} with ID: {$data['id']}");
             }
-            return $data['id'];
+            return $existing_user_id;
         }
 
         // 2. Use username from data or generate new one

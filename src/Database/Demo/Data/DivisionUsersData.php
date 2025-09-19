@@ -18,56 +18,63 @@ namespace WPAgency\Database\Demo\Data;
 defined('ABSPATH') || exit;
 
 class DivisionUsersData {
+    // gunakan ID user mulai 112 sampai 141 untuk menghindari bentrok dengan user demo lain
+    // setiap agency memiliki 3 user division: pusat, cabang1, cabang2
+    // contoh: agency ID 1 (Disnaker Provinsi Aceh) memiliki user division ID 102, 112, 113
+    // untuk setiap division dengan key pusat, id usernya sama dengan id user agencynya
+    // untuk cabang1 dan cabang2, id usernya bertambah 1 id user agency
+    // sehingga untuk agency ID 1 (Disnaker Provinsi Aceh) dengan user agency ID 102
+    
     public static $data = [
-        1 => [  // PT Maju Bersama
-            'pusat' => ['id' => 12, 'username' => 'bambang_sutrisno', 'display_name' => 'Bambang Sutrisno'],
-            'cabang1' => ['id' => 13, 'username' => 'citra_dewi', 'display_name' => 'Citra Dewi'],
-            'cabang2' => ['id' => 14, 'username' => 'dani_hermawan', 'display_name' => 'Dani Hermawan']
+        1 => [  // Disnaker Provinsi Aceh
+            'pusat' => ['id' => 102, 'username' => 'admin_aceh', 'display_name' => 'Admin Aceh'],
+            'cabang1' => ['id' => 112, 'username' => 'citra_aceh', 'display_name' => 'Citra Dewi'],
+            'cabang2' => ['id' => 113, 'username' => 'dani_aceh', 'display_name' => 'Dani Hermawan']
         ],
-        2 => [  // CV Teknologi Nusantara
-            'pusat' => ['id' => 15, 'username' => 'eka_purnama', 'display_name' => 'Eka Purnama'],
-            'cabang1' => ['id' => 16, 'username' => 'fajar_ramadhan', 'display_name' => 'Fajar Ramadhan'],
-            'cabang2' => ['id' => 17, 'username' => 'gita_lestari', 'display_name' => 'Gita Lestari']
+        2 => [  // Disnaker Provinsi Sumatera Utara
+            'pusat' => ['id' => 103, 'username' => 'admin_sumut', 'display_name' => 'Admin Sumatera Utara'],
+            'cabang1' => ['id' => 114, 'username' => 'fajar_sumut', 'display_name' => 'Fajar Ramadhan'],
+            'cabang2' => ['id' => 115, 'username' => 'gita_sumut', 'display_name' => 'Gita Lestari']
         ],
-        3 => [  // PT Sinar Abadi
-            'pusat' => ['id' => 18, 'username' => 'hendri_wijaya', 'display_name' => 'Hendri Wijaya'],
-            'cabang1' => ['id' => 19, 'username' => 'indah_sari', 'display_name' => 'Indah Sari'],
-            'cabang2' => ['id' => 20, 'username' => 'joko_santoso', 'display_name' => 'Joko Santoso']
+        3 => [  // Disnaker Provinsi Sumatera Barat
+            'pusat' => ['id' => 104, 'username' => 'admin_sumbar', 'display_name' => 'Admin Sumatera Barat'],
+            'cabang1' => ['id' => 116, 'username' => 'indah_sumbar', 'display_name' => 'Indah Sari'],
+            'cabang2' => ['id' => 117, 'username' => 'joko_sumbar', 'display_name' => 'Joko Santoso']
         ],
-        4 => [  // PT Global Teknindo
-            'pusat' => ['id' => 21, 'username' => 'kartika_sari', 'display_name' => 'Kartika Sari'],
-            'cabang1' => ['id' => 22, 'username' => 'lukman_hakim', 'display_name' => 'Lukman Hakim'],
-            'cabang2' => ['id' => 23, 'username' => 'mira_pratiwi', 'display_name' => 'Mira Pratiwi']
+        4 => [  // Disnaker Provinsi Banten
+            'pusat' => ['id' => 105, 'username' => 'admin_banten', 'display_name' => 'Admin Banten'],
+            'cabang1' => ['id' => 118, 'username' => 'lukman_banten', 'display_name' => 'Lukman Hakim'],
+            'cabang2' => ['id' => 119, 'username' => 'mira_banten', 'display_name' => 'Mira Pratiwi']
         ],
-        5 => [  // CV Mitra Solusi
-            'pusat' => ['id' => 24, 'username' => 'nanda_kusuma', 'display_name' => 'Nanda Kusuma'],
-            'cabang1' => ['id' => 25, 'username' => 'oki_wibowo', 'display_name' => 'Oki Wibowo'],
-            'cabang2' => ['id' => 26, 'username' => 'putri_maharani', 'display_name' => 'Putri Maharani']
+        5 => [  // Disnaker Provinsi Jawa Barat
+            'pusat' => ['id' => 106, 'username' => 'admin_jabar', 'display_name' => 'Admin Jawa Barat'],
+            'cabang1' => ['id' => 120, 'username' => 'oki_jabar', 'display_name' => 'Oki Wibowo'],
+            'cabang2' => ['id' => 121, 'username' => 'putri_jabar', 'display_name' => 'Putri Maharani']
         ],
-        6 => [  // PT Karya Digital
-            'pusat' => ['id' => 27, 'username' => 'raden_aditya', 'display_name' => 'Raden Aditya'],
-            'cabang1' => ['id' => 28, 'username' => 'sinta_dewi', 'display_name' => 'Sinta Dewi'],
-            'cabang2' => ['id' => 29, 'username' => 'tomi_gunawan', 'display_name' => 'Tomi Gunawan']
+        6 => [  // Disnaker Provinsi Jawa Tengah
+            'pusat' => ['id' => 107, 'username' => 'admin_jateng', 'display_name' => 'Admin Jawa Tengah'],
+            'cabang1' => ['id' => 122, 'username' => 'sinta_jateng', 'display_name' => 'Sinta Dewi'],
+            'cabang2' => ['id' => 123, 'username' => 'tomi_jateng', 'display_name' => 'Tomi Gunawan']
         ],
-        7 => [  // PT Bumi Perkasa
-            'pusat' => ['id' => 30, 'username' => 'utami_wahyuni', 'display_name' => 'Utami Wahyuni'],
-            'cabang1' => ['id' => 31, 'username' => 'vino_pratama', 'display_name' => 'Vino Pratama'],
-            'cabang2' => ['id' => 32, 'username' => 'wulan_sari', 'display_name' => 'Wulan Sari']
+        7 => [  // Disnaker Provinsi Jawa Timur
+            'pusat' => ['id' => 108, 'username' => 'admin_jatim', 'display_name' => 'Admin Jawa Timur'],
+            'cabang1' => ['id' => 124, 'username' => 'vino_jatim', 'display_name' => 'Vino Pratama'],
+            'cabang2' => ['id' => 125, 'username' => 'wulan_jatim', 'display_name' => 'Wulan Sari']
         ],
-        8 => [  // CV Cipta Kreasi
-            'pusat' => ['id' => 33, 'username' => 'yanto_santoso', 'display_name' => 'Yanto Santoso'],
-            'cabang1' => ['id' => 34, 'username' => 'zara_putri', 'display_name' => 'Zara Putri'],
-            'cabang2' => ['id' => 35, 'username' => 'agung_nugroho', 'display_name' => 'Agung Nugroho']
+        8 => [  // Disnaker Provinsi Kalimantan Barat
+            'pusat' => ['id' => 109, 'username' => 'admin_kalbar', 'display_name' => 'Admin Kalimantan Barat'],
+            'cabang1' => ['id' => 126, 'username' => 'zara_kalbar', 'display_name' => 'Zara Putri'],
+            'cabang2' => ['id' => 127, 'username' => 'agung_kalbar', 'display_name' => 'Agung Nugroho']
         ],
-        9 => [  // PT Meta Inovasi
-            'pusat' => ['id' => 36, 'username' => 'bagus_wicaksono', 'display_name' => 'Bagus Wicaksono'],
-            'cabang1' => ['id' => 37, 'username' => 'candra_wijaya', 'display_name' => 'Candra Wijaya'],
-            'cabang2' => ['id' => 38, 'username' => 'dina_puspita', 'display_name' => 'Dina Puspita']
+        9 => [  // Disnaker Provinsi Kalimantan Timur
+            'pusat' => ['id' => 110, 'username' => 'admin_kaltim', 'display_name' => 'Admin Kalimantan Timur'],
+            'cabang1' => ['id' => 128, 'username' => 'candra_kaltim', 'display_name' => 'Candra Wijaya'],
+            'cabang2' => ['id' => 129, 'username' => 'dina_kaltim', 'display_name' => 'Dina Puspita']
         ],
-        10 => [  // PT Delta Sistem
-            'pusat' => ['id' => 39, 'username' => 'edi_susanto', 'display_name' => 'Edi Susanto'],
-            'cabang1' => ['id' => 40, 'username' => 'fani_hartanti', 'display_name' => 'Fani Hartanti'],
-            'cabang2' => ['id' => 41, 'username' => 'guntur_prasetyo', 'display_name' => 'Guntur Prasetyo']
+        10 => [  // Disnaker Provinsi Sulawesi Selatan
+            'pusat' => ['id' => 111, 'username' => 'admin_sulsel', 'display_name' => 'Admin Sulawesi Selatan'],
+            'cabang1' => ['id' => 130, 'username' => 'fani_sulsel', 'display_name' => 'Fani Hartanti'],
+            'cabang2' => ['id' => 131, 'username' => 'guntur_sulsel', 'display_name' => 'Guntur Prasetyo']
         ]
     ];
 }

@@ -18,16 +18,17 @@ namespace WPAgency\Database\Demo\Data;
 defined('ABSPATH') || exit;
 
 class AgencyUsersData {
+    // gunakan ID user mulai 102 sampai 111 untuk menghindari bentrok dengan user demo lain
     public static $data = [
-        ['id' => 2, 'username' => 'budi_santoso', 'display_name' => 'Budi Santoso', 'role' => 'agency'],
-        ['id' => 3, 'username' => 'dewi_kartika', 'display_name' => 'Dewi Kartika', 'role' => 'agency'],
-        ['id' => 4, 'username' => 'ahmad_hidayat', 'display_name' => 'Ahmad Hidayat', 'role' => 'agency'],
-        ['id' => 5, 'username' => 'siti_rahayu', 'display_name' => 'Siti Rahayu', 'role' => 'agency'],
-        ['id' => 6, 'username' => 'rudi_hermawan', 'display_name' => 'Rudi Hermawan', 'role' => 'agency'],
-        ['id' => 7, 'username' => 'nina_kusuma', 'display_name' => 'Nina Kusuma', 'role' => 'agency'],
-        ['id' => 8, 'username' => 'eko_prasetyo', 'display_name' => 'Eko Prasetyo', 'role' => 'agency'],
-        ['id' => 9, 'username' => 'maya_wijaya', 'display_name' => 'Maya Wijaya', 'role' => 'agency'],
-        ['id' => 10, 'username' => 'dian_pertiwi', 'display_name' => 'Dian Pertiwi', 'role' => 'agency'],
-        ['id' => 11, 'username' => 'agus_suryanto', 'display_name' => 'Agus Suryanto', 'role' => 'agency']
+        ['id' => 102, 'username' => 'admin_aceh', 'display_name' => 'Admin Aceh', 'role' => 'agency'],
+        ['id' => 103, 'username' => 'admin_sumut', 'display_name' => 'Admin Sumatera Utara', 'role' => 'agency'],
+        ['id' => 104, 'username' => 'admin_sumbar', 'display_name' => 'Admin Sumatera Barat', 'role' => 'agency'],
+        ['id' => 105, 'username' => 'admin_banten', 'display_name' => 'Admin Banten', 'role' => 'agency'],
+        ['id' => 106, 'username' => 'admin_jabar', 'display_name' => 'Admin Jawa Barat', 'role' => 'agency'],
+        ['id' => 107, 'username' => 'admin_jateng', 'display_name' => 'Admin Jawa Tengah', 'role' => 'agency'],
+        ['id' => 108, 'username' => 'admin_jatim', 'display_name' => 'Admin Jawa Timur', 'role' => 'agency'],
+        ['id' => 109, 'username' => 'admin_kalbar', 'display_name' => 'Admin Kalimantan Barat', 'role' => 'agency'],
+        ['id' => 110, 'username' => 'admin_kaltim', 'display_name' => 'Admin Kalimantan Timur', 'role' => 'agency'],
+        ['id' => 111, 'username' => 'admin_sulsel', 'display_name' => 'Admin Sulawesi Selatan', 'role' => 'agency']
     ];
 }

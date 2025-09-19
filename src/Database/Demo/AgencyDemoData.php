@@ -7,7 +7,7 @@
  * @version     1.0.0
  * @author      arisciwek
  *
- * Path: /wp-agency/src/Database/Demo/Data/AgencyDemoData.php
+ * Path: agency/src/Database/Demo/Data/AgencyDemoData.php
  * 
  * Description: Generate agency demo data dengan:
  *              - Data perusahaan dengan format yang valid
@@ -38,16 +38,16 @@ class AgencyDemoData extends AbstractDemoData {
 
     // Data statis agency
     private static $agencies = [
-        ['id' => 1, 'name' => 'PT Maju Bersama'],
-        ['id' => 2, 'name' => 'CV Teknologi Nusantara'],
-        ['id' => 3, 'name' => 'PT Sinar Abadi'],
-        ['id' => 4, 'name' => 'PT Global Teknindo'],
-        ['id' => 5, 'name' => 'CV Mitra Solusi'],
-        ['id' => 6, 'name' => 'PT Karya Digital'],
-        ['id' => 7, 'name' => 'PT Bumi Perkasa'],
-        ['id' => 8, 'name' => 'CV Cipta Kreasi'],
-        ['id' => 9, 'name' => 'PT Meta Inovasi'],
-        ['id' => 10, 'name' => 'PT Delta Sistem']
+        ['id' => 1, 'name' => 'Disnaker Provinsi Aceh'],
+        ['id' => 2, 'name' => 'Disnaker Provinsi Sumatera Utara'],
+        ['id' => 3, 'name' => 'Disnaker Provinsi Sumatera Barat'],
+        ['id' => 4, 'name' => 'Disnaker Provinsi Banten'],
+        ['id' => 5, 'name' => 'Disnaker Provinsi Jawa Barat'],
+        ['id' => 6, 'name' => 'Disnaker Provinsi Jawa Tengah'],
+        ['id' => 7, 'name' => 'Disnaker Provinsi Jawa Timur'],
+        ['id' => 8, 'name' => 'Disnaker Provinsi Kalimantan Barat'],
+        ['id' => 9, 'name' => 'Disnaker Provinsi Kalimantan Selatan'],
+        ['id' => 10, 'name' => 'Disnaker Provinsi Sulawesi Selatan']
     ];
 
     /**
@@ -144,16 +144,37 @@ class AgencyDemoData extends AbstractDemoData {
                 }
 
                 // 2. Cek dan buat WP User jika belum ada
-                $wp_user_id = 1 + $agency['id'];  // Sesuai dengan indeks di AgencyUsersData
-                
+                $wp_user_id = 101 + $agency['id'];  // ID user untuk agency
+                $user_index = $agency['id'] - 1;  // Indeks di AgencyUsersData array (0-based)
+                error_log("Debug: wp_user_id = {$wp_user_id}, user_index = {$user_index} for agency ID: {$agency['id']}");
+
                 // Ambil data user dari static array
-                $user_data = $this->agency_users[$agency['id'] - 1];
+                error_log("Debug: agency_users keys = " . implode(',', array_keys($this->agency_users)));
+                error_log("Debug: user_index exists = " . (isset($this->agency_users[$user_index]) ? 'yes' : 'no'));
+                $user_data = $this->agency_users[$user_index] ?? null;
+                error_log("Debug: user_data = " . json_encode($user_data, true));
+                if (!$user_data) {
+                    error_log("Debug: User data not found for wp_user_id: {$wp_user_id}, skipping agency: {$agency['name']}");
+                }
+                $existing_user = get_user_by('ID', $user_data['id']);
+                error_log("Debug: get_user_by result = " . ($existing_user ? print_r($existing_user, true) : 'null'));
+                error_log("Debug: user exists before generation = " . ($existing_user ? 'yes' : 'no'));
+                error_log("Debug: wpdb->users = " . $this->wpdb->users);
+                error_log("Debug: table wp_users exists = " . ($this->wpdb->get_var("SHOW TABLES LIKE 'wp_users'") ? 'yes' : 'no'));
+                $user_exists_db = $this->wpdb->get_var($this->wpdb->prepare("SELECT ID FROM {$this->wpdb->users} WHERE ID = %d", $user_data['id']));
+                error_log("Debug: user with ID {$user_data['id']} exists in DB = " . ($user_exists_db ? 'yes' : 'no'));
+                if ($user_exists_db) {
+                    error_log("Debug: user data from DB = " . print_r($this->wpdb->get_row($this->wpdb->prepare("SELECT * FROM {$this->wpdb->users} WHERE ID = %d", $user_data['id'])), true));
+                }
                 $user_id = $userGenerator->generateUser([
                     'id' => $user_data['id'],
                     'username' => $user_data['username'],
                     'display_name' => $user_data['display_name'],
                     'role' => 'agency'
                 ]);
+                error_log("Debug: user_id generated = {$user_id}");
+                $user_exists = $this->wpdb->get_var($this->wpdb->prepare("SELECT ID FROM {$this->wpdb->users} WHERE ID = %d", $user_id));
+                error_log("Debug: user exists in DB after generation = " . ($user_exists ? 'yes' : 'no'));
 
                 if (!$user_id) {
                     throw new \Exception("Failed to create WordPress user for agency: {$agency['name']}");
