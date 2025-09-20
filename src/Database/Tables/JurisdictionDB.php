@@ -28,7 +28,8 @@
  * - regency_id     : REFERENCES wi_regencies(id) ON DELETE CASCADE
  *
  * Constraints:
- * - Unique constraint pada (division_id, regency_id) untuk mencegah duplikasi
+ * - Unique constraint pada regency_id untuk mencegah regency sama di division berbeda
+ * - Unique constraint pada (division_id, regency_id) untuk mencegah duplikasi dalam division
  *
  * Changelog:
  * 1.0.0 - 2024-01-27
@@ -55,6 +56,7 @@ class JurisdictionDB {
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             UNIQUE KEY division_regency (division_id, regency_id),
+            UNIQUE KEY regency_unique (regency_id),
             KEY division_id_index (division_id),
             KEY regency_id_index (regency_id),
             KEY created_by_index (created_by),
