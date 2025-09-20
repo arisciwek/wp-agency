@@ -236,6 +236,8 @@ class SettingsController {
                 return new \WPAgency\Database\Demo\MembershipLevelsDemoData();
             case 'memberships':  // Tambah case ini
                 return new \WPAgency\Database\Demo\MembershipDemoData();
+            case 'jurisdiction':
+                return new \WPAgency\Database\Demo\JurisdictionDemoData();
             default:
                 throw new \Exception('Invalid demo data type: ' . $type);
         }
@@ -410,6 +412,10 @@ class SettingsController {
                     break;
                 case 'membership-features':
                     $count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_membership_features");
+                    $has_data = ($count > 0);
+                    break;
+                case 'jurisdiction':
+                    $count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_jurisdictions");
                     $has_data = ($count > 0);
                     break;
                 default:

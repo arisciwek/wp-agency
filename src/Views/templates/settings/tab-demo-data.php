@@ -133,13 +133,27 @@ if (!current_user_can('manage_options')) {
             <div class="demo-data-card">
                 <h4><?php _e('Employees', 'wp-agency'); ?></h4>
                 <p><?php _e('Generate employee data for divisions.', 'wp-agency'); ?></p>
-                <button type="button" 
-                        class="button button-primary agency-generate-demo-data" 
+                <button type="button"
+                        class="button button-primary agency-generate-demo-data"
                         data-type="employee"
                         data-requires="division"
                         data-check-nonce="<?php echo wp_create_nonce('check_demo_division'); ?>"
                         data-nonce="<?php echo wp_create_nonce('generate_demo_employee'); ?>">
                     <?php _e('Generate Employees', 'wp-agency'); ?>
+                </button>
+            </div>
+
+            <!-- Jurisdictions -->
+            <div class="demo-data-card">
+                <h4><?php _e('Jurisdictions', 'wp-agency'); ?></h4>
+                <p><?php _e('Generate jurisdiction data linking divisions to regencies.', 'wp-agency'); ?></p>
+                <button type="button"
+                        class="button button-primary agency-generate-demo-data"
+                        data-type="jurisdiction"
+                        data-requires="division"
+                        data-check-nonce="<?php echo wp_create_nonce('check_demo_division'); ?>"
+                        data-nonce="<?php echo wp_create_nonce('generate_demo_jurisdiction'); ?>">
+                    <?php _e('Generate Jurisdictions', 'wp-agency'); ?>
                 </button>
             </div>
         </div>
