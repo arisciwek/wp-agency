@@ -1,12 +1,18 @@
-# TODO: Add Proper Headers to PHP Template Files
-
-## Pending Tasks
-- [x] Add complete header to src/Views/templates/agency-right-panel.php
-- [x] Update header in src/Views/templates/agency-left-panel.php to complete format
-- [x] Add complete header to src/Views/templates/agency/partials/_agency_details.php
-- [x] Add complete header to src/Views/templates/division/partials/_division_details.php
-- [x] Update header in src/Views/templates/division/templates/division-left-panel.php to complete format and fix path
-- [x] Add complete header to src/Views/templates/division/templates/division-right-panel.php
-- [x] Fix the path and title in src/Views/templates/division/templates/division-dashboard.php header
+# TODO: Add Jurisdiction Column to Division Datatable
 
 ## Completed Tasks
+- [x] Modify DivisionModel::getDataTableData to include jurisdictions via GROUP_CONCAT with joins to wp_app_agency_jurisdictions and wi_regencies
+- [x] Update DivisionController::handleDataTableRequest to include 'jurisdictions' in columns array and data response
+- [x] Add 'Yuridiksi' header in _agency_division_list.php template (thead and tfoot)
+- [x] Update division-datatable.js to include jurisdictions column in DataTable configuration
+
+## Pending Tasks
+- [ ] Test the datatable to ensure the new column displays correctly with comma-separated jurisdiction names
+- [ ] Verify sorting and searching functionality on the jurisdictions column
+- [ ] Check cache invalidation when jurisdiction data changes (may need additional cache clearing in jurisdiction CRUD operations)
+
+## Notes
+- Jurisdictions are displayed as comma-separated names of kabupaten/kota
+- Search supports name, code, and jurisdiction names
+- Sorting is enabled on all columns except actions
+- Cache is handled via existing DataTable cache mechanism

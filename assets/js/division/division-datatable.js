@@ -149,6 +149,7 @@
                         <th>Nama</th>
                         <th>Admin</th>
                         <th>Tipe</th>
+                        <th>Yuridiksi</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -186,18 +187,24 @@
 
                 columns: [
                     { data: 'code', width: '10%', className: 'column-code' },
-                    { data: 'name', width: '35%', className: 'column-name' },
-                    { 
-                        data: 'admin_name', 
-                        width: '25%',
+                    { data: 'name', width: '25%', className: 'column-name' },
+                    {
+                        data: 'admin_name',
+                        width: '15%',
                         className: 'column-admin',
                         render: (data) => data || '-'
                     },
-                    { 
-                        data: 'type', 
-                        width: '15%',
+                    {
+                        data: 'type',
+                        width: '10%',
                         className: 'column-type',
                         render: (data) => data === 'pusat' ? 'Pusat' : 'Cabang'
+                    },
+                    {
+                        data: 'jurisdictions',
+                        width: '25%',
+                        className: 'column-jurisdictions',
+                        render: (data) => data || '-'
                     },
                     {
                         data: 'actions',

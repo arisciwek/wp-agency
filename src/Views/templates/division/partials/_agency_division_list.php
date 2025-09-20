@@ -70,6 +70,7 @@ defined('ABSPATH') || exit;
                         <th><?php _e('Kode', 'wp-agency'); ?></th>
                         <th><?php _e('Nama', 'wp-agency'); ?></th>
                         <th><?php _e('Tipe', 'wp-agency'); ?></th>
+                        <th><?php _e('Yuridiksi', 'wp-agency'); ?></th>
                         <th class="text-center no-sort">
                             <?php _e('Aksi', 'wp-agency'); ?>
                         </th>
@@ -83,6 +84,7 @@ defined('ABSPATH') || exit;
                         <th><?php _e('Kode', 'wp-agency'); ?></th>
                         <th><?php _e('Nama', 'wp-agency'); ?></th>
                         <th><?php _e('Tipe', 'wp-agency'); ?></th>
+                        <th><?php _e('Yuridiksi', 'wp-agency'); ?></th>
                         <th><?php _e('Aksi', 'wp-agency'); ?></th>
                     </tr>
                 </tfoot>

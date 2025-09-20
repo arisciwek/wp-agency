@@ -333,20 +333,24 @@ class DivisionModel {
         global $wpdb;
 
         // Base query parts
-        $select = "SELECT SQL_CALC_FOUND_ROWS r.*, p.name as agency_name";
+        $select = "SELECT SQL_CALC_FOUND_ROWS r.*, p.name as agency_name, GROUP_CONCAT(DISTINCT wr.name ORDER BY wr.name SEPARATOR ', ') as jurisdictions";
         $from = " FROM {$this->table} r";
-        $join = " LEFT JOIN {$this->agency_table} p ON r.agency_id = p.id";
+        $join = " LEFT JOIN {$this->agency_table} p ON r.agency_id = p.id
+                  LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions j ON r.id = j.division_id
+                  LEFT JOIN {$wpdb->prefix}wi_regencies wr ON j.regency_id = wr.id";
         $where = " WHERE r.agency_id = %d";
         $params = [$agency_id];
 
         // Add search if provided
         if (!empty($search)) {
-            $where .= " AND r.name LIKE %s";
+            $where .= " AND (r.name LIKE %s OR r.code LIKE %s OR wr.name LIKE %s)";
+            $params[] = '%' . $wpdb->esc_like($search) . '%';
+            $params[] = '%' . $wpdb->esc_like($search) . '%';
             $params[] = '%' . $wpdb->esc_like($search) . '%';
         }
 
         // Validate order column
-        $validColumns = ['code', 'name', 'type'];
+        $validColumns = ['code', 'name', 'type', 'jurisdictions'];
         if (!in_array($orderColumn, $validColumns)) {
             $orderColumn = 'code';
         }
@@ -357,11 +361,12 @@ class DivisionModel {
         // Build order clause
         $order = " ORDER BY " . esc_sql($orderColumn) . " " . esc_sql($orderDir);
 
-        // Add limit
+        // Add group by and limit
+        $groupBy = " GROUP BY r.id";
         $limit = $wpdb->prepare(" LIMIT %d, %d", $start, $length);
 
         // Complete query
-        $sql = $select . $from . $join . $where . $order . $limit;
+        $sql = $select . $from . $join . $where . $groupBy . $order . $limit;
 
         // Get paginated results
         $results = $wpdb->get_results($wpdb->prepare($sql, $params));
@@ -378,9 +383,6 @@ class DivisionModel {
             "SELECT COUNT(*) FROM {$this->table} WHERE agency_id = %d",
             $agency_id
         ));
-        // Di function getDataTableData()
-        $datatable_query = (!empty($params)) ? $wpdb->prepare($sql, $params) : $sql;
-        error_log('DataTable Query: ' . $datatable_query);
 
         return [
             'data' => $results,

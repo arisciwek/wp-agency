@@ -369,10 +369,10 @@ class DivisionController {
             $orderColumn = isset($_POST['order'][0]['column']) ? intval($_POST['order'][0]['column']) : 0;
             $orderDir = isset($_POST['order'][0]['dir']) ? sanitize_text_field($_POST['order'][0]['dir']) : 'asc';
 
-            $columns = ['name', 'type', 'actions'];
-            $orderBy = isset($columns[$orderColumn]) ? $columns[$orderColumn] : 'name';
+            $columns = ['code', 'name', 'admin_name', 'type', 'jurisdictions', 'actions'];
+            $orderBy = isset($columns[$orderColumn]) ? $columns[$orderColumn] : 'code';
             if ($orderBy === 'actions') {
-                $orderBy = 'name';
+                $orderBy = 'code';
             }
 
             // Dapatkan role/capability user saat ini
@@ -438,6 +438,7 @@ class DivisionController {
                     'name' => esc_html($division->name),
                     'admin_name' => esc_html($admin_name),
                     'type' => esc_html($division->type),
+                    'jurisdictions' => esc_html($division->jurisdictions ?? '-'),
                     'actions' => $this->generateActionButtons($division)
                 ];
             }
