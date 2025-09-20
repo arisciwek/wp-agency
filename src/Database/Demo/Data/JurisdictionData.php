@@ -104,7 +104,7 @@ class JurisdictionData {
             'created_by' => 108
         ],
         21 => [  // Disnaker Provinsi DKI Jakarta Division Kota Jakarta Barat
-            'regencies' => [70, 71, 72, 73],  // Jakarta Barat, Jakarta Selatan, Jakarta Timur, Bogor
+            'regencies' => [70, 71, 72],  // Jakarta Barat, Jakarta Selatan, Jakarta Timur (Bogor is in Jawa Barat, not DKI Jakarta)
             'created_by' => 108
         ],
         22 => [  // Disnaker Provinsi Maluku Division Kabupaten Maluku Tenggara

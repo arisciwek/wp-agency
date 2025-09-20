@@ -66,6 +66,7 @@ class DivisionController {
         add_action('wp_ajax_delete_division', [$this, 'delete']);
         add_action('wp_ajax_validate_division_type_change', [$this, 'validateDivisionTypeChange']);
         add_action('wp_ajax_create_division_button', [$this, 'createDivisionButton']);
+        add_action('wp_ajax_get_available_jurisdictions', [$this, 'getAvailableJurisdictions']);
 
         add_action('wp_ajax_validate_division_access', [$this, 'validateDivisionAccess']);
 
@@ -526,11 +527,35 @@ class DivisionController {
             // Update data
             $updated = $this->model->update($id, $data);
 
+            // Save jurisdictions if provided
+            if (isset($_POST['jurisdictions']) && is_array($_POST['jurisdictions'])) {
+                $jurisdiction_ids = array_map('intval', $_POST['jurisdictions']);
+
+                // Get current jurisdictions to preserve is_primary flags for existing ones
+                $current_jurisdictions = $this->model->getJurisdictionsByDivision($id);
+                $current_primary = array_column(array_filter($current_jurisdictions, fn($j) => $j->is_primary), 'regency_id');
+
+                // For edit, we need to handle is_primary carefully - don't allow removal of primary jurisdictions
+                $primary_jurisdictions = isset($_POST['primary_jurisdictions']) && is_array($_POST['primary_jurisdictions'])
+                    ? array_map('intval', $_POST['primary_jurisdictions'])
+                    : $current_primary; // Preserve existing primary if not specified
+
+                // Validate that no primary jurisdictions are being removed
+                $removed_primaries = array_diff($current_primary, $jurisdiction_ids);
+                if (!empty($removed_primaries)) {
+                    throw new \Exception('Wilayah kerja utama tidak dapat dihapus. Silakan hapus tanda utama terlebih dahulu.');
+                }
+
+                if (!$this->model->saveJurisdictions($id, $jurisdiction_ids, $primary_jurisdictions)) {
+                    throw new \Exception('Gagal menyimpan wilayah kerja cabang');
+                }
+            }
+
             // Tambahkan di dalam method update() setelah update berhasil
             if ($updated) {
                 // Hapus cache untuk division yang diupdate
                 $this->cache->delete('division', $id);
-                
+
                 // Hapus juga cache lain yang terkait
                 $agency_id = $division->agency_id;
                 $this->cache->delete('agency_division_list', $agency_id);
@@ -596,9 +621,13 @@ class DivisionController {
                 throw new \Exception('Anda tidak memiliki izin untuk melihat detail cabang ini.');
             }
 
+            // Get jurisdictions for the division
+            $jurisdictions = $this->model->getJurisdictionsByDivision($id);
+
             // Kembalikan data division dalam response
             wp_send_json_success([
-                'division' => $division
+                'division' => $division,
+                'jurisdictions' => $jurisdictions
             ]);
 
         } catch (\Exception $e) {
@@ -676,6 +705,23 @@ class DivisionController {
                 throw new \Exception('Gagal menambah cabang');
             }
 
+            // Save jurisdictions if provided
+            if (isset($_POST['jurisdictions']) && is_array($_POST['jurisdictions'])) {
+                $jurisdiction_ids = array_map('intval', $_POST['jurisdictions']);
+                $primary_jurisdictions = isset($_POST['primary_jurisdictions']) && is_array($_POST['primary_jurisdictions'])
+                    ? array_map('intval', $_POST['primary_jurisdictions'])
+                    : [];
+
+                if (!$this->model->saveJurisdictions($division_id, $jurisdiction_ids, $primary_jurisdictions)) {
+                    // If jurisdiction save fails, delete the division and rollback
+                    $this->model->delete($division_id);
+                    if (!empty($user_id)) {
+                        wp_delete_user($user_id);
+                    }
+                    throw new \Exception('Gagal menyimpan wilayah kerja cabang');
+                }
+            }
+
             $new_division = $this->model->find($division_id);
 
             $this->cache->set('division', $new_division, $this->cache::getCacheExpiry(), $division_id);
@@ -684,8 +730,8 @@ class DivisionController {
                 'agency_id' => $agency_id
             ]);
             $this->cache->delete('agency_division_list', $agency_id);
-            $this->cache->delete('division_total_count', $agency_id);            
-            
+            $this->cache->delete('division_total_count', $agency_id);
+
             wp_send_json_success([
                 'message' => 'Cabang berhasil ditambahkan',
                 'division' => $this->model->find($division_id)
@@ -833,6 +879,46 @@ class DivisionController {
             $this->debug_log('Error creating demo division: ' . $e->getMessage());
             throw $e;
         }
-    } 
+    }
+
+    /**
+     * Get available jurisdictions for a division
+     * Returns regencies that can be assigned to the division based on agency constraints
+     */
+    public function getAvailableJurisdictions() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
+            $division_id = isset($_POST['division_id']) ? (int) $_POST['division_id'] : null;
+
+            if (!$agency_id) {
+                throw new \Exception('ID Agency tidak valid');
+            }
+
+            // Check if wi_regencies table exists
+            global $wpdb;
+            $regencies_table = $wpdb->prefix . 'wi_regencies';
+            if ($wpdb->get_var("SHOW TABLES LIKE '$regencies_table'") != $regencies_table) {
+                // Table doesn't exist, return empty
+                wp_send_json_success([
+                    'jurisdictions' => []
+                ]);
+                return;
+            }
+
+            // Get available regencies for the agency
+            $available_regencies = $this->model->getAvailableRegenciesForAgency($agency_id, $division_id);
+
+            wp_send_json_success([
+                'jurisdictions' => $available_regencies
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
 }
 

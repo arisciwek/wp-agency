@@ -511,7 +511,7 @@ class DivisionModel {
 
     /**
      * Invalidasi cache status employee
-     * 
+     *
      * @param int $division_id Division ID
      * @param int|null $user_id User ID (default: current user)
      */
@@ -519,8 +519,173 @@ class DivisionModel {
         if ($user_id === null) {
             $user_id = get_current_user_id();
         }
-        
+
         $this->cache->delete('employee_status', $user_id, $division_id);
+    }
+
+    /**
+     * Save jurisdictions for a division
+     *
+     * @param int $division_id Division ID
+     * @param array $jurisdiction_ids Array of regency IDs
+     * @param array $primary_jurisdictions Array of regency IDs that should be marked as primary
+     * @return bool Success status
+     */
+    public function saveJurisdictions(int $division_id, array $jurisdiction_ids, array $primary_jurisdictions = []): bool {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'app_agency_jurisdictions';
+        $current_user_id = get_current_user_id();
+
+        // Start transaction
+        $wpdb->query('START TRANSACTION');
+
+        try {
+            // Delete existing jurisdictions for this division
+            $wpdb->delete($table, ['division_id' => $division_id], ['%d']);
+
+            // Insert new jurisdictions
+            foreach ($jurisdiction_ids as $regency_id) {
+                $is_primary = in_array($regency_id, $primary_jurisdictions) ? 1 : 0;
+
+                $wpdb->insert(
+                    $table,
+                    [
+                        'division_id' => $division_id,
+                        'regency_id' => $regency_id,
+                        'is_primary' => $is_primary,
+                        'created_by' => $current_user_id,
+                        'created_at' => current_time('mysql'),
+                        'updated_at' => current_time('mysql')
+                    ],
+                    ['%d', '%d', '%d', '%d', '%s', '%s']
+                );
+
+                if ($wpdb->last_error) {
+                    throw new \Exception('Failed to insert jurisdiction: ' . $wpdb->last_error);
+                }
+            }
+
+            $wpdb->query('COMMIT');
+
+            // Invalidate related caches
+            $this->invalidateJurisdictionCache($division_id);
+
+            return true;
+
+        } catch (\Exception $e) {
+            $wpdb->query('ROLLBACK');
+            error_log('Error saving jurisdictions: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get jurisdictions for a division
+     *
+     * @param int $division_id Division ID
+     * @return array Array of jurisdiction objects with regency details
+     */
+    public function getJurisdictionsByDivision(int $division_id): array {
+        global $wpdb;
+
+        $cache_key = 'division_jurisdictions_' . $division_id;
+
+        // Check cache first
+        $cached = $this->cache->get($cache_key);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $query = $wpdb->prepare("
+            SELECT j.*, r.name as regency_name, r.province_id
+            FROM {$wpdb->prefix}app_agency_jurisdictions j
+            LEFT JOIN {$wpdb->prefix}wi_regencies r ON j.regency_id = r.id
+            WHERE j.division_id = %d
+            ORDER BY r.name ASC
+        ", $division_id);
+
+        $jurisdictions = $wpdb->get_results($query);
+
+        // Cache the result
+        $this->cache->set($cache_key, $jurisdictions, self::CACHE_EXPIRY);
+
+        return $jurisdictions ?: [];
+    }
+
+    /**
+     * Get available regencies for an agency
+     * Returns regencies that are not assigned to other divisions in the same agency
+     *
+     * @param int $agency_id Agency ID
+     * @param int|null $exclude_division_id Division ID to exclude from assignment check (for edit mode)
+     * @return array Array of available regency objects
+     */
+    public function getAvailableRegenciesForAgency(int $agency_id, ?int $exclude_division_id = null): array {
+        global $wpdb;
+
+        $cache_key = 'available_regencies_agency_' . $agency_id;
+        if ($exclude_division_id) {
+            $cache_key .= '_exclude_' . $exclude_division_id;
+        }
+
+        // Check cache first
+        $cached = $this->cache->get($cache_key);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        // Get all regencies in Indonesia (assuming wi_regencies table exists)
+        $query = "
+            SELECT r.id, r.name, r.province_id, p.name as province_name
+            FROM {$wpdb->prefix}wi_regencies r
+            LEFT JOIN {$wpdb->prefix}wi_provinces p ON r.province_id = p.id
+            WHERE r.id NOT IN (
+                SELECT DISTINCT j.regency_id
+                FROM {$wpdb->prefix}app_agency_jurisdictions j
+                INNER JOIN {$wpdb->prefix}app_divisions d ON j.division_id = d.id
+                WHERE d.agency_id = %d
+        ";
+
+        $params = [$agency_id];
+
+        if ($exclude_division_id) {
+            $query .= " AND j.division_id != %d";
+            $params[] = $exclude_division_id;
+        }
+
+        $query .= ")
+            ORDER BY p.name ASC, r.name ASC";
+
+        $available_regencies = $wpdb->get_results($wpdb->prepare($query, $params));
+
+        // Cache the result
+        $this->cache->set($cache_key, $available_regencies ?: [], self::CACHE_EXPIRY);
+
+        return $available_regencies ?: [];
+    }
+
+    /**
+     * Invalidate jurisdiction-related caches
+     *
+     * @param int $division_id Division ID
+     */
+    private function invalidateJurisdictionCache(int $division_id): void {
+        // Get division to find agency_id
+        $division = $this->find($division_id);
+        if (!$division) {
+            return;
+        }
+
+        $agency_id = $division->agency_id;
+
+        // Clear division-specific caches
+        $this->cache->delete('division_jurisdictions_' . $division_id);
+        $this->cache->delete('available_regencies_agency_' . $agency_id);
+        $this->cache->delete('available_regencies_agency_' . $agency_id . '_exclude_' . $division_id);
+
+        // Clear DataTable cache
+        $this->cache->invalidateDataTableCache('division_list', ['agency_id' => $agency_id]);
     }
 
 }

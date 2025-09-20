@@ -60,6 +60,7 @@
                     this.hideModal();
                 }
             });
+
         },
 
         showModal(agencyId) {
@@ -75,6 +76,10 @@
             }
 
             this.resetForm();
+
+            // Initialize Select2 for jurisdictions after agency ID is set
+            this.initializeJurisdictionSelect();
+
             this.modal.addClass('division-modal').fadeIn(300, () => {
                 const nameField = this.form.find('[name="name"]');
                 if (nameField.length) {
@@ -82,7 +87,7 @@
                 }
                 $(document).trigger('division:modalOpened');
             });
-     
+
         },
 
         hideModal() {
@@ -230,6 +235,7 @@
                 email: this.getFieldValue('email'),
                 provinsi_id: this.getFieldValue('provinsi_id'),
                 regency_id: this.getFieldValue('regency_id'),
+                jurisdictions: this.form.find('[name="jurisdictions[]"]').val(),
 
                 // Admin data
                 admin_username: this.getFieldValue('admin_username'),
@@ -284,14 +290,58 @@
 
         resetForm() {
             if (!this.form || !this.form[0]) return;
-            
+
             this.form[0].reset();
             this.form.find('.form-error').remove();
             this.form.find('.error').removeClass('error');
-            
+
             if (this.form.data('validator')) {
                 this.form.validate().resetForm();
             }
+
+            // Reset Select2
+            this.form.find('.jurisdiction-select').val(null).trigger('change');
+        },
+
+        initializeJurisdictionSelect() {
+            const $select = this.form.find('.jurisdiction-select');
+
+            if (!$select.length || typeof $select.select2 === 'undefined') {
+                console.warn('Select2 not available or jurisdiction select not found');
+                return;
+            }
+
+            $select.select2({
+                placeholder: 'Pilih kabupaten/kota...',
+                allowClear: true,
+                ajax: {
+                    url: wpAgencyData.ajaxUrl,
+                    dataType: 'json',
+                    delay: 300,
+                    data: (params) => ({
+                        action: 'get_available_jurisdictions',
+                        agency_id: this.form.find('#agency_id').val(),
+                        search: params.term,
+                        nonce: wpAgencyData.nonce
+                    }),
+                    processResults: (data) => {
+                        if (data.success && data.data.jurisdictions) {
+                            return {
+                                results: data.data.jurisdictions.map(jurisdiction => ({
+                                    id: jurisdiction.id,
+                                    text: `${jurisdiction.name} (${jurisdiction.province_name})`
+                                }))
+                            };
+                        }
+                        return { results: [] };
+                    },
+                    cache: true
+                },
+                minimumInputLength: 0,
+                escapeMarkup: (markup) => markup,
+                templateResult: (item) => item.loading ? 'Mencari...' : item.text,
+                templateSelection: (item) => item.text || item.id
+            });
         }
     };
 

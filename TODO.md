@@ -1,18 +1,31 @@
-# TODO: Add Jurisdiction Column to Division Datatable
+# TODO: Add Jurisdiction Field to Division Forms with Complex Constraints
 
 ## Completed Tasks
-- [x] Modify DivisionModel::getDataTableData to include jurisdictions via GROUP_CONCAT with joins to wp_app_agency_jurisdictions and wi_regencies
-- [x] Update DivisionController::handleDataTableRequest to include 'jurisdictions' in columns array and data response
-- [x] Add 'Yuridiksi' header in _agency_division_list.php template (thead and tfoot)
-- [x] Update division-datatable.js to include jurisdictions column in DataTable configuration
+- [x] Analyze current forms and code structure
+- [x] Plan implementation with constraints (exclusivity per agency, is_primary protection)
+- [x] Add jurisdiction field to create-division-form.php (Select2 multiple select)
+- [x] Add jurisdiction field to edit-division-form.php (Select2 with current + available options)
+- [x] Add getAvailableJurisdictions AJAX endpoint to DivisionController.php
+- [x] Add saveJurisdictions, getJurisdictionsByDivision, getAvailableRegenciesForAgency methods to DivisionModel.php
+- [x] Update create-division-form.js to load and handle jurisdiction selection
+- [x] Update edit-division-form.js to load current jurisdictions, available options, and enforce is_primary validation
+- [x] Update store/update methods in DivisionController.php to save jurisdiction data
+- [x] Add cache invalidation for jurisdiction changes
 
 ## Pending Tasks
-- [ ] Test the datatable to ensure the new column displays correctly with comma-separated jurisdiction names
-- [ ] Verify sorting and searching functionality on the jurisdictions column
-- [ ] Check cache invalidation when jurisdiction data changes (may need additional cache clearing in jurisdiction CRUD operations)
+- [ ] Test complete flow with exclusivity and is_primary constraints
+- [x] Ensure Select2 library is loaded
+- [x] Verify AJAX endpoints return correct data (added table existence check)
+- [x] Fix demo data jurisdiction assignments (removed Bogor from DKI Jakarta, ensured no duplicates)
+- [x] Add Admin column to division datatable
 
 ## Notes
-- Jurisdictions are displayed as comma-separated names of kabupaten/kota
-- Search supports name, code, and jurisdiction names
-- Sorting is enabled on all columns except actions
-- Cache is handled via existing DataTable cache mechanism
+- Jurisdictions are regencies assigned to divisions within an agency
+- Constraints: regencies can only be in one division per agency (exclusivity)
+- is_primary jurisdictions cannot be removed during edit
+- Available options = all regencies in agency minus those already assigned to other divisions
+- Need dynamic option loading based on agency and current assignments
+- Cache management required for jurisdiction availability
+- Primary jurisdiction must match division's regency_id
+- All jurisdictions must be within agency's province
+- No duplicate regencies across divisions in same agency

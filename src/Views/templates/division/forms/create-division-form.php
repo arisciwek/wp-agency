@@ -146,6 +146,14 @@ defined('ABSPATH') || exit;
                             <span class="field-hint"><?php _e('5 digit kode pos', 'wp-agency'); ?></span>
                         </div>
 
+                        <div class="division-form-group">
+                            <label for="create-division-jurisdictions">Wilayah Kerja (Kabupaten/Kota)</label>
+                            <select id="create-division-jurisdictions" name="jurisdictions[]" multiple class="jurisdiction-select">
+                                <!-- Options will be loaded via AJAX -->
+                            </select>
+                            <span class="field-hint"><?php _e('Pilih kabupaten/kota yang menjadi wilayah kerja cabang ini', 'wp-agency'); ?></span>
+                        </div>
+
                         <div class="division-coordinates">
                             <h4><?php _e('Lokasi', 'wp-agency'); ?></h4>
                             
