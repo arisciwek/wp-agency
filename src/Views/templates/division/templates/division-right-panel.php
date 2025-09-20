@@ -1,6 +1,23 @@
 
 <?php
+/**
+ * Division Right Panel Template
+ *
+ * @package     WP_Agency
+ * @subpackage  Views/Templates/Division/Templates
+ * @version     1.0.0
+ * @author      arisciwek
+ *
+ * Path: /wp-agency/src/Views/templates/division/templates/division-right-panel.php
+ *
+ * Description: Template for the right panel displaying division details, membership, and employees.
+ *
+ * Changelog:
+ * 1.0.0 - 2024-12-XX
+ * - Initial version
+ */
 
+defined('ABSPATH') || exit;
 
 ?>
 

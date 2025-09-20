@@ -1,4 +1,21 @@
 <?php
+/**
+ * Agency Details Partial Template
+ *
+ * @package     WP_Agency
+ * @subpackage  Views/Templates/Agency/Partials
+ * @version     1.0.0
+ * @author      arisciwek
+ *
+ * Path: /wp-agency/src/Views/templates/agency/partials/_agency_details.php
+ *
+ * Description: Partial template displaying detailed agency information including basic info, location, additional details, and timeline.
+ *
+ * Changelog:
+ * 1.0.0 - 2024-12-XX
+ * - Initial version
+ */
+
 defined('ABSPATH') || exit;
 ?>
 

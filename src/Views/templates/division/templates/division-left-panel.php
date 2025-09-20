@@ -1,8 +1,23 @@
 <?php
 /**
- * File: agency-left-panel.php
- * Path: /wp-agency/src/Views/templates/agency-division-left-panel.php
+ * Division Left Panel Template
+ *
+ * @package     WP_Agency
+ * @subpackage  Views/Templates/Division/Templates
+ * @version     1.0.0
+ * @author      arisciwek
+ *
+ * Path: /wp-agency/src/Views/templates/division/templates/division-left-panel.php
+ *
+ * Description: Template for the left panel displaying division list with DataTable.
+ *
+ * Changelog:
+ * 1.0.0 - 2024-12-XX
+ * - Initial version
  */
+
+defined('ABSPATH') || exit;
+
 ?>
 <div id="wp-agency-division-left-panel" class="wp-agency-division-left-panel">
     <div class="wi-panel-header">

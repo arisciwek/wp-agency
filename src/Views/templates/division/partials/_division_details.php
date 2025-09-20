@@ -1,10 +1,21 @@
 <?php
+/**
+ * Division Details Partial Template
+ *
+ * @package     WP_Agency
+ * @subpackage  Views/Templates/Division/Partials
+ * @version     1.0.0
+ * @author      arisciwek
+ *
+ * Path: /wp-agency/src/Views/templates/division/partials/_division_details.php
+ *
+ * Description: Partial template displaying detailed division information including basic info, location, additional details, and timeline.
+ *
+ * Changelog:
+ * 1.0.0 - 2024-12-XX
+ * - Initial version
+ */
 
-
-defined('ABSPATH') || exit;
-?>
-
-<?php
 defined('ABSPATH') || exit;
 ?>
 

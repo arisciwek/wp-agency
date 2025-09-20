@@ -1,13 +1,13 @@
 <?php
 /**
- * Agency Dashboard Template
+ * Division Dashboard Template
  *
  * @package     WP_Agency
- * @subpackage  Views/Templates
+ * @subpackage  Views/Templates/Division/Templates
  * @version     1.0.0
  * @author      arisciwek
  *
- * Path: /wp-agency-division/src/Views/templates/division/templates/division-dashboard.php
+ * Path: /wp-agency/src/Views/templates/division/templates/division-dashboard.php
  *
  * Description: Main dashboard template untuk manajemen division.
  *              Includes statistics overview, DataTable listing,
