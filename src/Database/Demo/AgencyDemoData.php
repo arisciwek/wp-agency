@@ -36,7 +36,7 @@ class AgencyDemoData extends AbstractDemoData {
     protected $agency_users = [];
     private $agencyController;
 
-    // Data statis agency
+    // Data statis agency - disesuaikan dengan provinsi yang memiliki data regencies
     private static $agencies = [
         ['id' => 1, 'name' => 'Disnaker Provinsi Aceh'],
         ['id' => 2, 'name' => 'Disnaker Provinsi Sumatera Utara'],
@@ -44,9 +44,9 @@ class AgencyDemoData extends AbstractDemoData {
         ['id' => 4, 'name' => 'Disnaker Provinsi Banten'],
         ['id' => 5, 'name' => 'Disnaker Provinsi Jawa Barat'],
         ['id' => 6, 'name' => 'Disnaker Provinsi Jawa Tengah'],
-        ['id' => 7, 'name' => 'Disnaker Provinsi Jawa Timur'],
-        ['id' => 8, 'name' => 'Disnaker Provinsi Kalimantan Barat'],
-        ['id' => 9, 'name' => 'Disnaker Provinsi Kalimantan Selatan'],
+        ['id' => 7, 'name' => 'Disnaker Provinsi DKI Jakarta'],
+        ['id' => 8, 'name' => 'Disnaker Provinsi Maluku'],
+        ['id' => 9, 'name' => 'Disnaker Provinsi Papua'],
         ['id' => 10, 'name' => 'Disnaker Provinsi Sulawesi Selatan']
     ];
 
@@ -174,14 +174,13 @@ class AgencyDemoData extends AbstractDemoData {
                 self::$user_ids[$agency['id']] = $wp_user_id;
 
                 // 3. Generate agency data baru
-                if (isset($agency['provinsi_id'])) {
-                    $provinsi_id = (int)$agency['provinsi_id'];
-                    // Pastikan regency sesuai dengan provinsi ini
-                    $regency_id = isset($agency['regency_id']) ? 
-                        (int)$agency['regency_id'] : 
-                        $this->getRandomRegencyId($provinsi_id);
+                // Map agency name to province
+                $province_name = $this->mapAgencyNameToProvince($agency['name']);
+                if ($province_name) {
+                    $provinsi_id = $this->getProvinceIdByName($province_name);
+                    $regency_id = $this->getRandomRegencyId($provinsi_id);
                 } else {
-                    // Get random valid province-regency pair
+                    // Fallback to random
                     $provinsi_id = $this->getRandomProvinceId();
                     $regency_id = $this->getRandomRegencyId($provinsi_id);
                 }
@@ -245,6 +244,38 @@ class AgencyDemoData extends AbstractDemoData {
         $this->wpdb->query(
             "ALTER TABLE {$this->wpdb->prefix}app_agencies AUTO_INCREMENT = 211"
         );
+    }
+
+    /**
+     * Map agency name to province name
+     */
+    private function mapAgencyNameToProvince(string $agency_name): ?string {
+        $map = [
+            'Disnaker Provinsi Aceh' => 'Aceh',
+            'Disnaker Provinsi Sumatera Utara' => 'Sumatera Utara',
+            'Disnaker Provinsi Sumatera Barat' => 'Sumatera Barat',
+            'Disnaker Provinsi Banten' => 'Banten',
+            'Disnaker Provinsi Jawa Barat' => 'Jawa Barat',
+            'Disnaker Provinsi Jawa Tengah' => 'Jawa Tengah',
+            'Disnaker Provinsi DKI Jakarta' => 'DKI Jakarta',
+            'Disnaker Provinsi Maluku' => 'Maluku',
+            'Disnaker Provinsi Papua' => 'Papua',
+            'Disnaker Provinsi Sulawesi Selatan' => 'Sulawesi Selatan'
+        ];
+
+        return $map[$agency_name] ?? null;
+    }
+
+    /**
+     * Get province ID by name
+     */
+    private function getProvinceIdByName(string $province_name): ?int {
+        $province = $this->wpdb->get_row($this->wpdb->prepare(
+            "SELECT id FROM {$this->wpdb->prefix}wi_provinces WHERE name = %s",
+            $province_name
+        ));
+
+        return $province ? (int) $province->id : null;
     }
 
     /**

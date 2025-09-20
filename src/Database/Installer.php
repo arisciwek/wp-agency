@@ -48,6 +48,7 @@ class Installer {
     private static $tables = [
         'app_agencies',
         'app_divisions',
+        'app_agency_jurisdictions',
         'app_agency_membership_feature_groups',
         'app_agency_membership_features',
         'app_agency_membership_levels',
@@ -63,6 +64,7 @@ class Installer {
         'app_agency_membership_levels' => Tables\AgencyMembershipLevelsDB::class,
         'app_agency_memberships' => Tables\AgencyMembershipsDB::class,
         'app_divisions' => Tables\DivisionsDB::class,
+        'app_agency_jurisdictions' => Tables\JurisdictionDB::class,
         'app_agency_employees' => Tables\AgencyEmployeesDB::class
     ];
 
@@ -122,6 +124,11 @@ class Installer {
                 Tables\AgencyMembershipsDB::add_foreign_keys();
             }
             
+            // Tambahkan foreign keys untuk Agency Jurisdictions
+            if (method_exists(Tables\JurisdictionDB::class, 'add_foreign_keys')) {
+                Tables\JurisdictionDB::add_foreign_keys();
+            }
+
             // Tambahkan foreign keys untuk AgencyEmployees
             if (method_exists(Tables\AgencyEmployeesDB::class, 'add_foreign_keys')) {
                 Tables\AgencyEmployeesDB::add_foreign_keys();

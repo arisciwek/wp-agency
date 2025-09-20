@@ -7,6 +7,8 @@
  * @version     1.1.0
  * @author      arisciwek
  *
+ * path : /wp-agency/includes/class-deactivator.php
+ * 
  * Description: Menangani proses deaktivasi plugin:
  *              - Database cleanup (hanya dalam mode development)
  *              - Cache cleanup 
@@ -58,9 +60,10 @@ class WP_Agency_Deactivator {
                 // First level - no dependencies
                 'app_agency_memberships',  // Drop this first as it references both agencies and levels
                 'app_agency_employees',    // Drop this next as it references agencies and divisions
-                'app_divisions',             // Drop this after employees as it only references agencies
+                'app_agency_jurisdictions', // Drop this before divisions as it references divisions
+                'app_divisions',             // Drop this after jurisdictions as it only references agencies
                 // Second level - referenced by others
-                'app_agency_membership_levels',  // Can now be dropped as 
+                'app_agency_membership_levels',  // Can now be dropped as
                 'app_agency_membership_features',  // Can now be dropped as memberships is gone
                 'app_agencies'             // Drop this last as it's referenced by all
             ];

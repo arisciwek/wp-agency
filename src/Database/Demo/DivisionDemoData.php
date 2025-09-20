@@ -353,9 +353,11 @@ class DivisionDemoData extends AbstractDemoData {
 
         $cabang_count = 2; // Selalu buat 2 cabang karena sudah ada 2 user cabang
 
-        $used_provinces = [$agency->provinsi_id];
         $userGenerator = new WPUserGenerator();
-        
+
+        // Track used regencies for this agency to avoid duplicates
+        $excluded_regencies = [$agency->regency_id];
+
         for ($i = 0; $i < $cabang_count; $i++) {
             // Get cabang admin user ID
             $cabang_key = 'cabang' . ($i + 1);
@@ -372,27 +374,37 @@ class DivisionDemoData extends AbstractDemoData {
                 'display_name' => $user_data['display_name'],
                 'role' => 'agency'  // atau role khusus untuk division admin
             ]);
-            
+
             if (!$wp_user_id) {
                 throw new \Exception("Failed to create WordPress user for division admin: {$user_data['display_name']}");
             }
 
-            // Get random province (different from used provinces)
-            $provinsi_id = $this->getRandomProvinceExcept($agency->provinsi_id);
-            while (in_array($provinsi_id, $used_provinces)) {
-                $provinsi_id = $this->getRandomProvinceExcept($agency->provinsi_id);
+            // Use the same province as the agency
+            $provinsi_id = $agency->provinsi_id;
+
+            // Get random regency from the agency's province, excluding used ones
+            $placeholders = implode(',', array_fill(0, count($excluded_regencies), '%d'));
+            $query = "SELECT id FROM {$this->wpdb->prefix}wi_regencies
+                     WHERE province_id = %d AND id NOT IN (" . $placeholders . ")
+                     ORDER BY RAND() LIMIT 1";
+            $params = array_merge([$provinsi_id], $excluded_regencies);
+            $regency = $this->wpdb->get_row($this->wpdb->prepare($query, $params));
+
+            if (!$regency) {
+                $this->debug("No more available regencies in province {$provinsi_id} for agency {$agency->id}, skipping cabang " . ($i + 1));
+                continue;
             }
-            $used_provinces[] = $provinsi_id;
-            
-            // Get random regency from selected province
-            $regency_id = $this->getRandomRegencyId($provinsi_id);
+
+            $regency_id = (int) $regency->id;
+            $excluded_regencies[] = $regency_id;
+
             $regency_name = $this->getRegencyName($regency_id);
             $location = $this->generateValidLocation();
 
             $division_data = [
                 'agency_id' => $agency->id,
-                'name' => sprintf('%s Division %s', 
-                                $agency->name, 
+                'name' => sprintf('%s Division %s',
+                                $agency->name,
                                 $regency_name),
                 'type' => 'cabang',
                 'nitku' => $this->generateNITKU(),
