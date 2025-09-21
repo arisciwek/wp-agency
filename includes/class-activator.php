@@ -51,7 +51,13 @@ class WP_Agency_Activator {
                 return;
             }
 
-            // 2. Create disnaker role first if it doesn't exist
+            // 2. Run database migration for wilayah code changes
+            if (!$installer->runMigration()) {
+                self::logError('Failed to run database migration');
+                return;
+            }
+
+            // 3. Create disnaker role first if it doesn't exist
             if (!get_role('agency')) {
                 add_role(
                     'agency',
@@ -60,7 +66,7 @@ class WP_Agency_Activator {
                 );
             }
 
-            // 3. Now initialize permission model and add capabilities
+            // 4. Now initialize permission model and add capabilities
             try {
                 $permission_model = new PermissionModel();
                 $permission_model->addCapabilities(); // This will add caps to both admin and agency roles
@@ -68,7 +74,7 @@ class WP_Agency_Activator {
                 self::logError('Error adding capabilities: ' . $e->getMessage());
             }
 
-            // 4. Continue with rest of activation (demo data, version, etc)
+            // 5. Continue with rest of activation (demo data, version, etc)
             self::addVersion();
             self::setupMembershipDefaults();
 

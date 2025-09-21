@@ -191,7 +191,7 @@ class Migration {
         $wpdb->query("ALTER TABLE {$table} DROP COLUMN regency_id, CHANGE regency_code_temp regency_code VARCHAR(10) NOT NULL");
 
         // Update foreign key constraint
-        $wpdb->query("ALTER TABLE {$table} DROP FOREIGN KEY `{$wpdb->prefix}app_agency_jurisdictions_ibfk_2`");
+        $wpdb->query("ALTER TABLE {$table} DROP FOREIGN KEY `{$wpdb->prefix}app_agency_jurisdictions_ibfk_1`");
 
         self::debug("Jurisdictions table migration completed");
     }

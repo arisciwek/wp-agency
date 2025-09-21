@@ -136,7 +136,7 @@
 
             this.resetForm();
 
-            // Populate all form fields
+            // Populate form fields except province/regency (set after modal open)
             const division = data.division;
             this.form.find('#division-id').val(division.id);
             this.form.find('#agency_id').val(division.agency_id);
@@ -149,38 +149,35 @@
             this.form.find('[name="address"]').val(division.address);
             this.form.find('[name="phone"]').val(division.phone);
             this.form.find('[name="email"]').val(division.email);
-            this.form.find('[name="provinsi_code"]').val(division.provinsi_code);
-            this.form.find('[name="regency_code"]').val(division.regency_code);
             this.form.find('[name="status"]').val(division.status);
-
-            // Province and Regency fields
-            if (division.provinsi_code) {
-                this.form.find('[name="provinsi_code"]').val(division.provinsi_code).trigger('change');
-
-                // Wait for province change to complete before setting regency
-                setTimeout(() => {
-                    if (division.regency_code) {
-                        this.form.find('[name="regency_code"]').val(division.regency_code);
-                    }
-                }, 500);
-            }
 
             // Initialize Select2 for jurisdictions after modal is fully visible
             $(document).one('division:modalFullyOpen', () => {
-                this.initializeJurisdictionSelect();
+                // Set province and regency after modal is fully open
+                if (division.provinsi_code) {
+                    const $province = this.form.find('[name="provinsi_code"]');
+                    if ($province.hasClass('select2-hidden-accessible')) {
+                        $province.select2('val', division.provinsi_code);
+                    } else {
+                        $province.val(division.provinsi_code).trigger('change');
+                    }
 
-                // Load current jurisdictions after select2 is initialized
-                if (data.jurisdictions) {
-                    const $select = this.form.find('.jurisdiction-select');
-                    data.jurisdictions.forEach(jurisdiction => {
-                        // Add current jurisdictions as options
-                        if (!$select.find(`option[value="${jurisdiction.regency_id}"]`).length) {
-                            $select.append(new Option(`${jurisdiction.regency_name} (${jurisdiction.province_name})`, jurisdiction.regency_id, true, true));
+                    // Wait for province change to complete before setting regency
+                    setTimeout(() => {
+                        if (division.regency_code) {
+                            const $regency = this.form.find('[name="regency_code"]');
+                            if ($regency.hasClass('select2-hidden-accessible')) {
+                                $regency.select2('val', division.regency_code);
+                            } else {
+                                $regency.val(division.regency_code).trigger('change');
+                            }
                         }
-                    });
-                    // Set selected values
-                    const jurisdictionIds = data.jurisdictions.map(j => j.regency_id);
-                    $select.val(jurisdictionIds).trigger('change');
+                        // Initialize Select2 after regency is set
+                        this.initializeJurisdictionSelect(data.jurisdictions || []);
+                    }, 1000);
+                } else {
+                    // Initialize Select2 if no province
+                    this.initializeJurisdictionSelect(data.jurisdictions || []);
                 }
             });
 
@@ -392,15 +389,21 @@
             this.form.find('.jurisdiction-select').val(null).trigger('change');
         },
 
-        initializeJurisdictionSelect() {
+        initializeJurisdictionSelect(currentJurisdictions = []) {
             const $select = this.form.find('.jurisdiction-select');
 
-            console.log('Edit form: Initializing jurisdiction select:', $select.length, typeof $select.select2);
+            console.log('Edit form: Initializing jurisdiction select:', $select.length, typeof $select.select2, 'current:', currentJurisdictions.length);
 
             if (!$select.length || typeof $select.select2 === 'undefined') {
                 console.warn('Select2 not available or jurisdiction select not found');
                 return;
             }
+
+            // Prepare current data for select2
+            const currentData = currentJurisdictions.map(jurisdiction => ({
+                id: jurisdiction.regency_code,
+                text: `${jurisdiction.regency_name} (${jurisdiction.province_name})`
+            }));
 
             $select.select2({
                 placeholder: 'Pilih kabupaten/kota...',
@@ -415,6 +418,7 @@
                             action: 'get_available_jurisdictions',
                             agency_id: this.getCurrentAgencyId(),
                             division_id: this.form.find('#division-id').val(),
+                            province_code: this.form.find('[name="provinsi_code"]').val(),
                             search: params.term,
                             nonce: wpAgencyData.nonce
                         };
@@ -424,13 +428,12 @@
                     processResults: (data) => {
                         console.log('Edit form: AJAX response received:', data);
                         if (data.success && data.data.jurisdictions) {
-                            console.log('Edit form: Processing jurisdictions:', data.data.jurisdictions.length);
-                            return {
-                                results: data.data.jurisdictions.map(jurisdiction => ({
-                                    id: jurisdiction.id,
-                                    text: `${jurisdiction.name} (${jurisdiction.province_name})`
-                                }))
-                            };
+                            const newResults = data.data.jurisdictions.map(jurisdiction => ({
+                                id: jurisdiction.id,
+                                text: `${jurisdiction.name} (${jurisdiction.province_name})`
+                            }));
+                            console.log('Edit form: Processing jurisdictions:', newResults.length);
+                            return { results: newResults };
                         }
                         console.warn('Edit form: No jurisdictions returned or error:', data);
                         return { results: [] };
@@ -444,6 +447,11 @@
                 escapeMarkup: (markup) => markup,
                 templateResult: (item) => item.loading ? 'Mencari...' : item.text,
                 templateSelection: (item) => item.text || item.id
+            });
+
+            // Pre-select current jurisdictions
+            currentData.forEach(item => {
+                $select.select2('trigger', 'select', {data: item});
             });
 
             console.log('Edit form: Select2 initialized for jurisdiction select');

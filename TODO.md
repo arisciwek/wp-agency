@@ -1,20 +1,17 @@
-# Fix Division Demo Data Generation Error
+# TODO: Update References from provinsi_id/regency_id to provinsi_code/regency_code
 
-## Issue
-Duplicate entry error when generating division demo data due to non-unique division names violating the unique key (agency_id, name) in wp_app_divisions table.
+## Tasks
+- [x] Update comments in src/Database/Demo/DivisionDemoData.php: Change provinsi_id to provinsi_code, regency_id to regency_code in database design comment.
+- [x] Update comment in src/Database/Demo/Data/JurisdictionData.php: Change division.regency_id to division.regency_code.
+- [x] Update comments in src/Database/Demo/JurisdictionDemoData.php: Change regency_id to regency_code.
+- [x] Update src/Controllers/Division/DivisionController.php: Remove code that sets provinsi_id and regency_id from codes.
+- [x] Update assets/js/division/edit-division-form.js: Change division.provinsi_id to division.provinsi_code, division.regency_id to division.regency_code.
 
-## Root Cause
-1. In `generateCabangDivisions()`, the exclusion of agency's regency uses `$agency->regency_id` which is not set, causing cabang divisions to potentially select the same regency as the agency.
-2. Name generation for pusat and cabang divisions uses the same format, leading to duplicate names if same regency is selected.
-
-## Plan
-- [x] Fix exclusion logic: Change `$excluded_regencies = [$agency->regency_id];` to `$excluded_regencies = [$this->getRegencyIdByCode($agency->regency_code)];`
-- [x] Modify cabang division name format to include 'Cabang' for uniqueness: `sprintf('%s Division Cabang %s', $agency->name, $regency_name)`
-- [x] Keep pusat division name format as is
-
-## Files to Edit
-- `src/Database/Demo/DivisionDemoData.php`
-
-## Testing
-- Run demo data generation and verify no duplicate name errors
-- Check that pusat and cabang divisions have distinct names
+## Followup
+- [x] Verify changes by checking if code runs without errors, perhaps test division forms.
+- [x] Fix migration constraint name from ibfk_2 to ibfk_1 in Migration.php
+- [x] Add migration call to activator
+- [x] Fix deactivator to drop foreign key constraints before dropping tables
+- [x] Fix deactivator table drop order and add missing app_agency_membership_feature_groups table
+- [x] Add missing foreign key constraint drops in deactivator
+- [x] Handle old jurisdiction table name (app_jurisdictions) and its constraints in deactivator

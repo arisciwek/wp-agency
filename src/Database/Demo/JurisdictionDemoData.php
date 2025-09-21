@@ -11,7 +11,7 @@
  *
  * Description: Generate jurisdiction demo data dari static array JurisdictionData.
  *              Membuat relasi antara divisions dan regencies untuk wilayah kerja.
- *              is_primary = true untuk regency yang sama dengan division.regency_id.
+ *              is_primary = true untuk regency yang sama dengan division.regency_code.
  *              Data diambil dari array dan divalidasi terhadap tabel divisions dan regencies.
  *
  * Dependencies:
@@ -24,7 +24,7 @@
  * - app_jurisdictions
  *   * id             : Primary key
  *   * division_id    : Foreign key ke app_divisions
- *   * regency_id     : Foreign key ke wi_regencies
+ *   * regency_code   : Code ke wi_regencies
  *   * is_primary     : 1 jika regency utama (tidak dapat dipindah)
  *   * created_by     : User ID pembuat
  *

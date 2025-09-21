@@ -37,8 +37,8 @@
  *   * name           : Nama division
  *   * type           : enum('cabang','pusat')
  *   * nitku          : Nomor Identitas Tempat Kegiatan Usaha
- *   * provinsi_id    : Foreign key ke wi_provinces
- *   * regency_id     : Foreign key ke wi_regencies
+ *   * provinsi_code  : Code ke wi_provinces
+ *   * regency_code   : Code ke wi_regencies
  *   * user_id        : Foreign key ke wp_users
  *   * status         : enum('active','inactive')
  *

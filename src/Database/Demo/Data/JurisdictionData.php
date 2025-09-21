@@ -21,7 +21,7 @@ defined('ABSPATH') || exit;
 class JurisdictionData {
     // Static jurisdiction data - defines regency coverage for each division
     // Key: division_id
-    // Value: array with 'regencies' array containing regency codes (primary will be determined from division.regency_id)
+    // Value: array with 'regencies' array containing regency codes (primary will be determined from division.regency_code)
     public static $data = [
         1 => [  // Disnaker Provinsi Aceh Division Kabupaten Aceh Tengah
             'regencies' => ['1102', '1103'],  // Additional: Aceh Tenggara, Aceh Timur

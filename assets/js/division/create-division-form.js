@@ -325,6 +325,7 @@
                         const data = {
                             action: 'get_available_jurisdictions',
                             agency_id: this.form.find('#agency_id').val(),
+                            province_code: this.form.find('#create-division-provinsi').val(),
                             search: params.term,
                             nonce: wpAgencyData.nonce
                         };

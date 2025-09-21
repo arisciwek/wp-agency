@@ -35,10 +35,10 @@ class WP_Agency_Deactivator {
 
     public static function deactivate() {
         global $wpdb;
-        
+
         $should_clear_data = self::should_clear_data();
 
-        // Hapus development settings terlebih dahulu
+        // Hapus development settings setelah menentukan apakah perlu clear data
         delete_option('wp_agency_development_settings');
         self::debug("Development settings cleared");
 
@@ -55,16 +55,21 @@ class WP_Agency_Deactivator {
             // Start transaction
             $wpdb->query('START TRANSACTION');
 
+            // First, drop all foreign key constraints to avoid dependency issues
+            self::drop_foreign_key_constraints();
+
             // Delete tables in correct order (child tables first)
             $tables = [
                 // First level - no dependencies
-                'app_agency_memberships',  // Drop this first as it references both agencies and levels
+                'app_agency_memberships',  // Drop this first as it references agencies, divisions, and levels
                 'app_agency_employees',    // Drop this next as it references agencies and divisions
                 'app_agency_jurisdictions', // Drop this before divisions as it references divisions
+                'app_jurisdictions',        // Old table name, drop if exists
                 'app_divisions',             // Drop this after jurisdictions as it only references agencies
                 // Second level - referenced by others
-                'app_agency_membership_levels',  // Can now be dropped as
-                'app_agency_membership_features',  // Can now be dropped as memberships is gone
+                'app_agency_membership_levels',  // Can now be dropped as memberships is gone
+                'app_agency_membership_features',  // Drop features before groups as it references groups
+                'app_agency_membership_feature_groups',  // Drop groups last in this level
                 'app_agencies'             // Drop this last as it's referenced by all
             ];
 
@@ -169,6 +174,35 @@ class WP_Agency_Deactivator {
         } catch (\Exception $e) {
             $wpdb->query('ROLLBACK');
             self::debug("Error managing users: " . $e->getMessage());
+        }
+    }
+
+    private static function drop_foreign_key_constraints() {
+        global $wpdb;
+
+        try {
+            // Drop specific foreign key constraints
+            $constraint_queries = [
+                // Handle both old and new jurisdiction table names
+                "ALTER TABLE {$wpdb->prefix}app_agency_jurisdictions DROP FOREIGN KEY {$wpdb->prefix}app_agency_jurisdictions_ibfk_1",
+                "ALTER TABLE {$wpdb->prefix}app_jurisdictions DROP FOREIGN KEY {$wpdb->prefix}app_jurisdictions_ibfk_1",
+                "ALTER TABLE {$wpdb->prefix}app_agency_memberships DROP FOREIGN KEY fk_membership_agency",
+                "ALTER TABLE {$wpdb->prefix}app_agency_memberships DROP FOREIGN KEY fk_membership_division",
+                "ALTER TABLE {$wpdb->prefix}app_agency_memberships DROP FOREIGN KEY fk_agency_membership_level",
+                "ALTER TABLE {$wpdb->prefix}app_agency_employees DROP FOREIGN KEY {$wpdb->prefix}app_agency_employees_ibfk_1",
+                "ALTER TABLE {$wpdb->prefix}app_agency_employees DROP FOREIGN KEY {$wpdb->prefix}app_agency_employees_ibfk_2",
+                "ALTER TABLE {$wpdb->prefix}app_divisions DROP FOREIGN KEY {$wpdb->prefix}app_divisions_ibfk_1",
+                "ALTER TABLE {$wpdb->prefix}app_agency_membership_features DROP FOREIGN KEY fk_agency_feature_group_id",
+            ];
+
+            foreach ($constraint_queries as $query) {
+                // Try to drop the constraint, ignore errors if it doesn't exist
+                $wpdb->query($query);
+            }
+
+            self::debug("Foreign key constraints dropped");
+        } catch (\Exception $e) {
+            self::debug("Error dropping foreign key constraints: " . $e->getMessage());
         }
     }
 

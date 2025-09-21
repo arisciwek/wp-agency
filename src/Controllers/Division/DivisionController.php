@@ -512,11 +512,32 @@ class DivisionController {
                'address' => isset($_POST['address']) ? sanitize_text_field($_POST['address']) : null,
                'phone' => isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : null,
                'email' => isset($_POST['email']) ? sanitize_email($_POST['email']) : null,
-               'provinsi_code' => isset($_POST['provinsi_code']) ? sanitize_text_field($_POST['provinsi_code']) : null,
-               'regency_code' => isset($_POST['regency_code']) ? sanitize_text_field($_POST['regency_code']) : null,
                'user_id' => isset($_POST['user_id']) ? (int)$_POST['user_id'] : null,
                'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : null
            ], function($value) { return $value !== null; });
+
+           // Convert province and regency IDs to codes for storage
+           if (isset($_POST['provinsi_code'])) {
+               global $wpdb;
+               $province_code = $wpdb->get_var($wpdb->prepare(
+                   "SELECT code FROM {$wpdb->prefix}wi_provinces WHERE id = %d",
+                   (int)$_POST['provinsi_code']
+               ));
+               if ($province_code) {
+                   $data['provinsi_code'] = $province_code;
+               }
+           }
+
+           if (isset($_POST['regency_code'])) {
+               global $wpdb;
+               $regency_code = $wpdb->get_var($wpdb->prepare(
+                   "SELECT code FROM {$wpdb->prefix}wi_regencies WHERE id = %d",
+                   (int)$_POST['regency_code']
+               ));
+               if ($regency_code) {
+                   $data['regency_code'] = $regency_code;
+               }
+           }
 
             // Business logic validation
             $errors = $this->validator->validateUpdate($data, $id);
@@ -624,6 +645,8 @@ class DivisionController {
             // Get jurisdictions for the division
             $jurisdictions = $this->model->getJurisdictionsByDivision($id);
 
+
+
             // Kembalikan data division dalam response
             wp_send_json_success([
                 'division' => $division,
@@ -662,11 +685,32 @@ class DivisionController {
                 'address' => sanitize_text_field($_POST['address'] ?? ''),
                 'phone' => sanitize_text_field($_POST['phone'] ?? ''),
                 'email' => sanitize_email($_POST['email'] ?? ''),
-                'provinsi_code' => isset($_POST['provinsi_code']) ? sanitize_text_field($_POST['provinsi_code']) : null,
-                'regency_code' => isset($_POST['regency_code']) ? sanitize_text_field($_POST['regency_code']) : null,
                 'created_by' => get_current_user_id(),
                 'status' => 'active'
             ];
+
+            // Convert province and regency IDs to codes for storage
+            if (isset($_POST['provinsi_code'])) {
+                global $wpdb;
+                $province_code = $wpdb->get_var($wpdb->prepare(
+                    "SELECT code FROM {$wpdb->prefix}wi_provinces WHERE id = %d",
+                    (int)$_POST['provinsi_code']
+                ));
+                if ($province_code) {
+                    $data['provinsi_code'] = $province_code;
+                }
+            }
+
+            if (isset($_POST['regency_code'])) {
+                global $wpdb;
+                $regency_code = $wpdb->get_var($wpdb->prepare(
+                    "SELECT code FROM {$wpdb->prefix}wi_regencies WHERE id = %d",
+                    (int)$_POST['regency_code']
+                ));
+                if ($regency_code) {
+                    $data['regency_code'] = $regency_code;
+                }
+            }
 
             // Validasi type division saat create
             $type_validation = $this->validator->validateDivisionTypeCreate($data['type'], $agency_id);
@@ -708,6 +752,18 @@ class DivisionController {
             // Save jurisdictions if provided
             if (isset($_POST['jurisdictions']) && is_array($_POST['jurisdictions'])) {
                 $jurisdiction_ids = array_map('intval', $_POST['jurisdictions']);
+
+                // Validate jurisdiction assignment
+                $jurisdiction_validation = $this->validator->validateJurisdictionAssignment($agency_id, $jurisdiction_ids, null, false);
+                if (!$jurisdiction_validation['valid']) {
+                    // If validation fails, delete the division and rollback
+                    $this->model->delete($division_id);
+                    if (!empty($user_id)) {
+                        wp_delete_user($user_id);
+                    }
+                    throw new \Exception($jurisdiction_validation['message']);
+                }
+
                 $primary_jurisdictions = isset($_POST['primary_jurisdictions']) && is_array($_POST['primary_jurisdictions'])
                     ? array_map('intval', $_POST['primary_jurisdictions'])
                     : [];
@@ -896,19 +952,22 @@ class DivisionController {
             error_log("DEBUG: Nonce verified successfully");
 
             $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
-            $division_id = isset($_POST['division_id']) ? (int) $_POST['division_id'] : null;
+            $exclude_division_id = isset($_POST['division_id']) ? (int) $_POST['division_id'] : null;
+            $province_code = isset($_POST['province_code']) ? sanitize_text_field($_POST['province_code']) : '';
             $search = isset($_POST['search']) ? sanitize_text_field($_POST['search']) : '';
 
-            error_log("DEBUG: getAvailableJurisdictions called with agency_id: $agency_id, division_id: $division_id, search: $search");
+            error_log("DEBUG: getAvailableJurisdictions called with agency_id: $agency_id, exclude_division_id: $exclude_division_id, province_code: $province_code, search: $search");
 
-            // If agency_id is not provided but division_id is, get agency_id from division
-            if (!$agency_id && $division_id) {
-                $division = $this->model->find($division_id);
+            // If agency_id is not provided but exclude_division_id is, get agency_id from division
+            if (!$agency_id && $exclude_division_id) {
+                $division = $this->model->find($exclude_division_id);
                 if ($division && $division->agency_id) {
                     $agency_id = (int) $division->agency_id;
                     error_log("DEBUG: Got agency_id from division: $agency_id");
                 }
             }
+
+            $include_assigned = $division_id ? true : false;
 
             if (!$agency_id) {
                 throw new \Exception('ID Agency tidak valid');
@@ -951,8 +1010,8 @@ class DivisionController {
                 return;
             }
 
-            // Get available regencies for the agency
-            $available_regencies = $this->model->getAvailableRegenciesForAgency($agency_id, $division_id);
+            // Get regencies for the agency
+            $available_regencies = $this->model->getAvailableRegenciesForAgency($agency_id, $exclude_division_id, $province_code);
 
             error_log("DEBUG: Found " . count($available_regencies) . " available regencies");
 
