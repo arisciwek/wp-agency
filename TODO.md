@@ -15,3 +15,5 @@
 - [x] Fix deactivator table drop order and add missing app_agency_membership_feature_groups table
 - [x] Add missing foreign key constraint drops in deactivator
 - [x] Handle old jurisdiction table name (app_jurisdictions) and its constraints in deactivator
+- [x] Fix JurisdictionDemoData.php duplicate regency insertion bug by correcting check order
+- [x] Fix edit division form not showing province/regency data by converting codes to ids in controller and updating JS to use ids

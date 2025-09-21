@@ -645,7 +645,24 @@ class DivisionController {
             // Get jurisdictions for the division
             $jurisdictions = $this->model->getJurisdictionsByDivision($id);
 
+            // Convert codes back to IDs for form compatibility
+            if ($division->provinsi_code) {
+                global $wpdb;
+                $province_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM {$wpdb->prefix}wi_provinces WHERE code = %s",
+                    $division->provinsi_code
+                ));
+                $division->provinsi_id = $province_id ?: $division->provinsi_code;
+            }
 
+            if ($division->regency_code) {
+                global $wpdb;
+                $regency_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM {$wpdb->prefix}wi_regencies WHERE code = %s",
+                    $division->regency_code
+                ));
+                $division->regency_id = $regency_id ?: $division->regency_code;
+            }
 
             // Kembalikan data division dalam response
             wp_send_json_success([

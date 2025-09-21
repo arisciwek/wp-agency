@@ -180,7 +180,7 @@ class JurisdictionDemoData extends AbstractDemoData {
                 foreach ($regency_codes as $regency_code) {
                     $is_primary = ($regency_code == $primary_regency_code) ? 1 : 0;
 
-                    // Skip if already exists (avoid duplicates)
+                    // Skip if already exists for this division
                     $exists = $this->wpdb->get_var($this->wpdb->prepare(
                         "SELECT id FROM {$this->wpdb->prefix}app_agency_jurisdictions
                          WHERE division_id = %d AND regency_code = %s",
@@ -188,18 +188,19 @@ class JurisdictionDemoData extends AbstractDemoData {
                     ));
 
                     if ($exists) {
+                        $this->debug("Jurisdiction already exists: division {$division_id}, regency {$regency_code}");
+                        continue;
+                    }
+
                     // Check if regency_code is already assigned to another division
                     $regency_exists = $this->wpdb->get_var($this->wpdb->prepare(
                         "SELECT id FROM {$this->wpdb->prefix}app_agency_jurisdictions
                          WHERE regency_code = %s",
                         $regency_code
                     ));
-                    
+
                     if ($regency_exists) {
                         $this->debug("Regency {$regency_code} already assigned to another division, skipping for division {$division_id}");
-                        continue;
-                    }
-                        $this->debug("Jurisdiction already exists: division {$division_id}, regency {$regency_code}");
                         continue;
                     }
 

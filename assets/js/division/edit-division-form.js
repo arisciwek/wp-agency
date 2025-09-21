@@ -154,22 +154,22 @@
             // Initialize Select2 for jurisdictions after modal is fully visible
             $(document).one('division:modalFullyOpen', () => {
                 // Set province and regency after modal is fully open
-                if (division.provinsi_code) {
+                if (division.provinsi_id) {
                     const $province = this.form.find('[name="provinsi_code"]');
                     if ($province.hasClass('select2-hidden-accessible')) {
-                        $province.select2('val', division.provinsi_code);
+                        $province.select2('val', division.provinsi_id);
                     } else {
-                        $province.val(division.provinsi_code).trigger('change');
+                        $province.val(division.provinsi_id).trigger('change');
                     }
 
                     // Wait for province change to complete before setting regency
                     setTimeout(() => {
-                        if (division.regency_code) {
+                        if (division.regency_id) {
                             const $regency = this.form.find('[name="regency_code"]');
                             if ($regency.hasClass('select2-hidden-accessible')) {
-                                $regency.select2('val', division.regency_code);
+                                $regency.select2('val', division.regency_id);
                             } else {
-                                $regency.val(division.regency_code).trigger('change');
+                                $regency.val(division.regency_id).trigger('change');
                             }
                         }
                         // Initialize Select2 after regency is set
