@@ -60,7 +60,7 @@ class JurisdictionData {
             'created_by' => 104
         ],
         10 => [  // Disnaker Provinsi Banten Division Kota Serang
-            'regencies' => [],  // Primary only
+            'regencies' => [3672],  // Primary only
             'created_by' => 105
         ],
         11 => [  // Disnaker Provinsi Banten Division Kota Cilegon

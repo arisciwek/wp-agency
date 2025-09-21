@@ -627,7 +627,7 @@ class DivisionModel {
         // Get agency province to filter regencies
         $agency = $this->agencyModel->find($agency_id);
 
-        $cache_key = 'available_regencies_agency_' . $agency_id;
+        $cache_key = 'available_regencies_agency_' . $agency_id . '_v3';
         if ($agency && $agency->provinsi_code) {
             $cache_key .= '_province_' . $agency->provinsi_code;
         }
@@ -640,13 +640,22 @@ class DivisionModel {
         if ($cached !== null) {
             return $cached;
         }
-        if (!$agency || !$agency->provinsi_code) {
-            // Fallback to all regencies if agency province not set
-            $province_filter = "";
-            $params = [$agency_id];
-        } else {
+
+        // Delete old cache keys without _v2
+        $old_cache_key = str_replace('_v2', '', $cache_key);
+        $this->cache->delete($old_cache_key);
+
+        // Build params in order
+        $params = [$agency_id];
+        $province_filter = "";
+
+        if ($exclude_division_id) {
+            $params[] = $exclude_division_id;
+        }
+
+        if ($agency && $agency->provinsi_code) {
             $province_filter = "AND p.code = %s";
-            $params = [$agency_id, $agency->provinsi_code];
+            $params[] = $agency->provinsi_code;
         }
 
         // Get regencies in the agency's province that are not assigned to other divisions
@@ -654,23 +663,28 @@ class DivisionModel {
             SELECT r.id, r.name, r.province_id, p.name as province_name
             FROM {$wpdb->prefix}wi_regencies r
             LEFT JOIN {$wpdb->prefix}wi_provinces p ON r.province_id = p.id
-            WHERE r.code NOT IN (
-                SELECT DISTINCT j.regency_code
-                FROM {$wpdb->prefix}app_agency_jurisdictions j
-                INNER JOIN {$wpdb->prefix}app_divisions d ON j.division_id = d.id
-                WHERE d.agency_id = %d
+            LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.regency_code = r.code
+            LEFT JOIN {$wpdb->prefix}app_divisions d ON aj.division_id = d.id AND d.agency_id = %d
         ";
 
         if ($exclude_division_id) {
-            $query .= " AND j.division_id != %d";
-            $params[] = $exclude_division_id;
+            $query .= " AND d.id != %d";
         }
 
-        $query .= ")
+        $query .= "
+            WHERE d.id IS NULL
             $province_filter
             ORDER BY p.name ASC, r.name ASC";
 
+        error_log("DEBUG MODEL: Query: " . $wpdb->prepare($query, $params));
+        error_log("DEBUG MODEL: Params: " . print_r($params, true));
+
         $available_regencies = $wpdb->get_results($wpdb->prepare($query, $params));
+
+        error_log("DEBUG MODEL: Found " . count($available_regencies) . " available regencies");
+        if (!empty($available_regencies)) {
+            error_log("DEBUG MODEL: Sample results: " . print_r(array_slice($available_regencies, 0, 3), true));
+        }
 
         // Cache the result
         $this->cache->set($cache_key, $available_regencies ?: [], self::CACHE_EXPIRY);
