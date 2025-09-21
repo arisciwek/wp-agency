@@ -197,8 +197,8 @@
                 name: this.form.find('[name="name"]').val().trim(),
                 npwp: this.form.find('[name="npwp"]').val().trim(),
                 nib: this.form.find('[name="nib"]').val().trim(),
-                provinsi_id: this.form.find('[name="provinsi_id"]').val(),
-                regency_id: this.form.find('[name="regency_id"]').val(),
+                provinsi_code: this.form.find('[name="provinsi_code"]').val(),
+                regency_code: this.form.find('[name="regency_code"]').val(),
                 status: this.form.find('[name="status"]').val()
             };
 
@@ -248,10 +248,10 @@
                         minlength: 3,
                         maxlength: 100
                     },
-                    provinsi_id: {
+                    provinsi_code: {
                         required: true
                     },
-                    regency_id: {
+                    regency_code: {
                         required: true
                     },
                     npwp: {
@@ -280,10 +280,10 @@
                         maxlength: 'NIB harus 13 digit', 
                         digits: 'NIB hanya boleh berisi angka'
                     },
-                    provinsi_id: {
+                    provinsi_code: {
                         required: 'Provinsi wajib dipilih'
                     },
-                    regency_id: {
+                    regency_code: {
                         required: 'Kabupaten/Kota wajib dipilih'
                     },
                     user_id: {
@@ -328,7 +328,7 @@
             this.form.validate().resetForm();
 
             // Reset wilayah selects
-            const $regencySelect = this.form.find('[name="regency_id"]');
+            const $regencySelect = this.form.find('[name="regency_code"]');
             $regencySelect
                 .html('<option value="">Pilih Kabupaten/Kota</option>')
                 .prop('disabled', true);

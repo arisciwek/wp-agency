@@ -1,31 +1,20 @@
-# TODO: Add Jurisdiction Field to Division Forms with Complex Constraints
+# Fix Division Demo Data Generation Error
 
-## Completed Tasks
-- [x] Analyze current forms and code structure
-- [x] Plan implementation with constraints (exclusivity per agency, is_primary protection)
-- [x] Add jurisdiction field to create-division-form.php (Select2 multiple select)
-- [x] Add jurisdiction field to edit-division-form.php (Select2 with current + available options)
-- [x] Add getAvailableJurisdictions AJAX endpoint to DivisionController.php
-- [x] Add saveJurisdictions, getJurisdictionsByDivision, getAvailableRegenciesForAgency methods to DivisionModel.php
-- [x] Update create-division-form.js to load and handle jurisdiction selection
-- [x] Update edit-division-form.js to load current jurisdictions, available options, and enforce is_primary validation
-- [x] Update store/update methods in DivisionController.php to save jurisdiction data
-- [x] Add cache invalidation for jurisdiction changes
+## Issue
+Duplicate entry error when generating division demo data due to non-unique division names violating the unique key (agency_id, name) in wp_app_divisions table.
 
-## Pending Tasks
-- [ ] Test complete flow with exclusivity and is_primary constraints
-- [x] Ensure Select2 library is loaded
-- [x] Verify AJAX endpoints return correct data (added table existence check)
-- [x] Fix demo data jurisdiction assignments (removed Bogor from DKI Jakarta, ensured no duplicates)
-- [x] Add Admin column to division datatable
+## Root Cause
+1. In `generateCabangDivisions()`, the exclusion of agency's regency uses `$agency->regency_id` which is not set, causing cabang divisions to potentially select the same regency as the agency.
+2. Name generation for pusat and cabang divisions uses the same format, leading to duplicate names if same regency is selected.
 
-## Notes
-- Jurisdictions are regencies assigned to divisions within an agency
-- Constraints: regencies can only be in one division per agency (exclusivity)
-- is_primary jurisdictions cannot be removed during edit
-- Available options = all regencies in agency minus those already assigned to other divisions
-- Need dynamic option loading based on agency and current assignments
-- Cache management required for jurisdiction availability
-- Primary jurisdiction must match division's regency_id
-- All jurisdictions must be within agency's province
-- No duplicate regencies across divisions in same agency
+## Plan
+- [x] Fix exclusion logic: Change `$excluded_regencies = [$agency->regency_id];` to `$excluded_regencies = [$this->getRegencyIdByCode($agency->regency_code)];`
+- [x] Modify cabang division name format to include 'Cabang' for uniqueness: `sprintf('%s Division Cabang %s', $agency->name, $regency_name)`
+- [x] Keep pusat division name format as is
+
+## Files to Edit
+- `src/Database/Demo/DivisionDemoData.php`
+
+## Testing
+- Run demo data generation and verify no duplicate name errors
+- Check that pusat and cabang divisions have distinct names

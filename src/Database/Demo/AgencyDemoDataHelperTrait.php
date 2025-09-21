@@ -289,16 +289,101 @@ trait AgencyDemoDataHelperTrait {
      */
     protected function getProvinceName(int $province_id): string {
         $province = $this->wpdb->get_var($this->wpdb->prepare(
-            "SELECT name FROM {$this->wpdb->prefix}wi_provinces 
+            "SELECT name FROM {$this->wpdb->prefix}wi_provinces
              WHERE id = %d",
             $province_id
         ));
-        
+
         if (!$province) {
             throw new \Exception("Province not found: {$province_id}");
         }
-        
+
         return $province;
+    }
+
+    /**
+     * Get province ID by name
+     */
+    private function getProvinceIdByName(string $province_name): ?int {
+        $province = $this->wpdb->get_row($this->wpdb->prepare(
+            "SELECT id FROM {$this->wpdb->prefix}wi_provinces WHERE name = %s",
+            $province_name
+        ));
+
+        return $province ? (int) $province->id : null;
+    }
+
+    /**
+     * Get province code by name
+     */
+    protected function getProvinceCodeByName(string $province_name): ?string {
+        $province = $this->wpdb->get_row($this->wpdb->prepare(
+            "SELECT code FROM {$this->wpdb->prefix}wi_provinces WHERE name = %s",
+            $province_name
+        ));
+
+        return $province ? $province->code : null;
+    }
+
+    /**
+     * Get province code by ID
+     */
+    protected function getProvinceCodeById(int $province_id): ?string {
+        $province = $this->wpdb->get_row($this->wpdb->prepare(
+            "SELECT code FROM {$this->wpdb->prefix}wi_provinces WHERE id = %d",
+            $province_id
+        ));
+
+        return $province ? $province->code : null;
+    }
+
+    /**
+     * Get province ID by code
+     */
+    protected function getProvinceIdByCode(string $province_code): ?int {
+        $province = $this->wpdb->get_row($this->wpdb->prepare(
+            "SELECT id FROM {$this->wpdb->prefix}wi_provinces WHERE code = %s",
+            $province_code
+        ));
+
+        return $province ? (int) $province->id : null;
+    }
+
+    /**
+     * Get regency ID by code
+     */
+    protected function getRegencyIdByCode(string $regency_code): ?int {
+        $regency = $this->wpdb->get_row($this->wpdb->prepare(
+            "SELECT id FROM {$this->wpdb->prefix}wi_regencies WHERE code = %s",
+            $regency_code
+        ));
+
+        return $regency ? (int) $regency->id : null;
+    }
+
+    /**
+     * Get regency code by ID
+     */
+    protected function getRegencyCodeById(int $regency_id): ?string {
+        $regency = $this->wpdb->get_row($this->wpdb->prepare(
+            "SELECT code FROM {$this->wpdb->prefix}wi_regencies WHERE id = %d",
+            $regency_id
+        ));
+
+        return $regency ? $regency->code : null;
+    }
+
+    /**
+     * Get random regency code for a province
+     */
+    protected function getRandomRegencyCode(int $province_id): ?string {
+        $regency = $this->wpdb->get_row($this->wpdb->prepare(
+            "SELECT code FROM {$this->wpdb->prefix}wi_regencies
+             WHERE province_id = %d ORDER BY RAND() LIMIT 1",
+            $province_id
+        ));
+
+        return $regency ? $regency->code : null;
     }
 
     /**

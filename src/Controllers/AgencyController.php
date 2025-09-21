@@ -685,8 +685,8 @@ public function createPdfButton() {
                 'npwp' => isset($_POST['npwp']) ? sanitize_text_field($_POST['npwp']) : null,
                 'nib' => isset($_POST['nib']) ? sanitize_text_field($_POST['nib']) : null,
                 'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
-                'provinsi_id' => isset($_POST['provinsi_id']) ? (int)$_POST['provinsi_id'] : null,
-                'regency_id' => isset($_POST['regency_id']) ? (int)$_POST['regency_id'] : null,
+                'provinsi_code' => isset($_POST['provinsi_code']) ? sanitize_text_field($_POST['provinsi_code']) : null,
+                'regency_code' => isset($_POST['regency_code']) ? sanitize_text_field($_POST['regency_code']) : null,
                 'user_id' => isset($_POST['user_id']) ? (int)$_POST['user_id'] : get_current_user_id(),
                 'created_by' => get_current_user_id()
             ];
@@ -754,8 +754,8 @@ public function createPdfButton() {
                 'npwp' => !empty($_POST['npwp']) ? sanitize_text_field($_POST['npwp']) : null,
                 'nib' => !empty($_POST['nib']) ? sanitize_text_field($_POST['nib']) : null,
                 'status' => !empty($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
-                'provinsi_id' => !empty($_POST['provinsi_id']) ? intval($_POST['provinsi_id']) : null,
-                'regency_id' => !empty($_POST['regency_id']) ? intval($_POST['regency_id']) : null
+                'provinsi_code' => !empty($_POST['provinsi_code']) ? sanitize_text_field($_POST['provinsi_code']) : null,
+                'regency_code' => !empty($_POST['regency_code']) ? sanitize_text_field($_POST['regency_code']) : null
             ];
 
             // Add validation for status field

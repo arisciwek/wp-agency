@@ -233,8 +233,8 @@
                 address: this.getFieldValue('address'),
                 phone: this.getFieldValue('phone'),
                 email: this.getFieldValue('email'),
-                provinsi_id: this.getFieldValue('provinsi_id'),
-                regency_id: this.getFieldValue('regency_id'),
+                provinsi_code: this.getFieldValue('provinsi_code'),
+                regency_code: this.getFieldValue('regency_code'),
                 jurisdictions: this.form.find('[name="jurisdictions[]"]').val(),
 
                 // Admin data
@@ -306,6 +306,8 @@
         initializeJurisdictionSelect() {
             const $select = this.form.find('.jurisdiction-select');
 
+            console.log('Initializing jurisdiction select:', $select.length, typeof $select.select2);
+
             if (!$select.length || typeof $select.select2 === 'undefined') {
                 console.warn('Select2 not available or jurisdiction select not found');
                 return;
@@ -316,16 +318,23 @@
                 allowClear: true,
                 ajax: {
                     url: wpAgencyData.ajaxUrl,
+                    type: 'POST',
                     dataType: 'json',
                     delay: 300,
-                    data: (params) => ({
-                        action: 'get_available_jurisdictions',
-                        agency_id: this.form.find('#agency_id').val(),
-                        search: params.term,
-                        nonce: wpAgencyData.nonce
-                    }),
+                    data: (params) => {
+                        const data = {
+                            action: 'get_available_jurisdictions',
+                            agency_id: this.form.find('#agency_id').val(),
+                            search: params.term,
+                            nonce: wpAgencyData.nonce
+                        };
+                        console.log('AJAX data sent:', data);
+                        return data;
+                    },
                     processResults: (data) => {
+                        console.log('AJAX response received:', data);
                         if (data.success && data.data.jurisdictions) {
+                            console.log('Processing jurisdictions:', data.data.jurisdictions.length);
                             return {
                                 results: data.data.jurisdictions.map(jurisdiction => ({
                                     id: jurisdiction.id,
@@ -333,15 +342,21 @@
                                 }))
                             };
                         }
+                        console.warn('No jurisdictions returned or error:', data);
                         return { results: [] };
                     },
-                    cache: true
+                    cache: true,
+                    error: (xhr, status, error) => {
+                        console.error('AJAX error:', status, error, xhr.responseText);
+                    }
                 },
                 minimumInputLength: 0,
                 escapeMarkup: (markup) => markup,
                 templateResult: (item) => item.loading ? 'Mencari...' : item.text,
                 templateSelection: (item) => item.text || item.id
             });
+
+            console.log('Select2 initialized for jurisdiction select');
         }
     };
 

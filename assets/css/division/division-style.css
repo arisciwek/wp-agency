@@ -622,3 +622,75 @@ div#division-table_filter input {
     height: 16px;
 }
 
+/* Select2 Custom Styling for Jurisdiction Select */
+.jurisdiction-select {
+    width: 100% !important;
+}
+
+.select2-container {
+    width: 100% !important;
+}
+
+.select2-container--default .select2-selection--multiple {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-height: 36px;
+    background: #fff;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    padding: 2px 8px;
+    line-height: 24px;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background: #f0f0f1;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin: 2px;
+    font-size: 13px;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: #50575e;
+    margin-right: 4px;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #d63638;
+}
+
+.select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+.select2-container--default .select2-search--inline .select2-search__field {
+    margin: 2px;
+    font-size: 13px;
+}
+
+.select2-results__option {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background: #2271b1;
+    color: #fff;
+}
+
+.select2-dropdown {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading state for Select2 */
+.select2-container--default .select2-results__option.loading-results {
+    text-align: center;
+    padding: 16px;
+    color: #666;
+}
+

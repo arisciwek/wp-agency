@@ -109,9 +109,9 @@ error_log('Regency select hook exists: ' . (has_action('wilayah_indonesia_regenc
                                 <?php _e('Provinsi', 'wp-agency'); ?>
                             </label>
                             <div class="input-group">
-                                <?php 
+                                <?php
                                 do_action('wilayah_indonesia_province_select', [
-                                    'name' => 'provinsi_id',
+                                    'name' => 'provinsi_code',
                                     'id' => 'edit-provinsi',
                                     'class' => 'regular-text wilayah-province-select',
                                     'data-placeholder' => __('Pilih Provinsi', 'wp-agency'),
@@ -127,9 +127,9 @@ error_log('Regency select hook exists: ' . (has_action('wilayah_indonesia_regenc
                                 <?php _e('Kabupaten/Kota', 'wp-agency'); ?>
                             </label>
                             <div class="input-group">
-                                <?php 
+                                <?php
                                 do_action('wilayah_indonesia_regency_select', [
-                                    'name' => 'regency_id',
+                                    'name' => 'regency_code',
                                     'id' => 'edit-regency',
                                     'class' => 'regular-text wilayah-regency-select',
                                     'data-loading-text' => __('Memuat...', 'wp-agency'),

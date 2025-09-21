@@ -177,17 +177,18 @@ class AgencyDemoData extends AbstractDemoData {
                 // Map agency name to province
                 $province_name = $this->mapAgencyNameToProvince($agency['name']);
                 if ($province_name) {
-                    $provinsi_id = $this->getProvinceIdByName($province_name);
-                    $regency_id = $this->getRandomRegencyId($provinsi_id);
+                    $provinsi_code = $this->getProvinceCodeByName($province_name);
+                    $regency_code = $this->getRandomRegencyCode($this->getProvinceIdByName($province_name));
                 } else {
                     // Fallback to random
                     $provinsi_id = $this->getRandomProvinceId();
-                    $regency_id = $this->getRandomRegencyId($provinsi_id);
+                    $provinsi_code = $this->getProvinceCodeById($provinsi_id);
+                    $regency_code = $this->getRandomRegencyCode($provinsi_id);
                 }
 
                 // Validate location relationship
-                if (!$this->validateLocation($provinsi_id, $regency_id)) {
-                    throw new \Exception("Invalid province-regency relationship: Province {$provinsi_id}, Regency {$regency_id}");
+                if (!$this->validateLocation($this->getProvinceIdByCode($provinsi_code), $this->getRegencyIdByCode($regency_code))) {
+                    throw new \Exception("Invalid province-regency relationship: Province {$provinsi_code}, Regency {$regency_code}");
                 }
 
                 if ($this->shouldClearData()) {
@@ -209,8 +210,8 @@ class AgencyDemoData extends AbstractDemoData {
                     'npwp' => $this->generateNPWP(),
                     'nib' => $this->generateNIB(),
                     'status' => 'active',
-                    'provinsi_id' => $provinsi_id ?: null,
-                    'regency_id' => $regency_id ?: null,
+                    'provinsi_code' => $provinsi_code ?: null,
+                    'regency_code' => $regency_code ?: null,
                     'user_id' => $wp_user_id,
                     'created_by' => 1,
                     'created_at' => current_time('mysql'),

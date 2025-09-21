@@ -17,11 +17,11 @@
  * Fields:
  * - id             : Primary key
  * - agency_id    : Foreign key ke agency
- * - code           : Format 
+ * - code           : Format
  * - name           : Nama division
  * - type           : Tipe wilayah (cabang)
- * - provinsi_id    : ID provinsi (nullable)
- * - regency_id     : ID cabang (nullable)
+ * - provinsi_code  : Kode provinsi (nullable)
+ * - regency_code   : Kode cabang (nullable)
  * - created_by     : User ID pembuat
  * - created_at     : Timestamp pembuatan
  * - updated_at     : Timestamp update terakhir
@@ -61,8 +61,8 @@ class DivisionsDB {
             address text NULL,
             phone varchar(20) NULL,
             email varchar(100) NULL,
-            provinsi_id bigint(20) UNSIGNED NULL,
-            regency_id bigint(20) UNSIGNED NULL,
+            provinsi_code varchar(10) NULL,
+            regency_code varchar(10) NULL,
             user_id bigint(20) UNSIGNED NULL,
             created_by bigint(20) NOT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,

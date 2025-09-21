@@ -139,6 +139,7 @@
             // Populate all form fields
             const division = data.division;
             this.form.find('#division-id').val(division.id);
+            this.form.find('#agency_id').val(division.agency_id);
             this.form.find('[name="name"]').val(division.name);
             this.form.find('[name="type"]').val(division.type);
             this.form.find('[name="nitku"]').val(division.nitku);
@@ -148,38 +149,40 @@
             this.form.find('[name="address"]').val(division.address);
             this.form.find('[name="phone"]').val(division.phone);
             this.form.find('[name="email"]').val(division.email);
-            this.form.find('[name="provinsi_id"]').val(division.provinsi_id);
-            this.form.find('[name="regency_id"]').val(division.regency_id);
+            this.form.find('[name="provinsi_code"]').val(division.provinsi_code);
+            this.form.find('[name="regency_code"]').val(division.regency_code);
             this.form.find('[name="status"]').val(division.status);
 
             // Province and Regency fields
-            if (division.provinsi_id) {
-                this.form.find('[name="provinsi_id"]').val(division.provinsi_id).trigger('change');
+            if (division.provinsi_code) {
+                this.form.find('[name="provinsi_code"]').val(division.provinsi_code).trigger('change');
 
                 // Wait for province change to complete before setting regency
                 setTimeout(() => {
-                    if (division.regency_id) {
-                        this.form.find('[name="regency_id"]').val(division.regency_id);
+                    if (division.regency_code) {
+                        this.form.find('[name="regency_code"]').val(division.regency_code);
                     }
                 }, 500);
             }
 
-            // Initialize Select2 for jurisdictions
-            this.initializeJurisdictionSelect();
+            // Initialize Select2 for jurisdictions after modal is fully visible
+            $(document).one('division:modalFullyOpen', () => {
+                this.initializeJurisdictionSelect();
 
-            // Load current jurisdictions
-            if (data.jurisdictions) {
-                const $select = this.form.find('.jurisdiction-select');
-                data.jurisdictions.forEach(jurisdiction => {
-                    // Add current jurisdictions as options
-                    if (!$select.find(`option[value="${jurisdiction.regency_id}"]`).length) {
-                        $select.append(new Option(`${jurisdiction.regency_name} (${jurisdiction.province_name})`, jurisdiction.regency_id, true, true));
-                    }
-                });
-                // Set selected values
-                const jurisdictionIds = data.jurisdictions.map(j => j.regency_id);
-                $select.val(jurisdictionIds).trigger('change');
-            }
+                // Load current jurisdictions after select2 is initialized
+                if (data.jurisdictions) {
+                    const $select = this.form.find('.jurisdiction-select');
+                    data.jurisdictions.forEach(jurisdiction => {
+                        // Add current jurisdictions as options
+                        if (!$select.find(`option[value="${jurisdiction.regency_id}"]`).length) {
+                            $select.append(new Option(`${jurisdiction.regency_name} (${jurisdiction.province_name})`, jurisdiction.regency_id, true, true));
+                        }
+                    });
+                    // Set selected values
+                    const jurisdictionIds = data.jurisdictions.map(j => j.regency_id);
+                    $select.val(jurisdictionIds).trigger('change');
+                }
+            });
 
             this.modal.find('.modal-header h3').text(`Edit Division: ${division.name}`);
 
@@ -251,8 +254,8 @@
                     maxlength: 'Nama cabang maksimal 100 karakter'
                 },
                 type: { required: 'Tipe cabang wajib dipilih' },
-                provinsi_id: { required: 'Provinsi wajib dipilih' },
-                regency_id: { required: 'Kabupaten/Kota wajib dipilih' }
+                provinsi_code: { required: 'Provinsi wajib dipilih' },
+                regency_code: { required: 'Kabupaten/Kota wajib dipilih' }
                 // ... other validation messages
             }
         });
@@ -303,8 +306,8 @@
             address: this.form.find('[name="address"]').val().trim(),
             phone: this.form.find('[name="phone"]').val().trim(),
             email: this.form.find('[name="email"]').val().trim(),
-            provinsi_id: this.form.find('[name="provinsi_id"]').val(),
-            regency_id: this.form.find('[name="regency_id"]').val(),
+            provinsi_code: this.form.find('[name="provinsi_code"]').val(),
+            regency_code: this.form.find('[name="regency_code"]').val(),
             jurisdictions: this.form.find('[name="jurisdictions[]"]').val(),
             status: this.form.find('[name="status"]').val()
         };
@@ -392,6 +395,8 @@
         initializeJurisdictionSelect() {
             const $select = this.form.find('.jurisdiction-select');
 
+            console.log('Edit form: Initializing jurisdiction select:', $select.length, typeof $select.select2);
+
             if (!$select.length || typeof $select.select2 === 'undefined') {
                 console.warn('Select2 not available or jurisdiction select not found');
                 return;
@@ -402,17 +407,24 @@
                 allowClear: true,
                 ajax: {
                     url: wpAgencyData.ajaxUrl,
+                    type: 'POST',
                     dataType: 'json',
                     delay: 300,
-                    data: (params) => ({
-                        action: 'get_available_jurisdictions',
-                        agency_id: this.getCurrentAgencyId(),
-                        division_id: this.form.find('#division-id').val(),
-                        search: params.term,
-                        nonce: wpAgencyData.nonce
-                    }),
+                    data: (params) => {
+                        const data = {
+                            action: 'get_available_jurisdictions',
+                            agency_id: this.getCurrentAgencyId(),
+                            division_id: this.form.find('#division-id').val(),
+                            search: params.term,
+                            nonce: wpAgencyData.nonce
+                        };
+                        console.log('Edit form: AJAX data sent:', data);
+                        return data;
+                    },
                     processResults: (data) => {
+                        console.log('Edit form: AJAX response received:', data);
                         if (data.success && data.data.jurisdictions) {
+                            console.log('Edit form: Processing jurisdictions:', data.data.jurisdictions.length);
                             return {
                                 results: data.data.jurisdictions.map(jurisdiction => ({
                                     id: jurisdiction.id,
@@ -420,20 +432,26 @@
                                 }))
                             };
                         }
+                        console.warn('Edit form: No jurisdictions returned or error:', data);
                         return { results: [] };
                     },
-                    cache: true
+                    cache: true,
+                    error: (xhr, status, error) => {
+                        console.error('Edit form: AJAX error:', status, error, xhr.responseText);
+                    }
                 },
                 minimumInputLength: 0,
                 escapeMarkup: (markup) => markup,
                 templateResult: (item) => item.loading ? 'Mencari...' : item.text,
                 templateSelection: (item) => item.text || item.id
             });
+
+            console.log('Edit form: Select2 initialized for jurisdiction select');
         },
 
         getCurrentAgencyId() {
-            // Try to get agency ID from various sources
-            return window.Agency?.currentId || this.form.find('[name="agency_id"]').val();
+            // Try to get agency ID from various sources - prefer form value for edit mode
+            return this.form.find('[name="agency_id"]').val() || window.Agency?.currentId;
         },
 
 

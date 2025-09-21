@@ -154,28 +154,28 @@ class DivisionDemoData extends AbstractDemoData {
                     }
 
                     // Jika agency punya data wilayah, validasi relasinya
-                    if ($agency->provinsi_id && $agency->regency_id) {
+                    if ($agency->provinsi_code && $agency->regency_code) {
                         // Cek provinsi ada
                         $province = $this->wpdb->get_row($this->wpdb->prepare("
-                            SELECT * FROM {$this->wpdb->prefix}wi_provinces 
-                            WHERE id = %d",
-                            $agency->provinsi_id
+                            SELECT * FROM {$this->wpdb->prefix}wi_provinces
+                            WHERE code = %s",
+                            $agency->provinsi_code
                         ));
                         if (!$province) {
-                            throw new \Exception("Invalid province ID for agency {$agency_id}: {$agency->provinsi_id}");
+                            throw new \Exception("Invalid province code for agency {$agency_id}: {$agency->provinsi_code}");
                         }
 
                         // Cek regency ada dan berelasi dengan provinsi
                         $regency = $this->wpdb->get_row($this->wpdb->prepare("
-                            SELECT r.*, p.name as province_name 
+                            SELECT r.*, p.name as province_name
                             FROM {$this->wpdb->prefix}wi_regencies r
                             JOIN {$this->wpdb->prefix}wi_provinces p ON r.province_id = p.id
-                            WHERE r.id = %d AND r.province_id = %d",
-                            $agency->regency_id,
-                            $agency->provinsi_id
+                            WHERE r.code = %s AND p.code = %s",
+                            $agency->regency_code,
+                            $agency->provinsi_code
                         ));
                         if (!$regency) {
-                            throw new \Exception("Invalid regency ID {$agency->regency_id} for province {$agency->provinsi_id}");
+                            throw new \Exception("Invalid regency code {$agency->regency_code} for province {$agency->provinsi_code}");
                         }
 
                         $this->debug(sprintf(
@@ -289,16 +289,16 @@ class DivisionDemoData extends AbstractDemoData {
 
     private function generatePusatDivision($agency, $division_user_id): void {
         // Validate location data
-        if (!$this->validateLocation($agency->provinsi_id, $agency->regency_id)) {
+        if (!$this->validateLocation($this->getProvinceIdByCode($agency->provinsi_code), $this->getRegencyIdByCode($agency->regency_code))) {
             throw new \Exception("Invalid location for agency: {$agency->id}");
         }
 
         // Generate WordPress user dulu
         $userGenerator = new WPUserGenerator();
-        
+
         // Ambil data user dari division_users
         $user_data = $this->division_users[$agency->id]['pusat'];
-        
+
         // Generate WP User
         $wp_user_id = $userGenerator->generateUser([
             'id' => $user_data['id'],
@@ -311,12 +311,12 @@ class DivisionDemoData extends AbstractDemoData {
             throw new \Exception("Failed to create WordPress user for division admin: {$user_data['display_name']}");
         }
 
-        $regency_name = $this->getRegencyName($agency->regency_id);
+        $regency_name = $this->getRegencyName($this->getRegencyIdByCode($agency->regency_code));
         $location = $this->generateValidLocation();
-        
+
         $division_data = [
             'agency_id' => $agency->id,
-            'name' => sprintf('%s Division %s', 
+            'name' => sprintf('%s Division %s',
                             $agency->name,
                             $regency_name),
             'type' => 'pusat',
@@ -327,8 +327,8 @@ class DivisionDemoData extends AbstractDemoData {
             'address' => $this->generateAddress($regency_name),
             'phone' => $this->generatePhone(),
             'email' => $this->generateEmail($agency->name, 'pusat'),
-            'provinsi_id' => $agency->provinsi_id,
-            'regency_id' => $agency->regency_id,
+            'provinsi_code' => $agency->provinsi_code,
+            'regency_code' => $agency->regency_code,
             'user_id' => $division_user_id,                  // Division admin user
             'created_by' => $agency->user_id,            // Agency owner user
             'status' => 'active'
@@ -356,7 +356,7 @@ class DivisionDemoData extends AbstractDemoData {
         $userGenerator = new WPUserGenerator();
 
         // Track used regencies for this agency to avoid duplicates
-        $excluded_regencies = [$agency->regency_id];
+        $excluded_regencies = [$this->getRegencyIdByCode($agency->regency_code)];
 
         for ($i = 0; $i < $cabang_count; $i++) {
             // Get cabang admin user ID
@@ -380,7 +380,7 @@ class DivisionDemoData extends AbstractDemoData {
             }
 
             // Use the same province as the agency
-            $provinsi_id = $agency->provinsi_id;
+            $provinsi_id = $this->getProvinceIdByCode($agency->provinsi_code);
 
             // Get random regency from the agency's province, excluding used ones
             $placeholders = implode(',', array_fill(0, count($excluded_regencies), '%d'));
@@ -397,13 +397,14 @@ class DivisionDemoData extends AbstractDemoData {
 
             $regency_id = (int) $regency->id;
             $excluded_regencies[] = $regency_id;
+            $regency_code = $this->getRegencyCodeById($regency_id);
 
             $regency_name = $this->getRegencyName($regency_id);
             $location = $this->generateValidLocation();
 
             $division_data = [
                 'agency_id' => $agency->id,
-                'name' => sprintf('%s Division %s',
+                'name' => sprintf('%s Division Cabang %s',
                                 $agency->name,
                                 $regency_name),
                 'type' => 'cabang',
@@ -414,8 +415,8 @@ class DivisionDemoData extends AbstractDemoData {
                 'address' => $this->generateAddress($regency_name),
                 'phone' => $this->generatePhone(),
                 'email' => $this->generateEmail($agency->name, $cabang_key),
-                'provinsi_id' => $provinsi_id,
-                'regency_id' => $regency_id,
+                'provinsi_code' => $agency->provinsi_code,
+                'regency_code' => $regency_code,
                 'user_id' => $wp_user_id,  // Gunakan WP user yang baru dibuat
                 'created_by' => $agency->user_id,        // Agency owner user
                 'status' => 'active'

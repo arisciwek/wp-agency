@@ -111,18 +111,19 @@ class JurisdictionDemoData extends AbstractDemoData {
                     throw new \Exception("Division not found: {$division_id}");
                 }
 
+                // Get regency codes directly
+                $regency_codes = JurisdictionData::getRegencyCodesForDivision($division_id);
+
                 // Cek semua regencies exist
-                foreach ($data['regencies'] as $regency_id) {
+                foreach ($regency_codes as $regency_code) {
                     $regency = $this->wpdb->get_row($this->wpdb->prepare(
-                        "SELECT * FROM {$this->wpdb->prefix}wi_regencies WHERE id = %d",
-                        $regency_id
+                        "SELECT * FROM {$this->wpdb->prefix}wi_regencies WHERE code = %s",
+                        $regency_code
                     ));
                     if (!$regency) {
-                        throw new \Exception("Regency not found: {$regency_id}");
+                        throw new \Exception("Regency not found: {$regency_code}");
                     }
                 }
-
-
             }
 
             $this->debug('All jurisdiction data validated successfully');
@@ -165,28 +166,40 @@ class JurisdictionDemoData extends AbstractDemoData {
                     continue;
                 }
 
-                $primary_regency = $division->regency_id;
-                $regencies = $data['regencies'];
+                $primary_regency_code = $division->regency_code;
+                // Get regency codes directly
+                $regency_codes = JurisdictionData::getRegencyCodesForDivision($division_id);
                 $created_by = $data['created_by'];
 
                 // Ensure primary regency is included in the regencies list
-                if (!in_array($primary_regency, $regencies)) {
-                    $regencies[] = $primary_regency;
-                    $this->debug("Added primary regency {$primary_regency} to division {$division_id} regencies list");
+                if (!in_array($primary_regency_code, $regency_codes)) {
+                    $regency_codes[] = $primary_regency_code;
+                    $this->debug("Added primary regency {$primary_regency_code} to division {$division_id} regencies list");
                 }
 
-                foreach ($regencies as $regency_id) {
-                    $is_primary = ($regency_id == $primary_regency) ? 1 : 0;
+                foreach ($regency_codes as $regency_code) {
+                    $is_primary = ($regency_code == $primary_regency_code) ? 1 : 0;
 
                     // Skip if already exists (avoid duplicates)
                     $exists = $this->wpdb->get_var($this->wpdb->prepare(
                         "SELECT id FROM {$this->wpdb->prefix}app_agency_jurisdictions
-                         WHERE division_id = %d AND regency_id = %d",
-                        $division_id, $regency_id
+                         WHERE division_id = %d AND regency_code = %s",
+                        $division_id, $regency_code
                     ));
 
                     if ($exists) {
-                        $this->debug("Jurisdiction already exists: division {$division_id}, regency {$regency_id}");
+                    // Check if regency_code is already assigned to another division
+                    $regency_exists = $this->wpdb->get_var($this->wpdb->prepare(
+                        "SELECT id FROM {$this->wpdb->prefix}app_agency_jurisdictions
+                         WHERE regency_code = %s",
+                        $regency_code
+                    ));
+                    
+                    if ($regency_exists) {
+                        $this->debug("Regency {$regency_code} already assigned to another division, skipping for division {$division_id}");
+                        continue;
+                    }
+                        $this->debug("Jurisdiction already exists: division {$division_id}, regency {$regency_code}");
                         continue;
                     }
 
@@ -194,19 +207,19 @@ class JurisdictionDemoData extends AbstractDemoData {
                         $this->wpdb->prefix . 'app_agency_jurisdictions',
                         [
                             'division_id' => $division_id,
-                            'regency_id' => $regency_id,
+                            'regency_code' => $regency_code,
                             'is_primary' => $is_primary,
                             'created_by' => $created_by
                         ],
-                        ['%d', '%d', '%d', '%d']
+                        ['%d', '%s', '%d', '%d']
                     );
 
                     if ($result === false) {
-                        throw new \Exception("Failed to insert jurisdiction: division {$division_id}, regency {$regency_id}");
+                        throw new \Exception("Failed to insert jurisdiction: division {$division_id}, regency {$regency_code}");
                     }
 
                     $generated_count++;
-                    $this->debug("Created jurisdiction: division {$division_id}, regency {$regency_id}, primary: {$is_primary}");
+                    $this->debug("Created jurisdiction: division {$division_id}, regency {$regency_code}, primary: {$is_primary}");
                 }
             }
 

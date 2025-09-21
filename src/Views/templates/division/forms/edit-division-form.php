@@ -36,6 +36,7 @@
         <form id="edit-division-form" method="post">
             <?php wp_nonce_field('wp_agency_nonce'); ?>
             <input type="hidden" name="id" id="division-id">
+            <input type="hidden" name="agency_id" id="agency_id">
 
             <div class="modal-content">
 
@@ -119,9 +120,9 @@
                             <label for="edit-division-provinsi" class="required-field">
                                 <?php _e('Provinsi', 'wp-agency'); ?>
                             </label>
-                            <?php 
+                            <?php
                             do_action('wilayah_indonesia_province_select', [
-                                'name' => 'provinsi_id',
+                                'name' => 'provinsi_code',
                                 'id' => 'edit-division-provinsi',
                                 'class' => 'regular-text wilayah-province-select',
                                 'data-placeholder' => __('Pilih Provinsi', 'wp-agency'),
@@ -134,9 +135,9 @@
                             <label for="edit-division-regency" class="required-field">
                                 <?php _e('Kabupaten/Kota', 'wp-agency'); ?>
                             </label>
-                            <?php 
+                            <?php
                             do_action('wilayah_indonesia_regency_select', [
-                                'name' => 'regency_id',
+                                'name' => 'regency_code',
                                 'id' => 'edit-division-regency',
                                 'class' => 'regular-text wilayah-regency-select',
                                 'data-loading-text' => __('Memuat...', 'wp-agency'),

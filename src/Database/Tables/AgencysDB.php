@@ -16,12 +16,12 @@
  *
  * Fields:
  * - id             : Primary key
- * - code           : Format 
+ * - code           : Format
  * - name           : Nama agency
  * - nik            : Nomor Induk Kependudukan
  * - npwp           : Nomor Pokok Wajib Pajak
- * - provinsi_id    : ID provinsi (nullable)
- * - regency_id     : ID cabang (nullable)
+ * - provinsi_code  : Kode provinsi (nullable)
+ * - regency_code   : Kode cabang (nullable)
  * - user_id        : ID User WP sebagai Owner (nullable)
  * - created_by     : User ID pembuat
  * - created_at     : Timestamp pembuatan
@@ -58,8 +58,8 @@ class AgencysDB {
             npwp varchar(20) NULL,
             nib varchar(20) NULL,
             status enum('inactive','active') NOT NULL DEFAULT 'inactive',
-            provinsi_id bigint(20) UNSIGNED NULL,
-            regency_id bigint(20) UNSIGNED NULL,
+            provinsi_code varchar(10) NULL,
+            regency_code varchar(10) NULL,
             user_id bigint(20) UNSIGNED NULL,
             created_by bigint(20) NOT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
@@ -68,7 +68,7 @@ class AgencysDB {
             UNIQUE KEY code (code),
             UNIQUE KEY nib (nib),
             UNIQUE KEY npwp (npwp),
-            UNIQUE KEY name_region (name, provinsi_id, regency_id),
+            UNIQUE KEY name_region (name, provinsi_code, regency_code),
             KEY created_by_index (created_by)
         ) $charset_collate;";
     }

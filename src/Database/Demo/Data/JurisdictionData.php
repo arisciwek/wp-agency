@@ -21,10 +21,10 @@ defined('ABSPATH') || exit;
 class JurisdictionData {
     // Static jurisdiction data - defines regency coverage for each division
     // Key: division_id
-    // Value: array with 'regencies' array (primary will be determined from division.regency_id)
+    // Value: array with 'regencies' array containing regency codes (primary will be determined from division.regency_id)
     public static $data = [
         1 => [  // Disnaker Provinsi Aceh Division Kabupaten Aceh Tengah
-            'regencies' => [54, 55],  // Additional: Aceh Tenggara, Aceh Timur
+            'regencies' => ['1102', '1103'],  // Additional: Aceh Tenggara, Aceh Timur
             'created_by' => 102
         ],
         2 => [  // Disnaker Provinsi Aceh Division Kabupaten Aceh  Selatan
@@ -32,7 +32,7 @@ class JurisdictionData {
             'created_by' => 102
         ],
         3 => [  // Disnaker Provinsi Aceh Division Kota Banda Aceh
-            'regencies' => [57],  // Primary only
+            'regencies' => [],  // Primary only
             'created_by' => 102
         ],
         4 => [  // Disnaker Provinsi Sumatera Utara Division Kota Pematang Siantar
@@ -44,7 +44,7 @@ class JurisdictionData {
             'created_by' => 103
         ],
         6 => [  // Disnaker Provinsi Sumatera Utara Division Kota Medan
-            'regencies' => [58],  // Primary only
+            'regencies' => ['1201'],  // Primary only
             'created_by' => 103
         ],
         7 => [  // Disnaker Provinsi Sumatera Barat Division Kota Padang
@@ -72,7 +72,7 @@ class JurisdictionData {
             'created_by' => 105
         ],
         13 => [  // Disnaker Provinsi Jawa Barat Division Kabupaten Sukabumi
-            'regencies' => [73],  // Additional: Kabupaten Bogor
+            'regencies' => ['3201'],  // Additional: Kabupaten Bogor
             'created_by' => 106
         ],
         14 => [  // Disnaker Provinsi Jawa Barat Division Kota Cimahi
@@ -88,7 +88,7 @@ class JurisdictionData {
             'created_by' => 107
         ],
         17 => [  // Disnaker Provinsi Jawa Tengah Division Kabupaten Cilacap
-            'regencies' => [79],  // Additional: Banyumas
+            'regencies' => ['3302'],  // Additional: Banyumas
             'created_by' => 107
         ],
         18 => [  // Disnaker Provinsi Jawa Tengah Division Kabupaten Purbalingga
@@ -104,7 +104,7 @@ class JurisdictionData {
             'created_by' => 108
         ],
         21 => [  // Disnaker Provinsi DKI Jakarta Division Kota Jakarta Barat
-            'regencies' => [71, 72],  // Additional: Jakarta Selatan, Jakarta Timur
+            'regencies' => ['3175'],  // Additional: Jakarta Selatan, Jakarta Timur
             'created_by' => 108
         ],
         22 => [  // Disnaker Provinsi Maluku Division Kabupaten Maluku Tenggara
@@ -140,8 +140,60 @@ class JurisdictionData {
             'created_by' => 111
         ],
         30 => [  // Disnaker Provinsi Sulawesi Selatan Division Kabupaten Bantaeng
-            'regencies' => [95],  // Additional: Makassar, Palopo
+            'regencies' => ['7371', '7373'],  // Additional: Makassar, Palopo
             'created_by' => 111
         ]
     ];
+
+    /**
+     * Get regency ID by code from wi_regencies table
+     *
+     * @param string $code Regency code (e.g., '1101', '3171')
+     * @return int|null Regency ID or null if not found
+     */
+    public static function getRegencyIdByCode(string $code): ?int {
+        global $wpdb;
+
+        $regency_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}wi_regencies WHERE code = %s",
+            $code
+        ));
+
+        return $regency_id ? (int) $regency_id : null;
+    }
+
+    /**
+     * Get regency codes for a division
+     *
+     * @param int $division_id Division ID
+     * @return array Array of regency codes
+     */
+    public static function getRegencyCodesForDivision(int $division_id): array {
+        if (!isset(self::$data[$division_id])) {
+            return [];
+        }
+
+        $division_data = self::$data[$division_id];
+        return $division_data['regencies'];
+    }
+
+    /**
+     * Get regency IDs for a division by looking up codes dynamically (deprecated, use codes directly)
+     *
+     * @param int $division_id Division ID
+     * @return array Array of regency IDs
+     */
+    public static function getRegencyIdsForDivision(int $division_id): array {
+        $codes = self::getRegencyCodesForDivision($division_id);
+        $regency_ids = [];
+
+        foreach ($codes as $code) {
+            $regency_id = self::getRegencyIdByCode($code);
+            if ($regency_id !== null) {
+                $regency_ids[] = $regency_id;
+            }
+        }
+
+        return $regency_ids;
+    }
 }

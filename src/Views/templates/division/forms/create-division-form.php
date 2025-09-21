@@ -117,9 +117,9 @@ defined('ABSPATH') || exit;
                         
                         <div class="division-form-group">
                             <label for="create-division-provinsi" class="required-field">Provinsi</label>
-                            <?php 
+                            <?php
                             do_action('wilayah_indonesia_province_select', [
-                                'name' => 'provinsi_id',
+                                'name' => 'provinsi_code',
                                 'id' => 'create-division-provinsi',
                                 'class' => 'regular-text wilayah-province-select',
                                 'required' => 'required'
@@ -129,9 +129,9 @@ defined('ABSPATH') || exit;
 
                         <div class="division-form-group">
                             <label for="create-division-regency" class="required-field">Kabupaten/Kota</label>
-                            <?php 
+                            <?php
                             do_action('wilayah_indonesia_regency_select', [
-                                'name' => 'regency_id',
+                                'name' => 'regency_code',
                                 'id' => 'create-division-regency',
                                 'class' => 'regular-text wilayah-regency-select',
                                 'required' => 'required',

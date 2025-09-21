@@ -74,8 +74,8 @@
                 LEFT JOIN {$wpdb->users} u ON c.user_id = u.ID
                 LEFT JOIN {$wpdb->users} creator ON c.created_by = creator.ID
                 LEFT JOIN {$this->division_table} bp ON (c.id = bp.agency_id AND bp.type = 'pusat')
-                LEFT JOIN wp_wi_provinces wp ON c.provinsi_id = wp.id 
-                LEFT JOIN wp_wi_regencies wr ON c.regency_id = wr.id
+                LEFT JOIN wp_wi_provinces wp ON c.provinsi_code = wp.code
+                LEFT JOIN wp_wi_regencies wr ON c.regency_code = wr.code
                 WHERE c.id = %d
                 GROUP BY c.id
             ", $id);
@@ -212,8 +212,8 @@
             'nib' => $data['nib'] ?? null,
             'status' => $data['status'] ?? 'active',
             'user_id' => $data['user_id'],
-            'provinsi_id' => $data['provinsi_id'] ?? null,
-            'regency_id' => $data['regency_id'] ?? null,
+            'provinsi_code' => $data['provinsi_code'] ?? null,
+            'regency_code' => $data['regency_code'] ?? null,
             'created_by' => get_current_user_id(),
             'created_at' => current_time('mysql'),
             'updated_at' => current_time('mysql')
@@ -230,8 +230,8 @@
             '%s',  // nib (nullable)
             '%s',  // status
             '%d',  // user_id
-            '%d',  // provinsi_id (nullable)
-            '%d',  // regency_id (nullable)
+            '%s',  // provinsi_code (nullable)
+            '%s',  // regency_code (nullable)
             '%d',  // created_by
             '%s',  // created_at
             '%s'   // updated_at
@@ -302,10 +302,10 @@
         $formats = [];
         foreach ($updateData as $key => $value) {
             switch ($key) {
-                case 'provinsi_id':
-                case 'regency_id':
+                case 'provinsi_code':
+                case 'regency_code':
                 case 'user_id':
-                    $formats[] = '%d';
+                    $formats[] = '%s';
                     break;
                 default:
                     $formats[] = '%s';
@@ -715,11 +715,11 @@
             
             // First, delete any existing records with the same name-region combination
             $wpdb->query($wpdb->prepare(
-                "DELETE FROM {$this->table} 
-                 WHERE name = %s AND provinsi_id = %d AND regency_id = %d",
+                "DELETE FROM {$this->table}
+                 WHERE name = %s AND provinsi_code = %s AND regency_code = %s",
                 $data['name'],
-                $data['provinsi_id'],
-                $data['regency_id']
+                $data['provinsi_code'],
+                $data['regency_code']
             ));
             
             // Then delete any existing record with the same ID

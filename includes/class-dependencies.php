@@ -399,9 +399,9 @@ public function enqueue_frontend_assets() {
             // Division scripts
             wp_enqueue_script('division-datatable', WP_AGENCY_URL . 'assets/js/division/division-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);
             wp_enqueue_script('division-toast', WP_AGENCY_URL . 'assets/js/division/division-toast.js', ['jquery'], $this->version, true);
-            // Update dependencies untuk form
-            wp_enqueue_script('create-division-form', WP_AGENCY_URL . 'assets/js/division/create-division-form.js', ['jquery', 'jquery-validate', 'division-toast', 'division-datatable'], $this->version, true);
-            wp_enqueue_script('edit-division-form', WP_AGENCY_URL . 'assets/js/division/edit-division-form.js', ['jquery', 'jquery-validate', 'division-toast', 'division-datatable'], $this->version, true);
+            // Update dependencies untuk form - add agency dependency for wpAgencyData
+            wp_enqueue_script('create-division-form', WP_AGENCY_URL . 'assets/js/division/create-division-form.js', ['jquery', 'jquery-validate', 'division-toast', 'division-datatable', 'agency'], $this->version, true);
+            wp_enqueue_script('edit-division-form', WP_AGENCY_URL . 'assets/js/division/edit-division-form.js', ['jquery', 'jquery-validate', 'division-toast', 'division-datatable', 'agency'], $this->version, true);
 
             // Employee scripts - mengikuti pola division yang sudah berhasil
             wp_enqueue_script('employee-datatable', WP_AGENCY_URL . 'assets/js/employee/employee-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);

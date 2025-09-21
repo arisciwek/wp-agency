@@ -117,12 +117,12 @@
             });
 
             // 3. Province change handler
-            this.form.find('[name="provinsi_id"]').on('change', function() {
+            this.form.find('[name="provinsi_code"]').on('change', function() {
                 const $regencySelect = $('#edit-regency');
                 $regencySelect
                     .html('<option value="">Pilih Kabupaten/Kota</option>')
                     .prop('disabled', true);
-                
+
                 if ($(this).val()) {
                     $regencySelect.prop('disabled', false);
                 }
@@ -248,24 +248,24 @@
                 this.form.find('[name="status"]').val(status);
                 
                 // Location (Province & Regency)
-                if (agency.provinsi_id) {
-                    const $provinsiSelect = this.form.find('[name="provinsi_id"]');
-                    const $regencySelect = this.form.find('[name="regency_id"]');
+                if (agency.provinsi_code) {
+                    const $provinsiSelect = this.form.find('[name="provinsi_code"]');
+                    const $regencySelect = this.form.find('[name="regency_code"]');
 
                     // Set province and trigger change
                     $provinsiSelect
-                        .val(agency.provinsi_id)
+                        .val(agency.provinsi_code)
                         .trigger('change')
                         .prop('disabled', true); // Temporarily disable while loading regencies
 
                     // Handle regency selection after province change
-                    if (agency.regency_id) {
+                    if (agency.regency_code) {
                         // Use one-time event handler
                         $regencySelect.one('wilayah:loaded', () => {
                             $regencySelect
-                                .val(agency.regency_id)
+                                .val(agency.regency_code)
                                 .trigger('change');
-                            
+
                             // Re-enable province select
                             $provinsiSelect.prop('disabled', false);
                         });
@@ -347,10 +347,10 @@
                     nib: {
                         validNib: true
                     },
-                    provinsi_id: {
+                    provinsi_code: {
                         required: true
                     },
-                    regency_id: {
+                    regency_code: {
                         required: true
                     },
                     status: {
@@ -374,10 +374,10 @@
                     nib: {
                         validNib: "NIB harus 13 digit angka"
                     },
-                    provinsi_id: {
+                    provinsi_code: {
                         required: "Provinsi wajib dipilih"
                     },
-                    regency_id: {
+                    regency_code: {
                         required: "Kabupaten/Kota wajib dipilih"
                     },
                     status: {
@@ -516,8 +516,8 @@
                 npwp: this.form.find('#edit-npwp').val(),
                 nib: this.form.find('[name="nib"]').val().trim(),
                 status: this.form.find('[name="status"]').val(),
-                provinsi_id: this.form.find('[name="provinsi_id"]').val(),
-                regency_id: this.form.find('[name="regency_id"]').val(),
+                provinsi_code: this.form.find('[name="provinsi_code"]').val(),
+                regency_code: this.form.find('[name="regency_code"]').val(),
                 user_id: this.form.find('#edit-user').val()
             };
 

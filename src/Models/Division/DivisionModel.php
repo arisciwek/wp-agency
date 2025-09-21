@@ -157,8 +157,8 @@ class DivisionModel {
             'address' => $data['address'] ?? null,
             'phone' => $data['phone'] ?? null,
             'email' => $data['email'] ?? null,
-            'provinsi_id' => $data['provinsi_id'] ?? null,
-            'regency_id' => $data['regency_id'] ?? null,
+            'provinsi_code' => $data['provinsi_code'] ?? null,
+            'regency_code' => $data['regency_code'] ?? null,
             'user_id' => $data['user_id'] ?? null,
             'created_by' => $data['created_by'],
             'created_at' => current_time('mysql'),
@@ -172,17 +172,17 @@ class DivisionModel {
             [
                 '%d', // agency_id
                 '%s', // code
-                '%s', // name 
+                '%s', // name
                 '%s', // type
                 '%s', // nitku
                 '%s', // postal_code
                 '%f', // latitude
-                '%f', // longitude 
+                '%f', // longitude
                 '%s', // address
                 '%s', // phone
                 '%s', // email
-                '%d', // provinsi_id
-                '%d', // regency_id
+                '%s', // provinsi_code
+                '%s', // regency_code
                 '%d', // user_id
                 '%d', // created_by
                 '%s', // created_at
@@ -241,8 +241,8 @@ class DivisionModel {
             'address' => $data['address'] ?? null,
             'phone' => $data['phone'] ?? null,
             'email' => $data['email'] ?? null,
-            'provinsi_id' => $data['provinsi_id'] ?? null,
-            'regency_id' => $data['regency_id'] ?? null,
+            'provinsi_code' => $data['provinsi_code'] ?? null,
+            'regency_code' => $data['regency_code'] ?? null,
                 'user_id' => $data['user_id'] ?? null,
                 'status' => $data['status'] ?? null,
                 'updated_at' => current_time('mysql')
@@ -258,9 +258,9 @@ class DivisionModel {
                 case 'latitude':
                 case 'longitude':
                     return '%f';
-                case 'provinsi_id':
-                case 'regency_id':
-                    return '%d';
+                case 'provinsi_code':
+                case 'regency_code':
+                    return '%s';
                 default:
                     return '%s';
             }
@@ -337,7 +337,7 @@ class DivisionModel {
         $from = " FROM {$this->table} r";
         $join = " LEFT JOIN {$this->agency_table} p ON r.agency_id = p.id
                   LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions j ON r.id = j.division_id
-                  LEFT JOIN {$wpdb->prefix}wi_regencies wr ON j.regency_id = wr.id";
+                  LEFT JOIN {$wpdb->prefix}wi_regencies wr ON j.regency_code = wr.code";
         $where = " WHERE r.agency_id = %d";
         $params = [$agency_id];
 
@@ -545,20 +545,20 @@ class DivisionModel {
             $wpdb->delete($table, ['division_id' => $division_id], ['%d']);
 
             // Insert new jurisdictions
-            foreach ($jurisdiction_ids as $regency_id) {
-                $is_primary = in_array($regency_id, $primary_jurisdictions) ? 1 : 0;
+            foreach ($jurisdiction_ids as $regency_code) {
+                $is_primary = in_array($regency_code, $primary_jurisdictions) ? 1 : 0;
 
                 $wpdb->insert(
                     $table,
                     [
                         'division_id' => $division_id,
-                        'regency_id' => $regency_id,
+                        'regency_code' => $regency_code,
                         'is_primary' => $is_primary,
                         'created_by' => $current_user_id,
                         'created_at' => current_time('mysql'),
                         'updated_at' => current_time('mysql')
                     ],
-                    ['%d', '%d', '%d', '%d', '%s', '%s']
+                    ['%d', '%s', '%d', '%d', '%s', '%s']
                 );
 
                 if ($wpdb->last_error) {
@@ -600,7 +600,7 @@ class DivisionModel {
         $query = $wpdb->prepare("
             SELECT j.*, r.name as regency_name, r.province_id
             FROM {$wpdb->prefix}app_agency_jurisdictions j
-            LEFT JOIN {$wpdb->prefix}wi_regencies r ON j.regency_id = r.id
+            LEFT JOIN {$wpdb->prefix}wi_regencies r ON j.regency_code = r.code
             WHERE j.division_id = %d
             ORDER BY r.name ASC
         ", $division_id);
@@ -624,7 +624,13 @@ class DivisionModel {
     public function getAvailableRegenciesForAgency(int $agency_id, ?int $exclude_division_id = null): array {
         global $wpdb;
 
+        // Get agency province to filter regencies
+        $agency = $this->agencyModel->find($agency_id);
+
         $cache_key = 'available_regencies_agency_' . $agency_id;
+        if ($agency && $agency->provinsi_code) {
+            $cache_key .= '_province_' . $agency->provinsi_code;
+        }
         if ($exclude_division_id) {
             $cache_key .= '_exclude_' . $exclude_division_id;
         }
@@ -634,20 +640,26 @@ class DivisionModel {
         if ($cached !== null) {
             return $cached;
         }
+        if (!$agency || !$agency->provinsi_code) {
+            // Fallback to all regencies if agency province not set
+            $province_filter = "";
+            $params = [$agency_id];
+        } else {
+            $province_filter = "AND p.code = %s";
+            $params = [$agency_id, $agency->provinsi_code];
+        }
 
-        // Get all regencies in Indonesia (assuming wi_regencies table exists)
+        // Get regencies in the agency's province that are not assigned to other divisions
         $query = "
             SELECT r.id, r.name, r.province_id, p.name as province_name
             FROM {$wpdb->prefix}wi_regencies r
             LEFT JOIN {$wpdb->prefix}wi_provinces p ON r.province_id = p.id
-            WHERE r.id NOT IN (
-                SELECT DISTINCT j.regency_id
+            WHERE r.code NOT IN (
+                SELECT DISTINCT j.regency_code
                 FROM {$wpdb->prefix}app_agency_jurisdictions j
                 INNER JOIN {$wpdb->prefix}app_divisions d ON j.division_id = d.id
                 WHERE d.agency_id = %d
         ";
-
-        $params = [$agency_id];
 
         if ($exclude_division_id) {
             $query .= " AND j.division_id != %d";
@@ -655,6 +667,7 @@ class DivisionModel {
         }
 
         $query .= ")
+            $province_filter
             ORDER BY p.name ASC, r.name ASC";
 
         $available_regencies = $wpdb->get_results($wpdb->prepare($query, $params));
@@ -681,8 +694,15 @@ class DivisionModel {
 
         // Clear division-specific caches
         $this->cache->delete('division_jurisdictions_' . $division_id);
-        $this->cache->delete('available_regencies_agency_' . $agency_id);
-        $this->cache->delete('available_regencies_agency_' . $agency_id . '_exclude_' . $division_id);
+
+        // Clear available regencies caches (need to consider province)
+        $agency = $this->agencyModel->find($agency_id);
+        $base_key = 'available_regencies_agency_' . $agency_id;
+        if ($agency && $agency->provinsi_code) {
+            $base_key .= '_province_' . $agency->provinsi_code;
+        }
+        $this->cache->delete($base_key);
+        $this->cache->delete($base_key . '_exclude_' . $division_id);
 
         // Clear DataTable cache
         $this->cache->invalidateDataTableCache('division_list', ['agency_id' => $agency_id]);

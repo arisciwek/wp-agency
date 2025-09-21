@@ -96,7 +96,7 @@ class Installer {
     public static function run() {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         global $wpdb;
-        
+
         try {
             $wpdb->query('START TRANSACTION');
             self::debug("Starting database installation...");
@@ -110,20 +110,20 @@ class Installer {
 
             // Verify all tables were created
             self::verify_tables();
-            
+
             // Tambahkan foreign key constraints setelah semua tabel dibuat
             self::debug("Adding foreign key constraints...");
-            
+
             // Tambahkan foreign keys untuk AgencyMembershipFeatures
             if (method_exists(Tables\AgencyMembershipFeaturesDB::class, 'add_foreign_keys')) {
                 Tables\AgencyMembershipFeaturesDB::add_foreign_keys();
             }
-            
+
             // Tambahkan foreign keys untuk AgencyMemberships
             if (method_exists(Tables\AgencyMembershipsDB::class, 'add_foreign_keys')) {
                 Tables\AgencyMembershipsDB::add_foreign_keys();
             }
-            
+
             // Tambahkan foreign keys untuk Agency Jurisdictions
             if (method_exists(Tables\JurisdictionDB::class, 'add_foreign_keys')) {
                 Tables\JurisdictionDB::add_foreign_keys();
@@ -141,6 +141,21 @@ class Installer {
         } catch (\Exception $e) {
             $wpdb->query('ROLLBACK');
             self::debug('Database installation failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Run database migration for wilayah code changes
+     */
+    public static function runMigration() {
+        try {
+            self::debug("Starting database migration...");
+            $result = Migration::runWilayahCodeMigration();
+            self::debug("Database migration completed successfully.");
+            return $result;
+        } catch (\Exception $e) {
+            self::debug('Database migration failed: ' . $e->getMessage());
             return false;
         }
     }
