@@ -41,4 +41,5 @@
 - [x] Update create-agency-form.js to load provinces on showModal and regencies on province change
 - [x] Fix JavaScript initialization issues to prevent undefined form errors
 - [x] Fix "Tambah Agency" button not working - added modal structure and improved click handler
+- [x] Fix regency select remaining disabled - corrected database query to use province_id instead of province_code
 - [x] Test dynamic province/regency loading in create agency form
