@@ -68,7 +68,9 @@
         },
 
         onProvinceChange() {
-            // When province changes, reset jurisdiction checkboxes
+            // When province changes, load available regencies for regency select
+            this.loadAvailableRegencies();
+            // Reset jurisdiction checkboxes
             this.initializeJurisdictionCheckboxes();
         },
 
@@ -338,6 +340,47 @@
             this.loadJurisdictions();
         },
 
+        loadAvailableRegencies(provinceCode = null) {
+            const selectedProvinceCode = provinceCode !== null ? provinceCode : this.form.find('[name="provinsi_code"]').val();
+            const agencyId = this.form.find('#agency_id').val();
+
+            if (!selectedProvinceCode && provinceCode !== '') {
+                // Reset regency select
+                const $regencySelect = this.form.find('[name="regency_code"]');
+                $regencySelect.empty();
+                $regencySelect.append('<option value="">Pilih Kabupaten/Kota</option>');
+                return;
+            }
+
+            // Load available regencies via AJAX
+            $.ajax({
+                url: wpAgencyData.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'get_available_jurisdictions',
+                    agency_id: agencyId,
+                    province_code: selectedProvinceCode,
+                    nonce: wpAgencyData.nonce
+                },
+                success: (response) => {
+                    if (response.success && response.data.jurisdictions) {
+                        // Delay to ensure it runs after wilayah plugin
+                        setTimeout(() => {
+                            this.populateRegencySelect(response.data.jurisdictions);
+                        }, 200);
+                    } else {
+                        setTimeout(() => {
+                            this.populateRegencySelect([]);
+                        }, 200);
+                    }
+                },
+                error: (error) => {
+                    console.error('Load available regencies error:', error);
+                    this.populateRegencySelect([]);
+                }
+            });
+        },
+
         async loadJurisdictions() {
             const $container = this.form.find('.jurisdiction-checkboxes');
             const provinceCode = this.form.find('[name="provinsi_code"]').val();
@@ -396,6 +439,24 @@
             });
 
             console.log('Create form: Checkboxes rendered with', jurisdictions.length, 'jurisdictions');
+        },
+
+        populateRegencySelect(jurisdictions) {
+            const $regencySelect = this.form.find('[name="regency_code"]');
+            $regencySelect.empty();
+
+            // Add default option
+            $regencySelect.append('<option value="">Pilih Kabupaten/Kota</option>');
+
+            if (jurisdictions && jurisdictions.length > 0) {
+                jurisdictions.forEach(jurisdiction => {
+                    const optionHtml = `<option value="${jurisdiction.code}">${jurisdiction.name}</option>`;
+                    $regencySelect.append(optionHtml);
+                });
+            }
+
+            console.log('DEBUG: Regency select populated with', jurisdictions.length, 'options');
+            console.log('DEBUG: Available regency options:', jurisdictions.map(j => ({ code: j.code, name: j.name })));
         }
     };
 

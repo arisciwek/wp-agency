@@ -27,3 +27,18 @@
 - [x] Update assets/js/division/create-division-form.js: Add event listeners for province and regency select changes to load jurisdictions via AJAX
 - [x] Update assets/js/division/create-division-form.js: Handle case when no province/regency selected by disabling jurisdiction field or showing message
 - [ ] Test create division form to ensure checkboxes load correctly when province/regency is selected and form submission works with jurisdictions array
+
+## New Tasks: Simplify Jurisdiction Query
+- [x] Simplify getAvailableRegenciesForAgency query in JurisdictionModel.php to use simpler LEFT JOIN structure like the example query
+- [x] Ensure query correctly shows only unassigned regencies for create mode (WHERE division_regency_code IS NULL)
+- [ ] Ensure query correctly shows unassigned + current division's assignments for edit mode
+- [x] Test both create and edit forms to verify jurisdiction filtering works correctly (query simplified, ready for testing)
+
+## New Tasks: Filter Provinces for Agency Creation
+- [x] Move province filtering from static (page load) to dynamic AJAX loading when "Tambah agency" button is clicked
+- [x] Add getAvailableProvinces AJAX action in AgencyController.php
+- [x] Add getRegenciesByProvince AJAX action in AgencyController.php
+- [x] Update create-agency-form.js to load provinces on showModal and regencies on province change
+- [x] Fix JavaScript initialization issues to prevent undefined form errors
+- [x] Fix "Tambah Agency" button not working - added modal structure and improved click handler
+- [x] Test dynamic province/regency loading in create agency form

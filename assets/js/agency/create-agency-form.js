@@ -131,7 +131,6 @@
             });
 
             // Modal events
-            $('#add-agency-btn').on('click', () => this.showModal());
             $('.modal-close', this.modal).on('click', () => this.hideModal());
             $('.cancel-create', this.modal).on('click', () => this.hideModal());
 
@@ -141,6 +140,9 @@
                     this.hideModal();
                 }
             });
+
+            // Province change event to load regencies
+            this.form.on('change', '[name="provinsi_code"]', () => this.loadRegenciesByProvince());
         },
 
         // Memisahkan validasi khusus untuk field nama
@@ -309,7 +311,12 @@
         },
 
         showModal() {
+            if (!this.form) {
+                console.error('Form not initialized');
+                return;
+            }
             this.resetForm();
+            this.loadAvailableProvinces();
             this.modal.fadeIn(300, () => {
                 this.form.find('[name="name"]').focus();
             });
@@ -322,10 +329,14 @@
         },
 
         resetForm() {
+            if (!this.form || !this.form[0]) return;
+
             this.form[0].reset();
             this.form.find('.form-error').remove();
             this.form.find('.error').removeClass('error');
-            this.form.validate().resetForm();
+            if (this.form.validate()) {
+                this.form.validate().resetForm();
+            }
 
             // Reset wilayah selects
             const $regencySelect = this.form.find('[name="regency_code"]');
@@ -333,24 +344,88 @@
                 .html('<option value="">Pilih Kabupaten/Kota</option>')
                 .prop('disabled', true);
         },
-        rules: {
-            npwp: {
-                pattern: /^\d{2}\.\d{3}\.\d{3}\.\d{1}-\d{3}\.\d{3}$/
-            },
-            nib: {
-                minlength: 13,
-                maxlength: 13,
-                digits: true
+
+        async loadAvailableProvinces() {
+            const $provinceSelect = this.form.find('[name="provinsi_code"]');
+
+            try {
+                const response = await $.ajax({
+                    url: wpAgencyData.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'get_available_provinces',
+                        nonce: wpAgencyData.nonce
+                    }
+                });
+
+                if (response.success && response.data.provinces) {
+                    // Clear existing options except the default
+                    $provinceSelect.find('option:not(:first)').remove();
+
+                    // Add new options
+                    response.data.provinces.forEach(province => {
+                        $provinceSelect.append(
+                            `<option value="${province.value}">${province.label}</option>`
+                        );
+                    });
+                } else {
+                    console.error('Failed to load provinces:', response.data?.message);
+                }
+            } catch (error) {
+                console.error('Error loading provinces:', error);
             }
         },
-        messages: {
-            npwp: {
-                pattern: 'Format NPWP tidak valid'
-            },
-            nib: {
-                minlength: 'NIB harus 13 digit',
-                maxlength: 'NIB harus 13 digit', 
-                digits: 'NIB hanya boleh berisi angka'
+
+        async loadRegenciesByProvince() {
+            const $provinceSelect = this.form.find('[name="provinsi_code"]');
+            const $regencySelect = this.form.find('[name="regency_code"]');
+            const provinceCode = $provinceSelect.val();
+
+            if (!provinceCode) {
+                $regencySelect
+                    .html('<option value="">Pilih Kabupaten/Kota</option>')
+                    .prop('disabled', true);
+                return;
+            }
+
+            try {
+                const response = await $.ajax({
+                    url: wpAgencyData.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'get_regencies_by_province',
+                        province_code: provinceCode,
+                        nonce: wpAgencyData.nonce
+                    }
+                });
+
+                if (response.success && response.data.regencies) {
+                    // Clear existing options
+                    $regencySelect.empty();
+
+                    // Add default option
+                    $regencySelect.append('<option value="">Pilih Kabupaten/Kota</option>');
+
+                    // Add new options
+                    response.data.regencies.forEach(regency => {
+                        $regencySelect.append(
+                            `<option value="${regency.value}">${regency.label}</option>`
+                        );
+                    });
+
+                    // Enable the select
+                    $regencySelect.prop('disabled', false);
+                } else {
+                    console.error('Failed to load regencies:', response.data?.message);
+                    $regencySelect
+                        .html('<option value="">Pilih Kabupaten/Kota</option>')
+                        .prop('disabled', true);
+                }
+            } catch (error) {
+                console.error('Error loading regencies:', error);
+                $regencySelect
+                    .html('<option value="">Pilih Kabupaten/Kota</option>')
+                    .prop('disabled', true);
             }
         }
 

@@ -73,9 +73,32 @@
                         
                         // Bind click event using delegation
                         $('#tombol-tambah-agency').off('click', '#add-agency-btn')
-                            .on('click', '#add-agency-btn', () => {
+                            .on('click', '#add-agency-btn', function() {
+                                const $button = $(this);
+                                const originalText = $button.html();
+
                                 if (window.CreateAgencyForm) {
                                     window.CreateAgencyForm.showModal();
+                                } else {
+                                    // Show loading state
+                                    $button.prop('disabled', true).html('<span class="dashicons dashicons-update rotating"></span> Memuat...');
+
+                                    // Wait for CreateAgencyForm to be available
+                                    const checkForm = setInterval(() => {
+                                        if (window.CreateAgencyForm) {
+                                            clearInterval(checkForm);
+                                            $button.prop('disabled', false).html(originalText);
+                                            window.CreateAgencyForm.showModal();
+                                        }
+                                    }, 100);
+
+                                    // Timeout after 5 seconds
+                                    setTimeout(() => {
+                                        clearInterval(checkForm);
+                                        $button.prop('disabled', false).html(originalText);
+                                        console.error('CreateAgencyForm failed to initialize');
+                                        AgencyToast.error('Form gagal dimuat. Silakan refresh halaman.');
+                                    }, 5000);
                                 }
                             });
                     }

@@ -10,7 +10,7 @@
 * Path: /wp-agency/src/Hooks/SelectListHooks.php
 *
 * Description: Hooks untuk mengelola select list agency dan kabupaten.
-*              Menyediakan filter dan action untuk render select lists.
+*              Menyediakan beberapa filter dan action untuk render select lists.
 *              Includes dynamic loading untuk kabupaten berdasarkan agency.
 *              Terintegrasi dengan cache system.
 *
@@ -55,14 +55,15 @@ class SelectListHooks {
         // Register filters
         add_filter('wp_agency_get_agency_options', [$this, 'getAgencyOptions'], 10, 2);
         add_filter('wp_agency_get_division_options', [$this, 'getDivisionOptions'], 10, 3);
-        
+        add_filter('wilayah_indonesia_province_select_options', [$this, 'filterWilayahProvinceOptions'], 10, 2);
+
         // Register actions
         add_action('wp_agency_agency_select', [$this, 'renderAgencySelect'], 10, 2);
         add_action('wp_agency_division_select', [$this, 'renderDivisionSelect'], 10, 3);
-        
+
         // Register AJAX handlers
-        add_action('wp_ajax_get_division_options', [$this, 'handleAja.DivisionOptions']);
-        add_action('wp_ajax_nopriv_get_division_options', [$this, 'handleAja.DivisionOptions']);
+        add_action('wp_ajax_get_division_options', [$this, 'handleAjaxDivisionOptions']);
+        add_action('wp_ajax_nopriv_get_division_options', [$this, 'handleAjaxDivisionOptions']);
     }
 
     /**
@@ -190,7 +191,7 @@ class SelectListHooks {
     /**
      * Handle AJAX request for division options
      */
-    public function handleAja.DivisionOptions(): void {
+    public function handleAjaxDivisionOptions(): void {
         try {
             if (!check_ajax_referer('wp_agency_select_nonce', 'nonce', false)) {
                 throw new \Exception('Invalid security token');
@@ -268,6 +269,41 @@ class SelectListHooks {
     private function debugLog(string $message): void {
         if ($this->debug_mode) {
             error_log('WP Select Debug: ' . $message);
+        }
+    }
+
+    /**
+     * Filter wilayah province options to show only unassigned provinces
+     */
+    public function filterWilayahProvinceOptions(array $options, array $attributes = []): array {
+        error_log('DEBUG: filterWilayahProvinceOptions called with ' . count($options) . ' options, attributes: ' . json_encode($attributes));
+        try {
+            global $wpdb;
+
+            // Get assigned province codes
+            $assigned_provinces = $wpdb->get_col("
+                SELECT DISTINCT provinsi_code
+                FROM {$wpdb->prefix}app_agencies
+                WHERE provinsi_code IS NOT NULL
+            ");
+
+            error_log('DEBUG: Assigned provinces: ' . implode(', ', $assigned_provinces));
+
+            // Filter options to exclude assigned provinces
+            $filtered_options = [];
+            foreach ($options as $option) {
+                if (!in_array($option['value'], $assigned_provinces)) {
+                    $filtered_options[] = $option;
+                }
+            }
+
+            error_log('DEBUG: Filtered province options from ' . count($options) . ' to ' . count($filtered_options));
+
+            return $filtered_options;
+
+        } catch (\Exception $e) {
+            $this->logError('Error filtering province options: ' . $e->getMessage());
+            return $options; // Return original options on error
         }
     }
 

@@ -105,9 +105,13 @@ class AgencyController {
         add_action('wp_ajax_create_agency_button', [$this, 'createAgencyButton']);
 
         add_action('wp_ajax_create_pdf_button', [$this, 'createPdfButton']);
+        add_action('wp_ajax_get_available_provinces', [$this, 'getAvailableProvinces']);
+    
+        add_action('wp_ajax_get_regencies_by_province', [$this, 'getRegenciesByProvince']);
+
 
     }
-
+    
 public function createPdfButton() {
     try {
         check_ajax_referer('wp_agency_nonce', 'nonce');
@@ -141,7 +145,7 @@ public function createPdfButton() {
             'message' => $e->getMessage()
         ]);
     }
-}
+    }
 
     /**
      * Generate DOCX document
@@ -1032,5 +1036,125 @@ public function createPdfButton() {
     public function renderMainPage() {
         // Render template
         require_once WP_AGENCY_PATH . 'src/Views/templates/agency-dashboard.php';
-    }    
+    }
+
+    public function getAgencyData() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
+            if (!$agency_id) {
+                throw new \Exception('Invalid agency ID');
+            }
+
+            $access = $this->validator->validateAccess($agency_id);
+            if (!$access['has_access']) {
+                throw new \Exception('No access to agency');
+            }
+
+            $agency = $this->model->find($agency_id);
+            if (!$agency) {
+                throw new \Exception('Agency not found');
+            }
+
+            wp_send_json_success([
+                'agency' => $agency
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Get available provinces for agency creation
+     * Returns provinces that are not yet assigned to any agency
+     */
+    public function getAvailableProvinces() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            // Check permission to create agencies
+            if (!current_user_can('add_agency')) {
+                throw new \Exception('Insufficient permissions to create agencies');
+            }
+
+            global $wpdb;
+
+            // Query to get unassigned provinces
+            $provinces = $wpdb->get_results("
+                SELECT p.id, p.code, p.name
+                FROM {$wpdb->prefix}wi_provinces p
+                LEFT JOIN {$wpdb->prefix}app_agencies a ON a.provinsi_code = p.code
+                WHERE a.provinsi_code IS NULL
+                ORDER BY p.name ASC
+            ");
+
+            // Format for select options
+            $options = [];
+            foreach ($provinces as $province) {
+                $options[] = [
+                    'value' => $province->code,
+                    'label' => esc_html($province->name)
+                ];
+            }
+
+            wp_send_json_success([
+                'provinces' => $options
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get regencies by province code for agency creation
+     * Returns all regencies in the selected province
+     */
+    public function getRegenciesByProvince() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            // Check permission to create agencies
+            if (!current_user_can('add_agency')) {
+                throw new \Exception('Insufficient permissions to create agencies');
+            }
+
+            $province_code = isset($_POST['province_code']) ? sanitize_text_field($_POST['province_code']) : '';
+            if (empty($province_code)) {
+                throw new \Exception('Province code is required');
+            }
+
+            global $wpdb;
+
+            // Query to get regencies by province
+            $regencies = $wpdb->get_results($wpdb->prepare("
+                SELECT r.id, r.code, r.name
+                FROM {$wpdb->prefix}wi_regencies r
+                WHERE r.province_code = %s
+                ORDER BY r.name ASC
+            ", $province_code));
+
+            // Format for select options
+            $options = [];
+            foreach ($regencies as $regency) {
+                $options[] = [
+                    'value' => $regency->code,
+                    'label' => esc_html($regency->name)
+                ];
+            }
+
+            wp_send_json_success([
+                'regencies' => $options
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
 }

@@ -164,7 +164,7 @@ class JurisdictionModel {
         $agency_model = new AgencyModel();
         $agency = $agency_model->find($agency_id);
 
-        $cache_key = 'available_regencies_agency_' . $agency_id . '_v10';
+        $cache_key = 'available_regencies_agency_' . $agency_id . '_v11';
         $filter_province = $province_code ?: ($agency ? $agency->provinsi_code : '');
         if ($filter_province) {
             $cache_key .= '_province_' . $filter_province;
@@ -185,25 +185,24 @@ class JurisdictionModel {
         $old_cache_key2 = str_replace('_v7', '_v5', $cache_key);
         $this->cache->delete($old_cache_key2);
 
-        // Use LEFT JOIN structure like user's query
+        // Get regencies in province that are not assigned as jurisdictions to any division in the agency
         $query = "
             SELECT r.id, r.code, r.name, p.name as province_name
             FROM {$wpdb->prefix}wi_regencies r
             JOIN {$wpdb->prefix}wi_provinces p ON p.id = r.province_id AND p.code = %s
-            LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_code = r.code";
-        $params = [$filter_province];
+            LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_code = r.code
+            LEFT JOIN {$wpdb->prefix}app_divisions d ON aj.division_id = d.id AND d.agency_id = %d";
+        $params = [$filter_province, $agency_id];
 
         if ($exclude_division_id) {
-            $query .= " AND aj.division_id != %d";
+            // For edit mode: exclude current division's jurisdiction assignments from the "assigned" check
+            $query .= " AND d.id != %d";
             $params[] = $exclude_division_id;
         }
 
         $query .= "
-            LEFT JOIN {$wpdb->prefix}app_divisions d ON aj.division_id = d.id
-            LEFT JOIN {$wpdb->prefix}app_agencies a ON d.agency_id = a.id
-            WHERE aj.id IS NULL OR a.id != %d
+            WHERE aj.jurisdiction_code IS NULL
             ORDER BY r.code ASC";
-        $params[] = $agency_id;
 
         error_log("DEBUG MODEL: Query: " . $wpdb->prepare($query, $params));
         error_log("DEBUG MODEL: Params: " . print_r($params, true));
@@ -242,7 +241,7 @@ class JurisdictionModel {
         // Clear available regencies caches (need to consider province and version)
         $agency_model = new AgencyModel();
         $agency = $agency_model->find($agency_id);
-        $base_key = 'available_regencies_agency_' . $agency_id . '_v10';
+        $base_key = 'available_regencies_agency_' . $agency_id . '_v11';
         $filter_province = $agency ? $agency->provinsi_code : '';
         if ($filter_province) {
             $base_key .= '_province_' . $filter_province;
