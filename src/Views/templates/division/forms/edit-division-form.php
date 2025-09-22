@@ -154,10 +154,10 @@
                         </div>
 
                         <div class="division-form-group">
-                            <label for="edit-division-jurisdictions">Wilayah Kerja (Kabupaten/Kota)</label>
-                            <select id="edit-division-jurisdictions" name="jurisdictions[]" multiple class="jurisdiction-select">
-                                <!-- Options will be loaded via AJAX -->
-                            </select>
+                            <label>Wilayah Kerja (Kabupaten/Kota)</label>
+                            <div id="edit-division-jurisdictions" class="jurisdiction-checkboxes">
+                                <!-- Checkboxes will be loaded via AJAX -->
+                            </div>
                             <span class="field-hint"><?php _e('Pilih kabupaten/kota yang menjadi wilayah kerja cabang ini. Wilayah utama tidak dapat dihapus.', 'wp-agency'); ?></span>
                         </div>
 

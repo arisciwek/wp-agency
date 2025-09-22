@@ -172,12 +172,12 @@
                                 $regency.val(division.regency_id).trigger('change');
                             }
                         }
-                        // Initialize Select2 after regency is set
-                        this.initializeJurisdictionSelect(data.jurisdictions || []);
+                        // Initialize checkboxes after regency is set
+                        this.initializeJurisdictionCheckboxes(data);
                     }, 1000);
                 } else {
-                    // Initialize Select2 if no province
-                    this.initializeJurisdictionSelect(data.jurisdictions || []);
+                    // Initialize checkboxes if no province
+                    this.initializeJurisdictionCheckboxes([]);
                 }
             });
 
@@ -385,76 +385,93 @@
                 this.form.validate().resetForm();
             }
 
-            // Reset Select2
-            this.form.find('.jurisdiction-select').val(null).trigger('change');
+            // Reset checkboxes
+            this.form.find('.jurisdiction-checkboxes').empty();
         },
 
-        initializeJurisdictionSelect(currentJurisdictions = []) {
-            const $select = this.form.find('.jurisdiction-select');
+        initializeJurisdictionCheckboxes(data = {}) {
+            const $container = this.form.find('.jurisdiction-checkboxes');
 
-            console.log('Edit form: Initializing jurisdiction select:', $select.length, typeof $select.select2, 'current:', currentJurisdictions.length);
+            console.log('Edit form: Initializing jurisdiction checkboxes with data:', data);
+            console.log('Primary jurisdictions:', data.primary_jurisdictions);
+            console.log('Non-primary jurisdictions:', data.non_primary_jurisdictions);
+            console.log('Available jurisdictions:', data.available_jurisdictions);
+            console.log('All jurisdictions from server:', data.all_jurisdictions);
 
-            if (!$select.length || typeof $select.select2 === 'undefined') {
-                console.warn('Select2 not available or jurisdiction select not found');
+            // Clear existing checkboxes
+            $container.empty();
+
+            // Use the all_jurisdictions array from server if available, otherwise build it
+            let allJurisdictions = [];
+            if (data.all_jurisdictions && Array.isArray(data.all_jurisdictions)) {
+                console.log('Using all_jurisdictions from server');
+                allJurisdictions = data.all_jurisdictions.map(jur => ({
+                    ...jur,
+                    is_assigned: jur.is_assign ? 1 : 0,
+                    is_primary: jur.is_primary ? 1 : 0
+                }));
+            } else {
+                console.log('Building all_jurisdictions from separate arrays');
+                // Add primary jurisdictions (checked + disabled)
+                if (data.primary_jurisdictions && Array.isArray(data.primary_jurisdictions)) {
+                    data.primary_jurisdictions.forEach(jur => {
+                        allJurisdictions.push({
+                            ...jur,
+                            is_assigned: 1,
+                            is_primary: 1
+                        });
+                    });
+                }
+
+                // Add non-primary jurisdictions (checked + enabled)
+                if (data.non_primary_jurisdictions && Array.isArray(data.non_primary_jurisdictions)) {
+                    data.non_primary_jurisdictions.forEach(jur => {
+                        allJurisdictions.push({
+                            ...jur,
+                            is_assigned: 1,
+                            is_primary: 0
+                        });
+                    });
+                }
+
+                // Add available jurisdictions (unchecked + enabled)
+                if (data.available_jurisdictions && Array.isArray(data.available_jurisdictions)) {
+                    data.available_jurisdictions.forEach(jur => {
+                        allJurisdictions.push({
+                            ...jur,
+                            is_assigned: 0,
+                            is_primary: 0
+                        });
+                    });
+                }
+            }
+
+            if (allJurisdictions.length === 0) {
+                $container.append('<p class="no-data">Pilih provinsi terlebih dahulu untuk melihat daftar kabupaten/kota.</p>');
                 return;
             }
 
-            // Prepare current data for select2
-            const currentData = currentJurisdictions.map(jurisdiction => ({
-                id: jurisdiction.regency_code,
-                text: `${jurisdiction.regency_name} (${jurisdiction.province_name})`
-            }));
+            // Create checkboxes
+            allJurisdictions.forEach(regency => {
+                const isChecked = regency.is_assigned ? 'checked' : '';
+                const isDisabled = regency.is_primary ? 'disabled' : '';
+                const primaryLabel = regency.is_primary ? ' <em>(Utama)</em>' : '';
 
-            $select.select2({
-                placeholder: 'Pilih kabupaten/kota...',
-                allowClear: true,
-                ajax: {
-                    url: wpAgencyData.ajaxUrl,
-                    type: 'POST',
-                    dataType: 'json',
-                    delay: 300,
-                    data: (params) => {
-                        const data = {
-                            action: 'get_available_jurisdictions',
-                            agency_id: this.getCurrentAgencyId(),
-                            division_id: this.form.find('#division-id').val(),
-                            province_code: this.form.find('[name="provinsi_code"]').val(),
-                            search: params.term,
-                            nonce: wpAgencyData.nonce
-                        };
-                        console.log('Edit form: AJAX data sent:', data);
-                        return data;
-                    },
-                    processResults: (data) => {
-                        console.log('Edit form: AJAX response received:', data);
-                        if (data.success && data.data.jurisdictions) {
-                            const newResults = data.data.jurisdictions.map(jurisdiction => ({
-                                id: jurisdiction.id,
-                                text: `${jurisdiction.name} (${jurisdiction.province_name})`
-                            }));
-                            console.log('Edit form: Processing jurisdictions:', newResults.length);
-                            return { results: newResults };
-                        }
-                        console.warn('Edit form: No jurisdictions returned or error:', data);
-                        return { results: [] };
-                    },
-                    cache: true,
-                    error: (xhr, status, error) => {
-                        console.error('Edit form: AJAX error:', status, error, xhr.responseText);
-                    }
-                },
-                minimumInputLength: 0,
-                escapeMarkup: (markup) => markup,
-                templateResult: (item) => item.loading ? 'Mencari...' : item.text,
-                templateSelection: (item) => item.text || item.id
+                const checkboxHtml = `
+                    <label class="jurisdiction-checkbox">
+                        <input type="checkbox"
+                               name="jurisdictions[]"
+                               value="${regency.code}"
+                               ${isChecked}
+                               ${isDisabled}>
+                        <span class="checkmark"></span>
+                        ${regency.name}${primaryLabel}
+                    </label>
+                `;
+                $container.append(checkboxHtml);
             });
 
-            // Pre-select current jurisdictions
-            currentData.forEach(item => {
-                $select.select2('trigger', 'select', {data: item});
-            });
-
-            console.log('Edit form: Select2 initialized for jurisdiction select');
+            console.log('Edit form: Checkboxes initialized with', allJurisdictions.length, 'jurisdictions');
         },
 
         getCurrentAgencyId() {

@@ -27,13 +27,17 @@ namespace WPAgency\Controllers\Division;
 
 use WPAgency\Models\Agency\AgencyModel;
 use WPAgency\Models\Division\DivisionModel;
+use WPAgency\Models\Division\JurisdictionModel;
 use WPAgency\Validators\Division\DivisionValidator;
+use WPAgency\Validators\Division\JurisdictionValidator;
 use WPAgency\Cache\AgencyCacheManager;
 
 class DivisionController {
     private AgencyModel $agencyModel;
     private DivisionModel $model;
+    private JurisdictionModel $jurisdictionModel;
     private DivisionValidator $validator;
+    private JurisdictionValidator $jurisdictionValidator;
     private AgencyCacheManager $cache;
     private string $log_file;
 
@@ -45,7 +49,9 @@ class DivisionController {
     public function __construct() {
         $this->agencyModel = new AgencyModel();
         $this->model = new DivisionModel();
+        $this->jurisdictionModel = new JurisdictionModel();
         $this->validator = new DivisionValidator();
+        $this->jurisdictionValidator = new JurisdictionValidator();
         $this->cache = new AgencyCacheManager();
 
         // Initialize log file inside plugin directory
@@ -66,7 +72,6 @@ class DivisionController {
         add_action('wp_ajax_delete_division', [$this, 'delete']);
         add_action('wp_ajax_validate_division_type_change', [$this, 'validateDivisionTypeChange']);
         add_action('wp_ajax_create_division_button', [$this, 'createDivisionButton']);
-        add_action('wp_ajax_get_available_jurisdictions', [$this, 'getAvailableJurisdictions']);
 
         add_action('wp_ajax_validate_division_access', [$this, 'validateDivisionAccess']);
 
@@ -550,24 +555,24 @@ class DivisionController {
 
             // Save jurisdictions if provided
             if (isset($_POST['jurisdictions']) && is_array($_POST['jurisdictions'])) {
-                $jurisdiction_ids = array_map('intval', $_POST['jurisdictions']);
+                $jurisdiction_codes = array_map('sanitize_text_field', $_POST['jurisdictions']);
 
                 // Get current jurisdictions to preserve is_primary flags for existing ones
-                $current_jurisdictions = $this->model->getJurisdictionsByDivision($id);
-                $current_primary = array_column(array_filter($current_jurisdictions, fn($j) => $j->is_primary), 'regency_id');
+                $current_jurisdictions = $this->jurisdictionModel->getJurisdictionsByDivision($id);
+                $current_primary = array_column(array_filter($current_jurisdictions, fn($j) => $j->is_primary), 'regency_code');
 
                 // For edit, we need to handle is_primary carefully - don't allow removal of primary jurisdictions
                 $primary_jurisdictions = isset($_POST['primary_jurisdictions']) && is_array($_POST['primary_jurisdictions'])
-                    ? array_map('intval', $_POST['primary_jurisdictions'])
+                    ? array_map('sanitize_text_field', $_POST['primary_jurisdictions'])
                     : $current_primary; // Preserve existing primary if not specified
 
                 // Validate that no primary jurisdictions are being removed
-                $removed_primaries = array_diff($current_primary, $jurisdiction_ids);
+                $removed_primaries = array_diff($current_primary, $jurisdiction_codes);
                 if (!empty($removed_primaries)) {
                     throw new \Exception('Wilayah kerja utama tidak dapat dihapus. Silakan hapus tanda utama terlebih dahulu.');
                 }
 
-                if (!$this->model->saveJurisdictions($id, $jurisdiction_ids, $primary_jurisdictions)) {
+                if (!$this->jurisdictionModel->saveJurisdictions($id, $jurisdiction_codes, $primary_jurisdictions)) {
                     throw new \Exception('Gagal menyimpan wilayah kerja cabang');
                 }
             }
@@ -643,7 +648,86 @@ class DivisionController {
             }
 
             // Get jurisdictions for the division
-            $jurisdictions = $this->model->getJurisdictionsByDivision($id);
+            $jurisdictions = $this->jurisdictionModel->getJurisdictionsByDivision($id);
+
+            // Initialize jurisdiction arrays
+            $primary_jurisdictions = [];
+            $non_primary_jurisdictions = [];
+            $available_jurisdictions = [];
+
+            // Get all available regencies for the province
+            if ($division->provinsi_code) {
+                global $wpdb;
+                $province_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM {$wpdb->prefix}wi_provinces WHERE code = %s",
+                    $division->provinsi_code
+                ));
+                if ($province_id) {
+                    // Get agency_id for the division
+                    $agency_id = $division->agency_id ?? $wpdb->get_var($wpdb->prepare(
+                        "SELECT agency_id FROM {$wpdb->prefix}app_divisions WHERE id = %d",
+                        $id
+                    ));
+
+                    // Get jurisdiction data separated by type
+                    $assigned_jurisdictions = $wpdb->get_results($wpdb->prepare(
+                        "SELECT r.id, r.code, r.name, aj.is_primary
+                         FROM {$wpdb->prefix}wi_regencies r
+                         INNER JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_code = r.code AND aj.division_id = %d
+                         WHERE r.province_id = %d
+                         ORDER BY r.name ASC",
+                        $id, $province_id
+                    ));
+
+                    $available_jurisdictions = $wpdb->get_results($wpdb->prepare(
+                        "SELECT r.id, r.code, r.name
+                         FROM {$wpdb->prefix}wi_regencies r
+                         LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_code = r.code
+                         WHERE r.province_id = %d AND aj.id IS NULL
+                         ORDER BY r.name ASC",
+                        $province_id
+                    ));
+
+                    // FIX: Ensure the division's own regency_code is marked as primary
+                    // This corrects data inconsistency in the database
+                    if ($division->regency_code) {
+                        foreach ($assigned_jurisdictions as $jur) {
+                            if ($jur->code === $division->regency_code) {
+                                $jur->is_primary = 1;
+                                // Also update the database permanently
+                                $wpdb->update(
+                                    $wpdb->prefix . 'app_agency_jurisdictions',
+                                    ['is_primary' => 1],
+                                    ['division_id' => $id, 'regency_code' => $jur->code],
+                                    ['%d'],
+                                    ['%d', '%s']
+                                );
+                                break; // Only one primary per division
+                            }
+                        }
+                    }
+
+                    // Debug logging
+                    error_log("DEBUG ASSIGNED JURISDICTIONS for division $id:");
+                    foreach ($assigned_jurisdictions as $jur) {
+                        error_log("  - {$jur->code}: {$jur->name}, primary: '{$jur->is_primary}' (type: " . gettype($jur->is_primary) . ")");
+                    }
+
+                    // Separate primary and non-primary assigned jurisdictions
+                    $primary_jurisdictions = array_filter($assigned_jurisdictions, fn($j) => $j->is_primary);
+                    $non_primary_jurisdictions = array_filter($assigned_jurisdictions, fn($j) => !$j->is_primary);
+
+                    error_log("DEBUG PRIMARY JURISDICTIONS (" . count($primary_jurisdictions) . "):");
+                    foreach ($primary_jurisdictions as $jur) {
+                        error_log("  - {$jur->code}: {$jur->name}");
+                    }
+
+                    error_log("DEBUG NON-PRIMARY JURISDICTIONS (" . count($non_primary_jurisdictions) . "):");
+                    foreach ($non_primary_jurisdictions as $jur) {
+                        error_log("  - {$jur->code}: {$jur->name}");
+                    }
+                }
+            }
 
             // Convert codes back to IDs for form compatibility
             if ($division->provinsi_code) {
@@ -664,10 +748,50 @@ class DivisionController {
                 $division->regency_id = $regency_id ?: $division->regency_code;
             }
 
+            // Prepare jurisdiction data for JavaScript with flags
+            $all_jurisdictions = [];
+
+            // Add primary jurisdictions with flags
+            foreach (($primary_jurisdictions ?? []) as $jur) {
+                $all_jurisdictions[] = [
+                    'id' => $jur->id,
+                    'code' => $jur->code,
+                    'name' => $jur->name,
+                    'is_primary' => true,
+                    'is_assign' => true
+                ];
+            }
+
+            // Add non-primary jurisdictions with flags
+            foreach (($non_primary_jurisdictions ?? []) as $jur) {
+                $all_jurisdictions[] = [
+                    'id' => $jur->id,
+                    'code' => $jur->code,
+                    'name' => $jur->name,
+                    'is_primary' => false,
+                    'is_assign' => true
+                ];
+            }
+
+            // Add available jurisdictions with flags
+            foreach (($available_jurisdictions ?? []) as $jur) {
+                $all_jurisdictions[] = [
+                    'id' => $jur->id,
+                    'code' => $jur->code,
+                    'name' => $jur->name,
+                    'is_primary' => false,
+                    'is_assign' => false
+                ];
+            }
+
             // Kembalikan data division dalam response
             wp_send_json_success([
                 'division' => $division,
-                'jurisdictions' => $jurisdictions
+                'jurisdictions' => $jurisdictions,
+                'primary_jurisdictions' => $primary_jurisdictions ?? [],
+                'non_primary_jurisdictions' => $non_primary_jurisdictions ?? [],
+                'available_jurisdictions' => $available_jurisdictions ?? [],
+                'all_jurisdictions' => $all_jurisdictions // For easier debugging
             ]);
 
         } catch (\Exception $e) {
@@ -768,10 +892,10 @@ class DivisionController {
 
             // Save jurisdictions if provided
             if (isset($_POST['jurisdictions']) && is_array($_POST['jurisdictions'])) {
-                $jurisdiction_ids = array_map('intval', $_POST['jurisdictions']);
+                $jurisdiction_codes = array_map('sanitize_text_field', $_POST['jurisdictions']);
 
                 // Validate jurisdiction assignment
-                $jurisdiction_validation = $this->validator->validateJurisdictionAssignment($agency_id, $jurisdiction_ids, null, false);
+                $jurisdiction_validation = $this->jurisdictionValidator->validateJurisdictionAssignment($agency_id, $jurisdiction_codes, null, false);
                 if (!$jurisdiction_validation['valid']) {
                     // If validation fails, delete the division and rollback
                     $this->model->delete($division_id);
@@ -782,10 +906,10 @@ class DivisionController {
                 }
 
                 $primary_jurisdictions = isset($_POST['primary_jurisdictions']) && is_array($_POST['primary_jurisdictions'])
-                    ? array_map('intval', $_POST['primary_jurisdictions'])
+                    ? array_map('sanitize_text_field', $_POST['primary_jurisdictions'])
                     : [];
 
-                if (!$this->model->saveJurisdictions($division_id, $jurisdiction_ids, $primary_jurisdictions)) {
+                if (!$this->jurisdictionModel->saveJurisdictions($division_id, $jurisdiction_codes, $primary_jurisdictions)) {
                     // If jurisdiction save fails, delete the division and rollback
                     $this->model->delete($division_id);
                     if (!empty($user_id)) {
@@ -954,130 +1078,6 @@ class DivisionController {
         }
     }
 
-    /**
-     * Get available jurisdictions for a division
-     * Returns regencies that can be assigned to the division based on agency constraints
-     */
-    public function getAvailableJurisdictions() {
-        error_log("DEBUG: getAvailableJurisdictions method called");
-        error_log("DEBUG: Raw POST data: " . print_r($_POST, true));
-        error_log("DEBUG: REQUEST_METHOD: " . $_SERVER['REQUEST_METHOD']);
 
-        try {
-            check_ajax_referer('wp_agency_nonce', 'nonce');
-
-            error_log("DEBUG: Nonce verified successfully");
-
-            $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
-            $exclude_division_id = isset($_POST['division_id']) ? (int) $_POST['division_id'] : null;
-            $province_code = isset($_POST['province_code']) ? sanitize_text_field($_POST['province_code']) : '';
-            $search = isset($_POST['search']) ? sanitize_text_field($_POST['search']) : '';
-
-            error_log("DEBUG: getAvailableJurisdictions called with agency_id: $agency_id, exclude_division_id: $exclude_division_id, province_code: $province_code, search: $search");
-
-            // If agency_id is not provided but exclude_division_id is, get agency_id from division
-            if (!$agency_id && $exclude_division_id) {
-                $division = $this->model->find($exclude_division_id);
-                if ($division && $division->agency_id) {
-                    $agency_id = (int) $division->agency_id;
-                    error_log("DEBUG: Got agency_id from division: $agency_id");
-                }
-            }
-
-            $include_assigned = $division_id ? true : false;
-
-            if (!$agency_id) {
-                throw new \Exception('ID Agency tidak valid');
-            }
-
-            // Check if wi_regencies table exists
-            global $wpdb;
-            $regencies_table = $wpdb->prefix . 'wi_regencies';
-            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$regencies_table'") == $regencies_table;
-
-            error_log("DEBUG: wi_regencies table exists: " . ($table_exists ? 'YES' : 'NO'));
-
-            if (!$table_exists) {
-                // Table doesn't exist, return sample data for testing
-                error_log("DEBUG: wi_regencies table doesn't exist, returning sample data");
-                $sample_jurisdictions = [
-                    (object)['id' => 1, 'name' => 'Jakarta Pusat', 'province_name' => 'DKI Jakarta'],
-                    (object)['id' => 2, 'name' => 'Jakarta Utara', 'province_name' => 'DKI Jakarta'],
-                    (object)['id' => 3, 'name' => 'Jakarta Barat', 'province_name' => 'DKI Jakarta'],
-                    (object)['id' => 4, 'name' => 'Jakarta Selatan', 'province_name' => 'DKI Jakarta'],
-                    (object)['id' => 5, 'name' => 'Jakarta Timur', 'province_name' => 'DKI Jakarta'],
-                    (object)['id' => 6, 'name' => 'Bandung', 'province_name' => 'Jawa Barat'],
-                    (object)['id' => 7, 'name' => 'Surabaya', 'province_name' => 'Jawa Timur'],
-                    (object)['id' => 8, 'name' => 'Medan', 'province_name' => 'Sumatera Utara'],
-                    (object)['id' => 9, 'name' => 'Makassar', 'province_name' => 'Sulawesi Selatan'],
-                    (object)['id' => 10, 'name' => 'Serang', 'province_name' => 'Banten']
-                ];
-
-                // Filter by search if provided
-                if (!empty($search)) {
-                    $sample_jurisdictions = array_filter($sample_jurisdictions, function($jurisdiction) use ($search) {
-                        return stripos($jurisdiction->name, $search) !== false ||
-                               stripos($jurisdiction->province_name, $search) !== false;
-                    });
-                }
-
-                wp_send_json_success([
-                    'jurisdictions' => array_values($sample_jurisdictions)
-                ]);
-                return;
-            }
-
-            // Get regencies for the agency
-            $available_regencies = $this->model->getAvailableRegenciesForAgency($agency_id, $exclude_division_id, $province_code);
-
-            error_log("DEBUG: Found " . count($available_regencies) . " available regencies");
-
-            // If no regencies found, also provide sample data
-            if (empty($available_regencies)) {
-                error_log("DEBUG: No regencies found in database, returning sample data");
-                $sample_jurisdictions = [
-                    (object)['id' => 1, 'name' => 'Jakarta Pusat', 'province_name' => 'DKI Jakarta'],
-                    (object)['id' => 2, 'name' => 'Jakarta Utara', 'province_name' => 'DKI Jakarta'],
-                    (object)['id' => 3, 'name' => 'Jakarta Barat', 'province_name' => 'DKI Jakarta'],
-                    (object)['id' => 4, 'name' => 'Jakarta Selatan', 'province_name' => 'DKI Jakarta'],
-                    (object)['id' => 5, 'name' => 'Jakarta Timur', 'province_name' => 'DKI Jakarta'],
-                    (object)['id' => 6, 'name' => 'Bandung', 'province_name' => 'Jawa Barat'],
-                    (object)['id' => 7, 'name' => 'Surabaya', 'province_name' => 'Jawa Timur'],
-                    (object)['id' => 8, 'name' => 'Medan', 'province_name' => 'Sumatera Utara'],
-                    (object)['id' => 9, 'name' => 'Makassar', 'province_name' => 'Sulawesi Selatan'],
-                    (object)['id' => 10, 'name' => 'Serang', 'province_name' => 'Banten']
-                ];
-
-                // Filter by search if provided
-                if (!empty($search)) {
-                    $sample_jurisdictions = array_filter($sample_jurisdictions, function($jurisdiction) use ($search) {
-                        return stripos($jurisdiction->name, $search) !== false ||
-                               stripos($jurisdiction->province_name, $search) !== false;
-                    });
-                }
-
-                $available_regencies = array_values($sample_jurisdictions);
-            }
-
-            // Filter by search if provided
-            if (!empty($search)) {
-                $available_regencies = array_filter($available_regencies, function($regency) use ($search) {
-                    return stripos($regency->name, $search) !== false ||
-                           stripos($regency->province_name, $search) !== false;
-                });
-                error_log("DEBUG: After search filter: " . count($available_regencies) . " regencies");
-            }
-
-            wp_send_json_success([
-                'jurisdictions' => array_values($available_regencies)
-            ]);
-
-        } catch (\Exception $e) {
-            error_log("DEBUG: Error in getAvailableJurisdictions: " . $e->getMessage());
-            wp_send_json_error([
-                'message' => $e->getMessage()
-            ]);
-        }
-    }
 }
 

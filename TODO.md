@@ -17,3 +17,6 @@
 - [x] Handle old jurisdiction table name (app_jurisdictions) and its constraints in deactivator
 - [x] Fix JurisdictionDemoData.php duplicate regency insertion bug by correcting check order
 - [x] Fix edit division form not showing province/regency data by converting codes to ids in controller and updating JS to use ids
+- [x] Change jurisdiction selection from Select2 to checkboxes for better UX and simpler implementation
+- [x] Fix jurisdiction query to show only available regencies (not assigned to any division) plus current division's assignments using single query with LEFT JOINs
+- [ ] Debug Kota Depok division - Kabupaten Bogor should be primary, Kota Depok should be primary, but currently Kota Depok is missing and Kabupaten Bogor is non-primary. Added comprehensive logging and flags to all jurisdiction objects for easier debugging.

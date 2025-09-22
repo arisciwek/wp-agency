@@ -694,3 +694,93 @@ div#division-table_filter input {
     color: #666;
 }
 
+/* Jurisdiction Checkboxes */
+.jurisdiction-checkboxes {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px;
+    background: #fff;
+}
+
+.jurisdiction-checkboxes .no-data {
+    margin: 0;
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}
+
+.jurisdiction-checkbox {
+    display: block;
+    position: relative;
+    padding-left: 35px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    user-select: none;
+    line-height: 1.4;
+}
+
+.jurisdiction-checkbox input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 20px;
+    width: 20px;
+    background-color: #fff;
+    border: 2px solid #ddd;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.jurisdiction-checkbox:hover input ~ .checkmark {
+    border-color: #2271b1;
+}
+
+.jurisdiction-checkbox input:checked ~ .checkmark {
+    background-color: #2271b1;
+    border-color: #2271b1;
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 6px;
+    top: 2px;
+    width: 6px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.jurisdiction-checkbox input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.jurisdiction-checkbox input:disabled ~ .checkmark {
+    background-color: #f0f0f1;
+    border-color: #c3c4c7;
+    cursor: not-allowed;
+}
+
+.jurisdiction-checkbox input:disabled:checked ~ .checkmark {
+    background-color: #c3c4c7;
+}
+
+.jurisdiction-checkbox em {
+    color: #666;
+    font-style: italic;
+}
+

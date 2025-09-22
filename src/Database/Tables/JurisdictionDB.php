@@ -17,7 +17,7 @@
  * Fields:
  * - id             : Primary key
  * - division_id    : Foreign key ke app_divisions
- * - regency_code   : Kode regency ke wi_regencies
+ * - jurisdiction_code   : Kode regency ke wi_regencies
  * - is_primary     : Boolean, true jika regency ini adalah yang utama (tidak dapat dipindah)
  * - created_by     : User ID pembuat
  * - created_at     : Timestamp pembuatan
@@ -25,11 +25,11 @@
  *
  * Foreign Keys:
  * - division_id    : REFERENCES app_divisions(id) ON DELETE CASCADE
- * - regency_code   : References wi_regencies(code) (no FK constraint, lookup by code)
+ * - jurisdiction_code   : References wi_regencies(code) (no FK constraint, lookup by code)
  *
  * Constraints:
- * - Unique constraint pada regency_code untuk mencegah regency sama di division berbeda
- * - Unique constraint pada (division_id, regency_code) untuk mencegah duplikasi dalam division
+ * - Unique constraint pada jurisdiction_code untuk mencegah regency sama di division berbeda
+ * - Unique constraint pada (division_id, jurisdiction_code) untuk mencegah duplikasi dalam division
  *
  * Changelog:
  * 1.0.0 - 2024-01-27
@@ -49,16 +49,16 @@ class JurisdictionDB {
         return "CREATE TABLE {$table_name} (
             id bigint(20) UNSIGNED NOT NULL auto_increment,
             division_id bigint(20) UNSIGNED NOT NULL,
-            regency_code varchar(10) NOT NULL,
+            jurisdiction_code varchar(10) NOT NULL,
             is_primary tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 jika regency ini adalah yang utama dan tidak dapat dipindah',
             created_by bigint(20) NOT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
-            UNIQUE KEY division_regency (division_id, regency_code),
-            UNIQUE KEY regency_unique (regency_code),
+            UNIQUE KEY division_regency (division_id, jurisdiction_code),
+            UNIQUE KEY regency_unique (jurisdiction_code),
             KEY division_id_index (division_id),
-            KEY regency_code_index (regency_code),
+            KEY jurisdiction_code_index (jurisdiction_code),
             KEY created_by_index (created_by),
             CONSTRAINT `{$wpdb->prefix}app_agency_jurisdictions_ibfk_1`
                 FOREIGN KEY (division_id)

@@ -16,7 +16,7 @@
  * Tables affected:
  * - app_agencies: provinsi_id -> provinsi_code, regency_id -> regency_code
  * - app_divisions: provinsi_id -> provinsi_code, regency_id -> regency_code
- * - app_agency_jurisdictions: regency_id -> regency_code
+ * - app_agency_jurisdictions: regency_id -> jurisdiction_code
  *
  * Migration steps:
  * 1. Add new code columns
