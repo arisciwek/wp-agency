@@ -60,6 +60,18 @@ class JurisdictionController {
             $search = isset($_POST['search']) ? sanitize_text_field($_POST['search']) : '';
 
             error_log("DEBUG: getAvailableJurisdictions called with agency_id: $agency_id, exclude_division_id: $exclude_division_id, province_code: $province_code, search: $search");
+            # If province_code looks like an ID (numeric), convert to actual code
+            if (!empty($province_code) && is_numeric($province_code)) {
+                global $wpdb;
+                $actual_code = $wpdb->get_var($wpdb->prepare(
+                    "SELECT code FROM {$wpdb->prefix}wi_provinces WHERE id = %d",
+                    (int) $province_code
+                ));
+                if ($actual_code) {
+                    $province_code = $actual_code;
+                    error_log("DEBUG: Converted province ID $province_code to code $actual_code");
+                }
+            }
 
             // If agency_id is not provided but exclude_division_id is, get agency_id from division
             if (!$agency_id && $exclude_division_id) {
@@ -71,7 +83,7 @@ class JurisdictionController {
                 }
             }
 
-            $include_assigned = $division_id ? true : false;
+            $include_assigned = $exclude_division_id ? true : false;
 
             if (!$agency_id) {
                 throw new \Exception('ID Agency tidak valid');

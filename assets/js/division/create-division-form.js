@@ -1,5 +1,5 @@
 /**
- * Createe Division Form Handler
+ * Create Division Form Handler
  *
  * @package     WP_Agency
  * @subpackage  Assets/JS/Division
@@ -38,11 +38,15 @@
         },
 
         bindEvents() {
-            console.log('Starting bindEvents for Create.DivisionForm');
-            this.form.on('submit', (e) => this.handleCreatee(e));
+            console.log('Starting bindEvents for CreateDivisionForm');
+            this.form.on('submit', (e) => this.handleCreate(e));
             this.form.on('input', 'input[name="name"]', (e) => {
                 this.validateField(e.target);
             });
+
+            // Bind province and regency change events to load jurisdictions
+            this.form.on('change', '[name="provinsi_code"]', () => this.onProvinceChange());
+            this.form.on('change', '[name="regency_code"]', () => this.onRegencyChange());
 
             console.log('Division Form element found:', this.form.length > 0);
             $('#add-division-btn').on('click', () => {
@@ -63,6 +67,16 @@
 
         },
 
+        onProvinceChange() {
+            // When province changes, reset jurisdiction checkboxes
+            this.initializeJurisdictionCheckboxes();
+        },
+
+        onRegencyChange() {
+            // When regency changes, load jurisdictions if both province and regency are selected
+            this.initializeJurisdictionCheckboxes();
+        },
+
         showModal(agencyId) {
             if (!agencyId) {
                 DivisionToast.error('ID Agency tidak valid');
@@ -77,8 +91,8 @@
 
             this.resetForm();
 
-            // Initialize Select2 for jurisdictions after agency ID is set
-            this.initializeJurisdictionSelect();
+            // Initialize jurisdiction checkboxes after agency ID is set
+            this.initializeJurisdictionCheckboxes();
 
             this.modal.addClass('division-modal').fadeIn(300, () => {
                 const nameField = this.form.find('[name="name"]');
@@ -215,7 +229,7 @@
             return field.length ? field.val()?.trim() ?? '' : '';
         },
 
-        async handleCreatee(e) {
+        async handleCreate(e) {
             e.preventDefault();
 
             if (!this.form.valid()) return;
@@ -266,7 +280,7 @@
                     DivisionToast.error(response.data?.message || 'Gagal menambah cabang');
                 }
             } catch (error) {
-                console.error('Createe division error:', error);
+                console.error('Create division error:', error);
                 DivisionToast.error('Gagal menghubungi server. Silakan coba lagi.');
             } finally {
                 this.setLoadingState(false);
@@ -299,65 +313,89 @@
                 this.form.validate().resetForm();
             }
 
-            // Reset Select2
-            this.form.find('.jurisdiction-select').val(null).trigger('change');
+            // Reset checkboxes
+            this.form.find('.jurisdiction-checkboxes').empty();
         },
 
-        initializeJurisdictionSelect() {
-            const $select = this.form.find('.jurisdiction-select');
+        initializeJurisdictionCheckboxes() {
+            const $container = this.form.find('.jurisdiction-checkboxes');
 
-            console.log('Initializing jurisdiction select:', $select.length, typeof $select.select2);
+            console.log('Create form: Initializing jurisdiction checkboxes');
 
-            if (!$select.length || typeof $select.select2 === 'undefined') {
-                console.warn('Select2 not available or jurisdiction select not found');
+            // Clear existing checkboxes
+            $container.empty();
+
+            // Check if both province and regency are selected
+            const provinceCode = this.form.find('[name="provinsi_code"]').val();
+            const regencyCode = this.form.find('[name="regency_code"]').val();
+
+            if (!provinceCode || !regencyCode) {
+                $container.append('<p class="no-data">Pilih provinsi dan kabupaten/kota terlebih dahulu untuk melihat daftar wilayah kerja.</p>');
                 return;
             }
 
-            $select.select2({
-                placeholder: 'Pilih kabupaten/kota...',
-                allowClear: true,
-                ajax: {
+            // Load jurisdictions via AJAX
+            this.loadJurisdictions();
+        },
+
+        async loadJurisdictions() {
+            const $container = this.form.find('.jurisdiction-checkboxes');
+            const provinceCode = this.form.find('[name="provinsi_code"]').val();
+            const regencyCode = this.form.find('[name="regency_code"]').val();
+            const agencyId = this.form.find('#agency_id').val();
+
+            if (!provinceCode || !regencyCode || !agencyId) {
+                $container.empty().append('<p class="no-data">Pilih provinsi dan kabupaten/kota terlebih dahulu untuk melihat daftar wilayah kerja.</p>');
+                return;
+            }
+
+            try {
+                const response = await $.ajax({
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
-                    dataType: 'json',
-                    delay: 300,
-                    data: (params) => {
-                        const data = {
-                            action: 'get_available_jurisdictions',
-                            agency_id: this.form.find('#agency_id').val(),
-                            province_code: this.form.find('#create-division-provinsi').val(),
-                            search: params.term,
-                            nonce: wpAgencyData.nonce
-                        };
-                        console.log('AJAX data sent:', data);
-                        return data;
-                    },
-                    processResults: (data) => {
-                        console.log('AJAX response received:', data);
-                        if (data.success && data.data.jurisdictions) {
-                            console.log('Processing jurisdictions:', data.data.jurisdictions.length);
-                            return {
-                                results: data.data.jurisdictions.map(jurisdiction => ({
-                                    id: jurisdiction.id,
-                                    text: `${jurisdiction.name} (${jurisdiction.province_name})`
-                                }))
-                            };
-                        }
-                        console.warn('No jurisdictions returned or error:', data);
-                        return { results: [] };
-                    },
-                    cache: true,
-                    error: (xhr, status, error) => {
-                        console.error('AJAX error:', status, error, xhr.responseText);
+                    data: {
+                        action: 'get_available_jurisdictions',
+                        agency_id: agencyId,
+                        province_code: provinceCode,
+                        regency_code: regencyCode,
+                        nonce: wpAgencyData.nonce
                     }
-                },
-                minimumInputLength: 0,
-                escapeMarkup: (markup) => markup,
-                templateResult: (item) => item.loading ? 'Mencari...' : item.text,
-                templateSelection: (item) => item.text || item.id
+                });
+
+                if (response.success && response.data.jurisdictions) {
+                    this.renderJurisdictionCheckboxes(response.data.jurisdictions);
+                } else {
+                    $container.empty().append('<p class="no-data">Tidak ada wilayah kerja tersedia untuk kabupaten/kota ini.</p>');
+                }
+            } catch (error) {
+                console.error('Load jurisdictions error:', error);
+                $container.empty().append('<p class="no-data">Gagal memuat daftar wilayah kerja.</p>');
+            }
+        },
+
+        renderJurisdictionCheckboxes(jurisdictions) {
+            const $container = this.form.find('.jurisdiction-checkboxes');
+            $container.empty();
+
+            if (!jurisdictions || jurisdictions.length === 0) {
+                $container.append('<p class="no-data">Tidak ada wilayah kerja tersedia untuk kabupaten/kota ini.</p>');
+                return;
+            }
+
+            jurisdictions.forEach(jurisdiction => {
+                const checkboxHtml = `
+                    <label class="jurisdiction-checkbox">
+                        <input type="checkbox"
+                               name="jurisdictions[]"
+                               value="${jurisdiction.code}">
+                        <span class="checkmark"></span>
+                        ${jurisdiction.name}
+                    </label>
+                `;
+                $container.append(checkboxHtml);
             });
 
-            console.log('Select2 initialized for jurisdiction select');
+            console.log('Create form: Checkboxes rendered with', jurisdictions.length, 'jurisdictions');
         }
     };
 

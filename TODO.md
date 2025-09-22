@@ -20,3 +20,10 @@
 - [x] Change jurisdiction selection from Select2 to checkboxes for better UX and simpler implementation
 - [x] Fix jurisdiction query to show only available regencies (not assigned to any division) plus current division's assignments using single query with LEFT JOINs
 - [ ] Debug Kota Depok division - Kabupaten Bogor should be primary, Kota Depok should be primary, but currently Kota Depok is missing and Kabupaten Bogor is non-primary. Added comprehensive logging and flags to all jurisdiction objects for easier debugging.
+
+## New Tasks: Implement Jurisdiction Checkboxes in Create Division Form
+- [x] Update src/Views/templates/division/forms/create-division-form.php: Change jurisdiction field from multiple select to div with class jurisdiction-checkboxes like in edit form
+- [x] Update assets/js/division/create-division-form.js: Remove initializeJurisdictionSelect method and replace with initializeJurisdictionCheckboxes similar to edit form
+- [x] Update assets/js/division/create-division-form.js: Add event listeners for province and regency select changes to load jurisdictions via AJAX
+- [x] Update assets/js/division/create-division-form.js: Handle case when no province/regency selected by disabling jurisdiction field or showing message
+- [ ] Test create division form to ensure checkboxes load correctly when province/regency is selected and form submission works with jurisdictions array

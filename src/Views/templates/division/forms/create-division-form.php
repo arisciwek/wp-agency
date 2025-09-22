@@ -148,9 +148,9 @@ defined('ABSPATH') || exit;
 
                         <div class="division-form-group">
                             <label for="create-division-jurisdictions">Wilayah Kerja (Kabupaten/Kota)</label>
-                            <select id="create-division-jurisdictions" name="jurisdictions[]" multiple class="jurisdiction-select">
-                                <!-- Options will be loaded via AJAX -->
-                            </select>
+                            <div id="create-division-jurisdictions" class="jurisdiction-checkboxes">
+                                <!-- Checkboxes will be loaded via AJAX -->
+                            </div>
                             <span class="field-hint"><?php _e('Pilih kabupaten/kota yang menjadi wilayah kerja cabang ini', 'wp-agency'); ?></span>
                         </div>
 
