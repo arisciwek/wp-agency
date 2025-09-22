@@ -235,7 +235,7 @@
                 email: this.getFieldValue('email'),
                 provinsi_code: this.getFieldValue('provinsi_code'),
                 regency_code: this.getFieldValue('regency_code'),
-                jurisdictions: this.form.find('[name="jurisdictions[]"]').val(),
+                jurisdictions: this.form.find('[name="jurisdictions[]"]:checked').map(function() { return $(this).val(); }).get(),
 
                 // Admin data
                 admin_username: this.getFieldValue('admin_username'),

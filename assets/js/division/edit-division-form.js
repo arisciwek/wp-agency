@@ -286,28 +286,28 @@
         }
     },
 
-    async handleUpdate(e) {
-        e.preventDefault();
-        if (!this.form.valid()) return;
+        async handleUpdate(e) {
+            e.preventDefault();
+            if (!this.form.valid()) return;
 
-        const formData = {
-            action: 'update_division',
-            nonce: wpAgencyData.nonce,
-            id: this.form.find('#division-id').val(),
-            name: this.form.find('[name="name"]').val().trim(),
-            type: this.form.find('[name="type"]').val(),
-            nitku: this.form.find('[name="nitku"]').val().trim(),
-            postal_code: this.form.find('[name="postal_code"]').val().trim(),
-            latitude: this.form.find('[name="latitude"]').val(),
-            longitude: this.form.find('[name="longitude"]').val(),
-            address: this.form.find('[name="address"]').val().trim(),
-            phone: this.form.find('[name="phone"]').val().trim(),
-            email: this.form.find('[name="email"]').val().trim(),
-            provinsi_code: this.form.find('[name="provinsi_code"]').val(),
-            regency_code: this.form.find('[name="regency_code"]').val(),
-            jurisdictions: this.form.find('[name="jurisdictions[]"]').val(),
-            status: this.form.find('[name="status"]').val()
-        };
+            const formData = {
+                action: 'update_division',
+                nonce: wpAgencyData.nonce,
+                id: this.form.find('#division-id').val(),
+                name: this.form.find('[name="name"]').val().trim(),
+                type: this.form.find('[name="type"]').val(),
+                nitku: this.form.find('[name="nitku"]').val().trim(),
+                postal_code: this.form.find('[name="postal_code"]').val().trim(),
+                latitude: this.form.find('[name="latitude"]').val(),
+                longitude: this.form.find('[name="longitude"]').val(),
+                address: this.form.find('[name="address"]').val().trim(),
+                phone: this.form.find('[name="phone"]').val().trim(),
+                email: this.form.find('[name="email"]').val().trim(),
+                provinsi_code: this.form.find('[name="provinsi_code"]').val(),
+                regency_code: this.form.find('[name="regency_code"]').val(),
+                jurisdictions: this.form.find('[name="jurisdictions[]"]:checked').map(function() { return $(this).val(); }).get(),
+                status: this.form.find('[name="status"]').val()
+            };
 
         this.setLoadingState(true);
 
@@ -344,7 +344,7 @@
             if (response.success) {
                 AgencyToast.success('Cabang berhasil diperbarui');
                 this.hideModal();
-                $(document).trigger('division:updated', [response.data]);
+                $(document).trigger('division:updated.datatable', [response.data]);
                 if (window.DivisionDataTable) {
                     window.DivisionDataTable.refresh();
                 }

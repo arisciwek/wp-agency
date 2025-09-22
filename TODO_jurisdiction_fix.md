@@ -1,23 +1,22 @@
-# Fix Available Jurisdictions Query for Edit Mode
+# Fix Jurisdiction Collection in Division Forms
 
 ## Issue
-The `getAvailableRegenciesForAgency` method was returning ALL regencies in the province for edit mode, instead of only available ones (not assigned to other divisions in the same agency).
+The JavaScript code for collecting checked jurisdiction checkboxes was incorrect, only sending the first checked value instead of all checked values. This caused jurisdiction assignments to not be saved properly when editing or creating divisions.
 
 ## Root Cause
-Edit mode query was missing the logic to exclude regencies already assigned to other divisions, causing conflicts when multiple divisions try to claim the same jurisdiction.
+Using `.val()` on multiple checkboxes returns only the first checked value. Need to use `:checked` selector with `.map()` and `.get()` to collect all values.
 
-## Plan
-- [x] Modify edit mode query to exclude regencies assigned to other divisions (but allow current division's assignments)
-- [x] Add LEFT JOIN with agency_jurisdictions and divisions tables with proper conditions
-- [x] Add r.code to SELECT fields for jurisdiction matching
-- [x] Update cache key to '_v5' to invalidate old cached results
-- [x] Remove unnecessary fields (province_id) from SELECT
+## Fixes Applied
+- [x] Fixed `edit-division-form.js` to collect all checked jurisdictions
+- [x] Fixed `create-division-form.js` to collect all checked jurisdictions
+- [x] Fixed event name mismatch in `edit-division-form.js` for datatable refresh
 
-## Files to Edit
-- `src/Models/Division/DivisionModel.php`
+## Files Modified
+- `assets/js/division/edit-division-form.js`
+- `assets/js/division/create-division-form.js`
 
 ## Testing
-- Test edit division form - should show regencies not assigned to other divisions in same agency
-- Test create division form - should show only unassigned regencies
-- Verify current assignments are properly pre-selected in edit mode
-- Check that no duplicate jurisdiction assignments occur
+- Test editing a division with multiple jurisdictions selected
+- Test creating a division with multiple jurisdictions
+- Verify datatable updates correctly after save
+- Check that success message appears and data is saved to database

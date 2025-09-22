@@ -304,11 +304,12 @@ class AgencyCacheManager {
         }
 
         // Gunakan 'datatable' sebagai type (sama dengan getDataTableCache)
-        return $this->set('datatable', $data, 2 * MINUTE_IN_SECONDS, ...$components);
+        return $this->set('datatable', $data, 0, ...$components); // No caching for immediate updates
     }
 
     /**
-     * Perbaikan untuk invalidateDataTableCache() di AgencyCacheManager
+     * Invalidate DataTable cache for a specific context
+     * Clears all cached DataTable responses for the given context
      */
     public function invalidateDataTableCache(string $context, ?array $filters = null): bool {
         try {
@@ -324,45 +325,18 @@ class AgencyCacheManager {
                 $filters ? json_encode($filters) : 'none'
             ));
 
-            // Periksa apakah grup cache ada dan dapat diakses
-            global $wp_object_cache;
-            if (!isset($wp_object_cache->cache[self::CACHE_GROUP]) || empty($wp_object_cache->cache[self::CACHE_GROUP])) {
-                $this->debug_log('Cache group not found or empty - no action needed');
-                return true; // Tidak perlu invalidasi jika tidak ada cache
-            }
-
-            // Base components for cache key
-            $components = ['datatable', $context];
-            
-            // If we have filters, create filter-specific invalidation
-            if ($filters) {
-                foreach ($filters as $key => $value) {
-                    $components[] = sprintf('%s_%s', $key, md5(serialize($value)));
-                }
-                
-                $key = $this->generateKey(...$components);
-                $result = wp_cache_delete($key, self::CACHE_GROUP);
-                
-                $this->debug_log(sprintf(
-                    'Invalidated filtered cache for context %s with filters. Result: %s',
-                    $context,
-                    $result ? 'success' : 'failed'
-                ));
-                
-                return true; // Anggap sukses karena tidak ada cache yang perlu dihapus
-            }
-
-            // If no filters, do a broader invalidation using prefix
-            $prefix = implode('_', $components);
+            // Always use prefix-based deletion to clear all related DataTable caches
+            // This ensures all pages, searches, and sorts are cleared for the context
+            $prefix = 'datatable_' . $context;
             $result = $this->deleteByPrefix($prefix);
 
             $this->debug_log(sprintf(
-                'Invalidated all cache entries for context %s. Result: %s',
+                'Invalidated all DataTable cache entries for context %s. Result: %s',
                 $context,
                 $result ? 'success' : 'failed'
             ));
 
-            return true; // Anggap sukses karena tidak ada yang perlu dihapus
+            return $result;
 
         } catch (\Exception $e) {
             $this->debug_log('Error in invalidateDataTableCache: ' . $e->getMessage());

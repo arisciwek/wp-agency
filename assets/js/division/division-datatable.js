@@ -163,6 +163,7 @@
                 ajax: {
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
+                    cache: false, // Disable caching for immediate updates
                     data: (d) => {
                         return {
                             ...d,
