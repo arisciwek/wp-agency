@@ -698,7 +698,7 @@ class DivisionController {
                                 $wpdb->update(
                                     $wpdb->prefix . 'app_agency_jurisdictions',
                                     ['is_primary' => 1],
-                                    ['division_id' => $id, 'regency_code' => $jur->code],
+                                    ['division_id' => $id, 'jurisdiction_code' => $jur->code],
                                     ['%d'],
                                     ['%d', '%s']
                                 );
