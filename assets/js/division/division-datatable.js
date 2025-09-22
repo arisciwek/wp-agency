@@ -50,11 +50,7 @@
              this.$emptyState = this.$container.find('.empty-state');
              this.$errorState = this.$container.find('.error-state');
 
-             if (this.initialized && this.agencyId === agencyId) {
-                 this.refresh();
-                 return;
-             }
-
+             // Always reinitialize when called to ensure fresh data
              this.agencyId = agencyId;
              this.showLoading();
              this.initDataTable();

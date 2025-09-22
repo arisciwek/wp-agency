@@ -384,28 +384,11 @@ class DivisionController {
             // Dapatkan role/capability user saat ini
             $access = $this->validator->validateAccess(0); 
 
-            // Check cache first
-            $cached_result = $this->cache->getDataTableCache(
-                'division_list',
-                $access['access_type'],
-                $start, 
-                $length,
-                $search,
-                $orderBy,
-                $orderDir,
-                ['agency_id' => $agency_id]
-            );
-
-            if ($cached_result) {
-                wp_send_json($cached_result);
-                return;
-            }
-
-            // Get fresh data
+            // Get fresh data (disable caching for DataTable to ensure immediate updates)
             $result = $this->model->getDataTableData(
                 $agency_id,
                 $start,
-                $length, 
+                $length,
                 $search,
                 $orderBy,
                 $orderDir
@@ -455,22 +438,6 @@ class DivisionController {
                 'recordsFiltered' => $result['filtered'],
                 'data' => $data,
             ];
-
-            // Dapatkan role/capability user saat ini
-            $access = $this->validator->validateAccess(0); 
-
-            // Cache the result
-            $this->cache->setDataTableCache(
-                'division_list',
-                $access['access_type'],
-                $start,
-                $length, 
-                $search,
-                $orderBy,
-                $orderDir,
-                $response,
-                ['agency_id' => $agency_id]
-            );
 
             wp_send_json($response);
 
@@ -553,28 +520,28 @@ class DivisionController {
             // Update data
             $updated = $this->model->update($id, $data);
 
-            // Save jurisdictions if provided
-            if (isset($_POST['jurisdictions']) && is_array($_POST['jurisdictions'])) {
-                $jurisdiction_codes = array_map('sanitize_text_field', $_POST['jurisdictions']);
+            // Always handle jurisdictions for edit operations (to allow removal when none selected)
+            $jurisdiction_codes = isset($_POST['jurisdictions']) && is_array($_POST['jurisdictions'])
+                ? array_map('sanitize_text_field', $_POST['jurisdictions'])
+                : [];
 
-                // Get current jurisdictions to preserve is_primary flags for existing ones
-                $current_jurisdictions = $this->jurisdictionModel->getJurisdictionsByDivision($id);
-                $current_primary = array_column(array_filter($current_jurisdictions, fn($j) => $j->is_primary), 'regency_code');
+            // Get current jurisdictions to preserve is_primary flags for existing ones
+            $current_jurisdictions = $this->jurisdictionModel->getJurisdictionsByDivision($id);
+            $current_primary = array_column(array_filter($current_jurisdictions, fn($j) => $j->is_primary), 'regency_code');
 
-                // For edit, we need to handle is_primary carefully - don't allow removal of primary jurisdictions
-                $primary_jurisdictions = isset($_POST['primary_jurisdictions']) && is_array($_POST['primary_jurisdictions'])
-                    ? array_map('sanitize_text_field', $_POST['primary_jurisdictions'])
-                    : $current_primary; // Preserve existing primary if not specified
+            // For edit, we need to handle is_primary carefully - don't allow removal of primary jurisdictions
+            $primary_jurisdictions = isset($_POST['primary_jurisdictions']) && is_array($_POST['primary_jurisdictions'])
+                ? array_map('sanitize_text_field', $_POST['primary_jurisdictions'])
+                : $current_primary; // Preserve existing primary if not specified
 
-                // Validate that no primary jurisdictions are being removed
-                $removed_primaries = array_diff($current_primary, $jurisdiction_codes);
-                if (!empty($removed_primaries)) {
-                    throw new \Exception('Wilayah kerja utama tidak dapat dihapus. Silakan hapus tanda utama terlebih dahulu.');
-                }
+            // Validate that no primary jurisdictions are being removed
+            $removed_primaries = array_diff($current_primary, $jurisdiction_codes);
+            if (!empty($removed_primaries)) {
+                throw new \Exception('Wilayah kerja utama tidak dapat dihapus. Silakan hapus tanda utama terlebih dahulu.');
+            }
 
-                if (!$this->jurisdictionModel->saveJurisdictions($id, $jurisdiction_codes, $primary_jurisdictions)) {
-                    throw new \Exception('Gagal menyimpan wilayah kerja cabang');
-                }
+            if (!$this->jurisdictionModel->saveJurisdictions($id, $jurisdiction_codes, $primary_jurisdictions)) {
+                throw new \Exception('Gagal menyimpan wilayah kerja cabang');
             }
 
             // Tambahkan di dalam method update() setelah update berhasil
