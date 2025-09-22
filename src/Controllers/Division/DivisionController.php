@@ -520,24 +520,32 @@ class DivisionController {
             // Update data
             $updated = $this->model->update($id, $data);
 
+            // Get updated division data to determine primary jurisdiction
+            $updated_division = $this->model->find($id);
+
             // Always handle jurisdictions for edit operations (to allow removal when none selected)
             $jurisdiction_codes = isset($_POST['jurisdictions']) && is_array($_POST['jurisdictions'])
                 ? array_map('sanitize_text_field', $_POST['jurisdictions'])
                 : [];
 
-            // Get current jurisdictions to preserve is_primary flags for existing ones
+            // Automatically determine primary jurisdiction based on division's regency_code
+            $primary_jurisdictions = [];
+            if ($updated_division && $updated_division->regency_code && in_array($updated_division->regency_code, $jurisdiction_codes)) {
+                $primary_jurisdictions = [$updated_division->regency_code];
+            }
+
+            // Get current jurisdictions to check for primary jurisdiction removal
             $current_jurisdictions = $this->jurisdictionModel->getJurisdictionsByDivision($id);
             $current_primary = array_column(array_filter($current_jurisdictions, fn($j) => $j->is_primary), 'regency_code');
 
-            // For edit, we need to handle is_primary carefully - don't allow removal of primary jurisdictions
-            $primary_jurisdictions = isset($_POST['primary_jurisdictions']) && is_array($_POST['primary_jurisdictions'])
-                ? array_map('sanitize_text_field', $_POST['primary_jurisdictions'])
-                : $current_primary; // Preserve existing primary if not specified
-
-            // Validate that no primary jurisdictions are being removed
+            // Validate that no primary jurisdictions are being removed (only if they are not the current division's regency)
             $removed_primaries = array_diff($current_primary, $jurisdiction_codes);
             if (!empty($removed_primaries)) {
-                throw new \Exception('Wilayah kerja utama tidak dapat dihapus. Silakan hapus tanda utama terlebih dahulu.');
+                // Allow removal if the removed primary is not the current division's regency
+                $invalid_removals = array_diff($removed_primaries, [$updated_division->regency_code ?? '']);
+                if (!empty($invalid_removals)) {
+                    throw new \Exception('Wilayah kerja utama tidak dapat dihapus. Silakan hapus tanda utama terlebih dahulu.');
+                }
             }
 
             if (!$this->jurisdictionModel->saveJurisdictions($id, $jurisdiction_codes, $primary_jurisdictions)) {
