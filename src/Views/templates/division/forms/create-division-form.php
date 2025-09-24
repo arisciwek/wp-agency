@@ -122,7 +122,8 @@ defined('ABSPATH') || exit;
                                 'name' => 'provinsi_code',
                                 'id' => 'create-division-provinsi',
                                 'class' => 'regular-text wilayah-province-select',
-                                'required' => 'required'
+                                'required' => 'required',
+                                'filter' => 'division' // Add this to indicate it's for division
                             ]);
                             ?>
                         </div>

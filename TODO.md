@@ -43,3 +43,11 @@
 - [x] Fix "Tambah Agency" button not working - added modal structure and improved click handler
 - [x] Fix regency select remaining disabled - corrected database query to use province_id instead of province_code
 - [x] Test dynamic province/regency loading in create agency form
+
+## New Tasks: Fix Province Selection Query for Division Creation
+- [x] Update SelectListHooks.php to filter provinces based on unassigned regencies for divisions (provinces with at least one unassigned regency)
+- [x] Modify filterWilayahProvinceOptions to use different queries based on 'filter' attribute (agency vs division)
+- [x] Update create-division-form.php to use hooks with 'filter' => 'division' attribute instead of AJAX
+- [x] Remove AJAX loading functions from create-division-form.js and revert to hook-based loading
+- [x] Add debug logging to verify correct query execution for both agency and division contexts
+- [ ] Test create division form to ensure provinces load correctly and only show provinces with available regencies

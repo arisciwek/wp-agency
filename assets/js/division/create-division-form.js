@@ -457,7 +457,9 @@
 
             console.log('DEBUG: Regency select populated with', jurisdictions.length, 'options');
             console.log('DEBUG: Available regency options:', jurisdictions.map(j => ({ code: j.code, name: j.name })));
-        }
+        },
+
+
     };
 
     // Initialize when document is ready

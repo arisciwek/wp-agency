@@ -273,31 +273,54 @@ class SelectListHooks {
     }
 
     /**
-     * Filter wilayah province options to show only unassigned provinces
+     * Filter wilayah province options to show only unassigned provinces (for agencies or divisions)
      */
     public function filterWilayahProvinceOptions(array $options, array $attributes = []): array {
         error_log('DEBUG: filterWilayahProvinceOptions called with ' . count($options) . ' options, attributes: ' . json_encode($attributes));
+
+        // Check if it's for division
+        $isForDivision = isset($attributes['filter']) && $attributes['filter'] === 'division';
+
         try {
             global $wpdb;
 
-            // Get assigned province codes
-            $assigned_provinces = $wpdb->get_col("
-                SELECT DISTINCT provinsi_code
-                FROM {$wpdb->prefix}app_agencies
-                WHERE provinsi_code IS NOT NULL
-            ");
-
-            error_log('DEBUG: Assigned provinces: ' . implode(', ', $assigned_provinces));
-
-            // Filter options to exclude assigned provinces
-            $filtered_options = [];
-            foreach ($options as $option) {
-                if (!in_array($option['value'], $assigned_provinces)) {
-                    $filtered_options[] = $option;
-                }
+            if ($isForDivision) {
+                // Query to get available provinces (have at least one unassigned regency)
+                $query = "
+                    SELECT DISTINCT p.id, p.code, p.name
+                    FROM {$wpdb->prefix}wi_provinces p
+                    INNER JOIN {$wpdb->prefix}wi_regencies r ON r.province_id = p.id
+                    LEFT JOIN {$wpdb->prefix}app_divisions d ON d.regency_code = r.code
+                    WHERE d.id IS NULL
+                    ORDER BY p.name ASC
+                ";
+                error_log('DEBUG: Raw query for divisions: ' . $query);
+            } else {
+                // Query to get available provinces (not assigned to agencies)
+                $query = "
+                    SELECT p.id, p.code, p.name
+                    FROM {$wpdb->prefix}wi_provinces p
+                    LEFT JOIN {$wpdb->prefix}app_agencies a ON a.provinsi_code = p.code
+                    WHERE a.id IS NULL
+                    ORDER BY p.name ASC
+                ";
+                error_log('DEBUG: Raw query for agencies: ' . $query);
             }
 
-            error_log('DEBUG: Filtered province options from ' . count($options) . ' to ' . count($filtered_options));
+            $available_provinces = $wpdb->get_results($query);
+
+            error_log('DEBUG: Available provinces: ' . print_r($available_provinces, true));
+
+            // Format as options
+            $filtered_options = [];
+            foreach ($available_provinces as $province) {
+                $filtered_options[] = [
+                    'value' => $province->code,
+                    'label' => esc_html($province->name)
+                ];
+            }
+
+            error_log('DEBUG: Filtered province options: ' . count($filtered_options));
 
             return $filtered_options;
 
@@ -306,6 +329,8 @@ class SelectListHooks {
             return $options; // Return original options on error
         }
     }
+
+
 
     /**
      * Error logging
