@@ -59,3 +59,11 @@
 - [ ] Test create division form to ensure provinces load correctly and only show provinces with available regencies
 - [ ] Verify that the "beberapa wilayah tidak dapat dipilih" error is resolved
 - [ ] Debug and fix jurisdiction assignment issue where wrong regency is being assigned
+
+## New Tasks: Implement TODO-0750 - Select Available Province on Division Creation
+- [x] Add getAvailableProvincesForDivisionCreation method in DivisionController.php with correct query (JOIN with agencies to filter provinces assigned to agencies)
+- [x] Register wp_ajax_get_available_provinces_for_division_creation action hook in DivisionController.php
+- [x] Fix PHP syntax error by removing duplicate closing braces in DivisionController.php
+- [x] Update create-division-form.js loadAvailableProvinces() to use new action 'get_available_provinces_for_division_creation' instead of 'get_available_divisions_for_create_division'
+- [x] Test query manually to ensure it returns provinces assigned to agencies with unassigned regencies
+- [x] Test create division form to verify provinces load correctly

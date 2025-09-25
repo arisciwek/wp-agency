@@ -115,7 +115,7 @@
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
                     data: {
-                        action: 'get_available_divisions_for_create_division',
+                        action: 'get_available_provinces_for_division_creation',
                         nonce: wpAgencyData.nonce
                     }
                 });

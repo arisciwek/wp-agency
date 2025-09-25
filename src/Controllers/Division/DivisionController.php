@@ -75,6 +75,7 @@ class DivisionController {
 
         add_action('wp_ajax_validate_division_access', [$this, 'validateDivisionAccess']);
         add_action('wp_ajax_get_available_divisions_for_create_division', [$this, 'getAvailableDivisionsForCreateDivision']);
+        add_action('wp_ajax_get_available_provinces_for_division_creation', [$this, 'getAvailableProvincesForDivisionCreation']);
         add_action('wp_ajax_get_available_regencies_for_division_creation', [$this, 'getAvailableRegenciesForDivisionCreation']);
 
     }
@@ -1183,5 +1184,51 @@ class DivisionController {
         }
     }
 
-}
 
+    /**
+     * Get available provinces for division creation
+     * Returns provinces that are assigned to agencies and have unassigned regencies
+     */
+    public function getAvailableProvincesForDivisionCreation() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            // Check permission to create divisions
+            if (!current_user_can('add_division')) {
+                throw new \Exception('Insufficient permissions to create divisions');
+            }
+
+            global $wpdb;
+
+            // Query to get available provinces (assigned to agencies with unassigned regencies)
+            $provinces = $wpdb->get_results("
+                SELECT DISTINCT p.id, p.code, p.name
+                FROM {$wpdb->prefix}wi_provinces p
+                LEFT JOIN {$wpdb->prefix}wi_regencies r ON r.province_id = p.id
+                LEFT JOIN {$wpdb->prefix}app_agencies a ON a.provinsi_code = p.code
+                LEFT JOIN {$wpdb->prefix}app_divisions d ON d.regency_code = r.code
+                WHERE d.id IS NULL AND r.province_id IS NOT NULL
+                ORDER BY p.name ASC
+            ");
+
+            // Format for select options
+            $options = [];
+            foreach ($provinces as $province) {
+                $options[] = [
+                    'value' => $province->code,
+                    'label' => esc_html($province->name)
+                ];
+            }
+
+            wp_send_json_success([
+                'provinces' => $options
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+}
