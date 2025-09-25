@@ -45,9 +45,17 @@
 - [x] Test dynamic province/regency loading in create agency form
 
 ## New Tasks: Fix Province Selection Query for Division Creation
-- [x] Update SelectListHooks.php to filter provinces based on unassigned regencies for divisions (provinces with at least one unassigned regency)
-- [x] Modify filterWilayahProvinceOptions to use different queries based on 'filter' attribute (agency vs division)
-- [x] Update create-division-form.php to use hooks with 'filter' => 'division' attribute instead of AJAX
-- [x] Remove AJAX loading functions from create-division-form.js and revert to hook-based loading
-- [x] Add debug logging to verify correct query execution for both agency and division contexts
+- [x] Update SelectListHooks.php to filter provinces based on unassigned regencies for divisions (changed query from app_agencies to app_divisions)
+- [x] Add get_available_regencies_for_division_creation AJAX action in DivisionController.php to return regencies not assigned to any division
+- [x] Update create-division-form.js to use AJAX loading with get_available_divisions_for_create_division for provinces and get_available_regencies_for_division_creation for regencies
+- [x] Rename loadAvailableRegencies() to loadAvailableRegenciesForDivisionCreation() for clarity
+- [x] Add debug logging to verify correct query execution for division creation context
+- [x] Add comprehensive debug logging to DivisionController.php store() method for submit process
+- [x] Add debug logging to create-division-form.js handleCreate() method for AJAX request/response
+- [x] Add debug logging to JurisdictionValidator.php validateJurisdictionAssignment() method
+- [x] Fix jurisdiction validation by setting is_codes=true in DivisionController.php store() method
+- [x] Add debug logging to JurisdictionModel.php saveJurisdictions() method
+- [x] Fix jurisdiction assignment check to allow multiple divisions in same agency to have same jurisdiction
 - [ ] Test create division form to ensure provinces load correctly and only show provinces with available regencies
+- [ ] Verify that the "beberapa wilayah tidak dapat dipilih" error is resolved
+- [ ] Debug and fix jurisdiction assignment issue where wrong regency is being assigned

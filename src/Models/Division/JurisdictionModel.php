@@ -49,16 +49,25 @@ class JurisdictionModel {
         $table = $wpdb->prefix . 'app_agency_jurisdictions';
         $current_user_id = get_current_user_id();
 
+        // Debug logging: Log input parameters
+        error_log('DEBUG JURISDICTION MODEL: Division ID: ' . $division_id);
+        error_log('DEBUG JURISDICTION MODEL: Jurisdiction IDs: ' . print_r($jurisdiction_ids, true));
+        error_log('DEBUG JURISDICTION MODEL: Primary jurisdictions: ' . print_r($primary_jurisdictions, true));
+
         // Start transaction
         $wpdb->query('START TRANSACTION');
 
         try {
             // Delete existing jurisdictions for this division
-            $wpdb->delete($table, ['division_id' => $division_id], ['%d']);
+            $deleted_count = $wpdb->delete($table, ['division_id' => $division_id], ['%d']);
+            error_log('DEBUG JURISDICTION MODEL: Deleted ' . $deleted_count . ' existing jurisdictions for division ' . $division_id);
 
             // Insert new jurisdictions
             foreach ($jurisdiction_ids as $regency_code) {
                 $is_primary = in_array($regency_code, $primary_jurisdictions) ? 1 : 0;
+
+                // Debug logging: Log each jurisdiction being processed
+                error_log('DEBUG JURISDICTION MODEL: Processing jurisdiction: ' . $regency_code . ', is_primary: ' . $is_primary);
 
                 // Skip if already exists for this division
                 $exists = $wpdb->get_var($wpdb->prepare(
@@ -68,18 +77,23 @@ class JurisdictionModel {
                 ));
 
                 if ($exists) {
+                    error_log('DEBUG JURISDICTION MODEL: Jurisdiction ' . $regency_code . ' already exists for division ' . $division_id . ', skipping');
                     continue;
                 }
 
-                // Check if jurisdiction_code is already assigned to another division
+                // Check if jurisdiction_code is already assigned to another division in the same agency
                 $regency_exists = $wpdb->get_var($wpdb->prepare(
-                    "SELECT id FROM {$wpdb->prefix}app_agency_jurisdictions
-                     WHERE jurisdiction_code = %s",
-                    $regency_code
+                    "SELECT aj.id FROM {$wpdb->prefix}app_agency_jurisdictions aj
+                     JOIN {$wpdb->prefix}app_divisions d ON aj.division_id = d.id
+                     WHERE aj.jurisdiction_code = %s AND d.agency_id = (
+                         SELECT agency_id FROM {$wpdb->prefix}app_divisions WHERE id = %d
+                     )",
+                    $regency_code, $division_id
                 ));
 
                 if ($regency_exists) {
-                    throw new \Exception('Regency already assigned to another division');
+                    error_log('DEBUG JURISDICTION MODEL: Jurisdiction ' . $regency_code . ' already assigned to another division in the same agency, throwing exception');
+                    throw new \Exception('Regency already assigned to another division in the same agency');
                 }
 
                 $result = $wpdb->insert(
@@ -96,20 +110,25 @@ class JurisdictionModel {
                 );
 
                 if ($result === false) {
+                    error_log('DEBUG JURISDICTION MODEL: Failed to insert jurisdiction ' . $regency_code . ': ' . $wpdb->last_error);
                     throw new \Exception('Failed to insert jurisdiction: ' . $wpdb->last_error);
+                } else {
+                    error_log('DEBUG JURISDICTION MODEL: Successfully inserted jurisdiction ' . $regency_code . ' for division ' . $division_id);
                 }
             }
 
             $wpdb->query('COMMIT');
+            error_log('DEBUG JURISDICTION MODEL: Transaction committed successfully for division ' . $division_id);
 
             // Invalidate related caches
             $this->invalidateJurisdictionCache($division_id);
 
+            error_log('DEBUG JURISDICTION MODEL: Jurisdictions saved successfully for division ' . $division_id);
             return true;
 
         } catch (\Exception $e) {
             $wpdb->query('ROLLBACK');
-            error_log('Error saving jurisdictions: ' . $e->getMessage());
+            error_log('DEBUG JURISDICTION MODEL: Error saving jurisdictions: ' . $e->getMessage());
             return false;
         }
     }

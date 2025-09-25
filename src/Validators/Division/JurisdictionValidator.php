@@ -43,6 +43,12 @@ class JurisdictionValidator {
     public function validateJurisdictionAssignment(int $agency_id, array $jurisdiction_ids_or_codes, ?int $exclude_division_id = null, bool $is_codes = false): array {
         global $wpdb;
 
+        // Debug logging: Log input parameters
+        error_log('DEBUG JURISDICTION VALIDATOR: Agency ID: ' . $agency_id);
+        error_log('DEBUG JURISDICTION VALIDATOR: Jurisdiction IDs/Codes: ' . print_r($jurisdiction_ids_or_codes, true));
+        error_log('DEBUG JURISDICTION VALIDATOR: Exclude Division ID: ' . $exclude_division_id);
+        error_log('DEBUG JURISDICTION VALIDATOR: Is Codes: ' . $is_codes);
+
         if (empty($jurisdiction_ids_or_codes)) {
             return ['valid' => true];
         }
@@ -57,6 +63,9 @@ class JurisdictionValidator {
                 WHERE id IN ($placeholders)
             ", $jurisdiction_ids_or_codes);
 
+            // Debug logging: Log conversion query
+            error_log('DEBUG JURISDICTION VALIDATOR: Conversion query: ' . $query);
+
             $codes_result = $wpdb->get_col($query);
             if (count($codes_result) !== count($jurisdiction_ids_or_codes)) {
                 return [
@@ -65,6 +74,9 @@ class JurisdictionValidator {
                 ];
             }
             $jurisdiction_codes = $codes_result;
+
+            // Debug logging: Log converted codes
+            error_log('DEBUG JURISDICTION VALIDATOR: Converted codes: ' . print_r($jurisdiction_codes, true));
         }
 
         // Create cache key
@@ -100,7 +112,14 @@ class JurisdictionValidator {
             LIMIT 1
         ", $params);
 
+        // Debug logging: Log query and params
+        error_log('DEBUG JURISDICTION VALIDATOR: Query: ' . $query);
+        error_log('DEBUG JURISDICTION VALIDATOR: Params: ' . print_r($params, true));
+
         $conflict = $wpdb->get_row($query);
+
+        // Debug logging: Log conflict result
+        error_log('DEBUG JURISDICTION VALIDATOR: Conflict result: ' . print_r($conflict, true));
 
         $result = ['valid' => true];
         if ($conflict) {
@@ -114,6 +133,9 @@ class JurisdictionValidator {
                 )
             ];
         }
+
+        // Debug logging: Log final result
+        error_log('DEBUG JURISDICTION VALIDATOR: Final result: ' . print_r($result, true));
 
         // Cache the result (short expiry since jurisdiction assignments can change)
         $this->cache->set($cache_key, $result, 2 * MINUTE_IN_SECONDS);

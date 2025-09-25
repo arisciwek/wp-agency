@@ -74,6 +74,8 @@ class DivisionController {
         add_action('wp_ajax_create_division_button', [$this, 'createDivisionButton']);
 
         add_action('wp_ajax_validate_division_access', [$this, 'validateDivisionAccess']);
+        add_action('wp_ajax_get_available_divisions_for_create_division', [$this, 'getAvailableDivisionsForCreateDivision']);
+        add_action('wp_ajax_get_available_regencies_for_division_creation', [$this, 'getAvailableRegenciesForDivisionCreation']);
 
     }
 
@@ -779,10 +781,16 @@ class DivisionController {
         try {
             check_ajax_referer('wp_agency_nonce', 'nonce');
 
+            // Debug logging: Log all POST data
+            $this->debug_log('DEBUG STORE: All POST data: ' . print_r($_POST, true));
+
             $agency_id = isset($_POST['agency_id']) ? (int)$_POST['agency_id'] : 0;
             if (!$agency_id) {
                 throw new \Exception('ID Agency tidak valid');
             }
+
+            // Debug logging: Log agency_id
+            $this->debug_log('DEBUG STORE: Agency ID: ' . $agency_id);
 
             // Cek permission
             if (!$this->validator->canCreateDivision($agency_id)) {
@@ -805,6 +813,9 @@ class DivisionController {
                 'status' => 'active'
             ];
 
+            // Debug logging: Log sanitized data
+            $this->debug_log('DEBUG STORE: Sanitized data: ' . print_r($data, true));
+
             // Convert province and regency IDs to codes for storage
             if (isset($_POST['provinsi_code'])) {
                 global $wpdb;
@@ -815,6 +826,8 @@ class DivisionController {
                 if ($province_code) {
                     $data['provinsi_code'] = $province_code;
                 }
+                // Debug logging: Log province conversion
+                $this->debug_log('DEBUG STORE: Province code conversion - POST provinsi_code: ' . $_POST['provinsi_code'] . ', Converted to: ' . $province_code);
             }
 
             if (isset($_POST['regency_code'])) {
@@ -826,6 +839,8 @@ class DivisionController {
                 if ($regency_code) {
                     $data['regency_code'] = $regency_code;
                 }
+                // Debug logging: Log regency conversion
+                $this->debug_log('DEBUG STORE: Regency code conversion - POST regency_code: ' . $_POST['regency_code'] . ', Converted to: ' . $regency_code);
             }
 
             // Validasi type division saat create
@@ -833,6 +848,8 @@ class DivisionController {
             if (!$type_validation['valid']) {
                 throw new \Exception($type_validation['message']);
             }
+            // Debug logging: Log type validation result
+            $this->debug_log('DEBUG STORE: Type validation passed for type: ' . $data['type']);
 
             // Buat user untuk admin division jika data admin diisi
             if (!empty($_POST['admin_email'])) {
@@ -869,9 +886,14 @@ class DivisionController {
             if (isset($_POST['jurisdictions']) && is_array($_POST['jurisdictions'])) {
                 $jurisdiction_codes = array_map('sanitize_text_field', $_POST['jurisdictions']);
 
+                // Debug logging: Log jurisdiction codes
+                $this->debug_log('DEBUG STORE: Jurisdiction codes: ' . print_r($jurisdiction_codes, true));
+
                 // Validate jurisdiction assignment
-                $jurisdiction_validation = $this->jurisdictionValidator->validateJurisdictionAssignment($agency_id, $jurisdiction_codes, null, false);
+                $jurisdiction_validation = $this->jurisdictionValidator->validateJurisdictionAssignment($agency_id, $jurisdiction_codes, null, true);
                 if (!$jurisdiction_validation['valid']) {
+                    // Debug logging: Log validation failure
+                    $this->debug_log('DEBUG STORE: Jurisdiction validation failed: ' . $jurisdiction_validation['message']);
                     // If validation fails, delete the division and rollback
                     $this->model->delete($division_id);
                     if (!empty($user_id)) {
@@ -884,7 +906,12 @@ class DivisionController {
                     ? array_map('sanitize_text_field', $_POST['primary_jurisdictions'])
                     : [];
 
+                // Debug logging: Log primary jurisdictions
+                $this->debug_log('DEBUG STORE: Primary jurisdictions: ' . print_r($primary_jurisdictions, true));
+
                 if (!$this->jurisdictionModel->saveJurisdictions($division_id, $jurisdiction_codes, $primary_jurisdictions)) {
+                    // Debug logging: Log save failure
+                    $this->debug_log('DEBUG STORE: Failed to save jurisdictions');
                     // If jurisdiction save fails, delete the division and rollback
                     $this->model->delete($division_id);
                     if (!empty($user_id)) {
@@ -892,9 +919,15 @@ class DivisionController {
                     }
                     throw new \Exception('Gagal menyimpan wilayah kerja cabang');
                 }
+            } else {
+                // Debug logging: No jurisdictions provided
+                $this->debug_log('DEBUG STORE: No jurisdictions provided');
             }
 
             $new_division = $this->model->find($division_id);
+
+            // Debug logging: Log successful creation
+            $this->debug_log('DEBUG STORE: Division created successfully with ID: ' . $division_id);
 
             $this->cache->set('division', $new_division, $this->cache::getCacheExpiry(), $division_id);
             // Invalidate cache
@@ -910,6 +943,8 @@ class DivisionController {
             ]);
 
         } catch (\Exception $e) {
+            // Debug logging: Log exception
+            $this->debug_log('DEBUG STORE: Exception occurred: ' . $e->getMessage());
             wp_send_json_error([
                 'message' => $e->getMessage()
             ]);
@@ -1023,19 +1058,19 @@ class DivisionController {
 
             // Buat division via model
             $division_id = $this->model->create($data);
-            
+
             if (!$division_id) {
                 throw new \Exception('Gagal membuat demo division');
             }
             // Dapatkan role/capability user saat ini
-            $access = $this->validator->validateAccess(0); 
+            $access = $this->validator->validateAccess(0);
 
             // Clear semua cache yang terkait
             $this->cache->delete('division', $division_id);
             $this->cache->delete('division_total_count', $access['access_type']);
             $this->cache->delete('agency_division', $data['agency_id']);
             $this->cache->delete('agency_division_list', $data['agency_id']);
-            
+
             // Invalidate DataTable cache
             $this->cache->invalidateDataTableCache('division_list', [
                 'agency_id' => $data['agency_id']
@@ -1044,7 +1079,7 @@ class DivisionController {
             // Cache terkait agency juga perlu diperbarui
             $this->cache->invalidateAgencyCache($data['agency_id']);
             $this->model->invalidateEmployeeStatusCache($division_id);
-            
+
             return $division_id;
 
         } catch (\Exception $e) {
@@ -1053,6 +1088,100 @@ class DivisionController {
         }
     }
 
+    /**
+     * Get available provinces for division creation
+     * Returns provinces that have at least one unassigned regency
+     */
+    public function getAvailableDivisionsForCreateDivision() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            // Check permission to create divisions
+            if (!current_user_can('add_division')) {
+                throw new \Exception('Insufficient permissions to create divisions');
+            }
+
+            global $wpdb;
+
+            // Query to get available provinces (have at least one unassigned regency)
+            $provinces = $wpdb->get_results("
+                SELECT DISTINCT p.id, p.code, p.name
+                FROM {$wpdb->prefix}wi_provinces p
+                INNER JOIN {$wpdb->prefix}wi_regencies r ON r.province_id = p.id
+                LEFT JOIN {$wpdb->prefix}app_divisions d ON d.regency_code = r.code
+                WHERE d.id IS NULL
+                ORDER BY p.name ASC
+            ");
+
+            // Format for select options
+            $options = [];
+            foreach ($provinces as $province) {
+                $options[] = [
+                    'value' => $province->code,
+                    'label' => esc_html($province->name)
+                ];
+            }
+
+            wp_send_json_success([
+                'provinces' => $options
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get available regencies for division creation by province
+     * Returns regencies that are not assigned to any division
+     */
+    public function getAvailableRegenciesForDivisionCreation() {
+        try {
+            // Verify nonce
+            if (!wp_verify_nonce($_POST['nonce'] ?? '', 'wp_agency_nonce')) {
+                throw new \Exception('Security check failed');
+            }
+
+            $province_code = sanitize_text_field($_POST['province_code'] ?? '');
+
+            if (empty($province_code)) {
+                throw new \Exception('Province code is required');
+            }
+
+            global $wpdb;
+
+            // Get regencies for the province that are not assigned to any division
+            $regencies = $wpdb->get_results($wpdb->prepare("
+                SELECT DISTINCT r.id, r.code, r.name
+                FROM {$wpdb->prefix}wi_regencies r
+                INNER JOIN {$wpdb->prefix}wi_provinces p ON r.province_id = p.id
+                LEFT JOIN {$wpdb->prefix}app_divisions d ON d.regency_code = r.code
+                WHERE p.code = %s
+                AND d.id IS NULL
+                ORDER BY r.name ASC
+            ", $province_code));
+
+            // Format for select options
+            $options = [];
+            foreach ($regencies as $regency) {
+                $options[] = [
+                    'value' => $regency->code,
+                    'label' => esc_html($regency->name)
+                ];
+            }
+
+            wp_send_json_success([
+                'regencies' => $options
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
 
 }
 

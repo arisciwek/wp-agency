@@ -69,7 +69,7 @@
 
         onProvinceChange() {
             // When province changes, load available regencies for regency select
-            this.loadAvailableRegencies();
+            this.loadAvailableRegenciesForDivisionCreation();
             // Reset jurisdiction checkboxes
             this.initializeJurisdictionCheckboxes();
         },
@@ -92,6 +92,7 @@
             }
 
             this.resetForm();
+            this.loadAvailableProvinces();
 
             // Initialize jurisdiction checkboxes after agency ID is set
             this.initializeJurisdictionCheckboxes();
@@ -104,6 +105,37 @@
                 $(document).trigger('division:modalOpened');
             });
 
+        },
+
+        async loadAvailableProvinces() {
+            const $provinceSelect = this.form.find('[name="provinsi_code"]');
+
+            try {
+                const response = await $.ajax({
+                    url: wpAgencyData.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'get_available_divisions_for_create_division',
+                        nonce: wpAgencyData.nonce
+                    }
+                });
+
+                if (response.success && response.data.provinces) {
+                    // Clear existing options except the default
+                    $provinceSelect.find('option:not(:first)').remove();
+
+                    // Add new options
+                    response.data.provinces.forEach(province => {
+                        $provinceSelect.append(
+                            `<option value="${province.value}">${province.label}</option>`
+                        );
+                    });
+                } else {
+                    console.error('Failed to load provinces:', response.data?.message);
+                }
+            } catch (error) {
+                console.error('Error loading provinces:', error);
+            }
         },
 
         hideModal() {
@@ -260,6 +292,9 @@
                 admin_lastname: this.getFieldValue('admin_lastname')
             };
 
+            // Debug logging: Log request data
+            console.log('DEBUG JS: Request data:', requestData);
+
             this.setLoadingState(true);
 
             try {
@@ -268,6 +303,9 @@
                     type: 'POST',
                     data: requestData
                 });
+
+                // Debug logging: Log response
+                console.log('DEBUG JS: Response:', response);
 
                 if (response.success) {
                     DivisionToast.success('Cabang berhasil ditambahkan');
@@ -280,10 +318,12 @@
                     }
                 } else {
                     DivisionToast.error(response.data?.message || 'Gagal menambah cabang');
+                    console.error('DEBUG JS: Error response:', response.data?.message);
                 }
             } catch (error) {
                 console.error('Create division error:', error);
                 DivisionToast.error('Gagal menghubungi server. Silakan coba lagi.');
+                console.error('DEBUG JS: AJAX error:', error);
             } finally {
                 this.setLoadingState(false);
             }
@@ -315,6 +355,15 @@
                 this.form.validate().resetForm();
             }
 
+            // Reset province select
+            const $provinceSelect = this.form.find('[name="provinsi_code"]');
+            $provinceSelect.find('option:not(:first)').remove();
+
+            // Reset regency select
+            const $regencySelect = this.form.find('[name="regency_code"]');
+            $regencySelect.empty();
+            $regencySelect.append('<option value="">Pilih Kabupaten/Kota</option>');
+
             // Reset checkboxes
             this.form.find('.jurisdiction-checkboxes').empty();
         },
@@ -340,45 +389,57 @@
             this.loadJurisdictions();
         },
 
-        loadAvailableRegencies(provinceCode = null) {
-            const selectedProvinceCode = provinceCode !== null ? provinceCode : this.form.find('[name="provinsi_code"]').val();
-            const agencyId = this.form.find('#agency_id').val();
+        async loadAvailableRegenciesForDivisionCreation() {
+            const $provinceSelect = this.form.find('[name="provinsi_code"]');
+            const $regencySelect = this.form.find('[name="regency_code"]');
+            const provinceCode = $provinceSelect.val();
 
-            if (!selectedProvinceCode && provinceCode !== '') {
-                // Reset regency select
-                const $regencySelect = this.form.find('[name="regency_code"]');
-                $regencySelect.empty();
-                $regencySelect.append('<option value="">Pilih Kabupaten/Kota</option>');
+            if (!provinceCode) {
+                $regencySelect
+                    .html('<option value="">Pilih Kabupaten/Kota</option>')
+                    .prop('disabled', true);
                 return;
             }
 
-            // Load available regencies via AJAX
-            $.ajax({
-                url: wpAgencyData.ajaxUrl,
-                type: 'POST',
-                data: {
-                    action: 'get_available_jurisdictions',
-                    agency_id: agencyId,
-                    province_code: selectedProvinceCode,
-                    nonce: wpAgencyData.nonce
-                },
-                success: (response) => {
-                    if (response.success && response.data.jurisdictions) {
-                        // Delay to ensure it runs after wilayah plugin
-                        setTimeout(() => {
-                            this.populateRegencySelect(response.data.jurisdictions);
-                        }, 200);
-                    } else {
-                        setTimeout(() => {
-                            this.populateRegencySelect([]);
-                        }, 200);
+            try {
+                const response = await $.ajax({
+                    url: wpAgencyData.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'get_available_regencies_for_division_creation',
+                        province_code: provinceCode,
+                        nonce: wpAgencyData.nonce
                     }
-                },
-                error: (error) => {
-                    console.error('Load available regencies error:', error);
-                    this.populateRegencySelect([]);
+                });
+
+                if (response.success && response.data.regencies) {
+                    // Clear existing options
+                    $regencySelect.empty();
+
+                    // Add default option
+                    $regencySelect.append('<option value="">Pilih Kabupaten/Kota</option>');
+
+                    // Add new options
+                    response.data.regencies.forEach(regency => {
+                        $regencySelect.append(
+                            `<option value="${regency.value}">${regency.label}</option>`
+                        );
+                    });
+
+                    // Enable the select
+                    $regencySelect.prop('disabled', false);
+                } else {
+                    console.error('Failed to load regencies:', response.data?.message);
+                    $regencySelect
+                        .html('<option value="">Pilih Kabupaten/Kota</option>')
+                        .prop('disabled', true);
                 }
-            });
+            } catch (error) {
+                console.error('Error loading regencies:', error);
+                $regencySelect
+                    .html('<option value="">Pilih Kabupaten/Kota</option>')
+                    .prop('disabled', true);
+            }
         },
 
         async loadJurisdictions() {
@@ -441,23 +502,7 @@
             console.log('Create form: Checkboxes rendered with', jurisdictions.length, 'jurisdictions');
         },
 
-        populateRegencySelect(jurisdictions) {
-            const $regencySelect = this.form.find('[name="regency_code"]');
-            $regencySelect.empty();
 
-            // Add default option
-            $regencySelect.append('<option value="">Pilih Kabupaten/Kota</option>');
-
-            if (jurisdictions && jurisdictions.length > 0) {
-                jurisdictions.forEach(jurisdiction => {
-                    const optionHtml = `<option value="${jurisdiction.code}">${jurisdiction.name}</option>`;
-                    $regencySelect.append(optionHtml);
-                });
-            }
-
-            console.log('DEBUG: Regency select populated with', jurisdictions.length, 'options');
-            console.log('DEBUG: Available regency options:', jurisdictions.map(j => ({ code: j.code, name: j.name })));
-        },
 
 
     };
