@@ -1136,7 +1136,7 @@ class DivisionController {
 
     /**
      * Get available regencies for division creation by province
-     * Returns regencies that are not assigned to any division
+     * Returns regencies that are not assigned as jurisdiction in any division of the province
      */
     public function getAvailableRegenciesForDivisionCreation() {
         try {
@@ -1153,22 +1153,35 @@ class DivisionController {
 
             global $wpdb;
 
-            // Get regencies for the province that are not assigned to any division
+            // Debug: Log the province code
+            $this->debug_log('DEBUG getAvailableRegenciesForDivisionCreation: Province code: ' . $province_code);
+
+            // Get regencies for the province that are not assigned as jurisdiction in any division of the province
             $regencies = $wpdb->get_results($wpdb->prepare("
-                SELECT DISTINCT r.id, r.code, r.name
+                SELECT r.id, r.name
                 FROM {$wpdb->prefix}wi_regencies r
-                INNER JOIN {$wpdb->prefix}wi_provinces p ON r.province_id = p.id
-                LEFT JOIN {$wpdb->prefix}app_divisions d ON d.regency_code = r.code
+                JOIN {$wpdb->prefix}wi_provinces p ON r.province_id = p.id
                 WHERE p.code = %s
-                AND d.id IS NULL
+                  AND r.code NOT IN (
+                    SELECT j.jurisdiction_code
+                    FROM {$wpdb->prefix}app_agency_jurisdictions j
+                    JOIN {$wpdb->prefix}app_divisions d ON j.division_id = d.id
+                    WHERE d.provinsi_code = %s
+                  )
                 ORDER BY r.name ASC
-            ", $province_code));
+            ", $province_code, $province_code));
+
+            // Debug: Log the results
+            $this->debug_log('DEBUG getAvailableRegenciesForDivisionCreation: Found ' . count($regencies) . ' available regencies');
+            foreach ($regencies as $regency) {
+                $this->debug_log('  - ' . $regency->id . ';' . $regency->name);
+            }
 
             // Format for select options
             $options = [];
             foreach ($regencies as $regency) {
                 $options[] = [
-                    'value' => $regency->code,
+                    'value' => $regency->id, // Changed to id as per TODO results format
                     'label' => esc_html($regency->name)
                 ];
             }
@@ -1178,6 +1191,7 @@ class DivisionController {
             ]);
 
         } catch (\Exception $e) {
+            $this->debug_log('DEBUG getAvailableRegenciesForDivisionCreation: Error: ' . $e->getMessage());
             wp_send_json_error([
                 'message' => $e->getMessage()
             ]);
