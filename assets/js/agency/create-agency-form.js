@@ -353,7 +353,7 @@
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
                     data: {
-                        action: 'get_available_provinces',
+                        action: 'get_available_provinces_for_agency_creation',
                         nonce: wpAgencyData.nonce
                     }
                 });
