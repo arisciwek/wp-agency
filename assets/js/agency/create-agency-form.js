@@ -393,7 +393,7 @@
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
                     data: {
-                        action: 'get_regencies_by_province',
+                        action: 'get_available_regencies_for_agency_creation',
                         province_code: provinceCode,
                         nonce: wpAgencyData.nonce
                     }

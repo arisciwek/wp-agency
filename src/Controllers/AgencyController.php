@@ -109,6 +109,8 @@ class AgencyController {
 
         add_action('wp_ajax_get_regencies_by_province', [$this, 'getRegenciesByProvince']);
 
+        add_action('wp_ajax_get_available_regencies_for_agency_creation', [$this, 'getAvailableRegenciesForAgencyCreation']);
+
 
     }
     
@@ -1083,7 +1085,7 @@ public function createPdfButton() {
 
             // Query to get unassigned provinces
             $provinces = $wpdb->get_results("
-                SELECT p.id, p.name
+                SELECT p.id, p.name, p.code
                 FROM {$wpdb->prefix}wi_provinces p
                 LEFT JOIN {$wpdb->prefix}app_agencies a ON a.provinsi_code = p.code
                 WHERE a.provinsi_code IS NULL
@@ -1181,6 +1183,76 @@ public function createPdfButton() {
                         return (object) $regency;
                     }, $sample_regencies);
                 }
+            }
+
+            // Format for select options
+            $options = [];
+            foreach ($regencies as $regency) {
+                $options[] = [
+                    'value' => $regency->code,
+                    'label' => esc_html($regency->name)
+                ];
+            }
+
+            wp_send_json_success([
+                'regencies' => $options
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get available regencies for agency creation
+     * Returns regencies in the selected province where the province is not assigned to any agency
+     */
+    public function getAvailableRegenciesForAgencyCreation() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            // Check permission to create agencies
+            if (!current_user_can('add_agency')) {
+                throw new \Exception('Insufficient permissions to create agencies');
+            }
+
+            $province_code = isset($_POST['province_code']) ? sanitize_text_field($_POST['province_code']) : '';
+            if (empty($province_code)) {
+                throw new \Exception('Province code is required');
+            }
+
+            global $wpdb;
+
+            // Check if wi_regencies table exists and has data
+            $regencies_table = $wpdb->prefix . 'wi_regencies';
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$regencies_table'") == $regencies_table;
+
+            if (!$table_exists) {
+                error_log("DEBUG: wi_regencies table does not exist, returning sample data");
+                // Return sample data for testing
+                $sample_regencies = [
+                    ['id' => 1, 'code' => '1101', 'name' => 'Kabupaten Aceh Selatan'],
+                    ['id' => 2, 'code' => '1102', 'name' => 'Kabupaten Aceh Tenggara'],
+                    ['id' => 3, 'code' => '1103', 'name' => 'Kabupaten Aceh Timur'],
+                    ['id' => 4, 'code' => '1104', 'name' => 'Kabupaten Aceh Tengah'],
+                    ['id' => 5, 'code' => '1105', 'name' => 'Kabupaten Aceh Barat'],
+                ];
+
+                $regencies = array_map(function($regency) {
+                    return (object) $regency;
+                }, $sample_regencies);
+            } else {
+                // Query to get available regencies in the selected province
+                $regencies = $wpdb->get_results($wpdb->prepare("
+                    SELECT r.id, r.code, r.name
+                    FROM {$wpdb->prefix}wi_provinces p
+                    LEFT JOIN {$wpdb->prefix}app_agencies a ON a.provinsi_code = p.code
+                    INNER JOIN {$wpdb->prefix}wi_regencies r ON r.province_id = p.id
+                    WHERE a.provinsi_code IS NULL AND p.code = %s
+                    ORDER BY r.name ASC
+                ", $province_code));
             }
 
             // Format for select options
