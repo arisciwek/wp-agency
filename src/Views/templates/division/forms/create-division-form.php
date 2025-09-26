@@ -117,15 +117,15 @@ defined('ABSPATH') || exit;
                         
                         <div class="division-form-group">
                             <label for="create-division-provinsi" class="required-field">Provinsi</label>
-                            <div class="input-group">
-                                <select id="create-division-provinsi"
-                                        name="provinsi_code"
-                                        class="regular-text"
-                                        required
-                                        aria-label="<?php _e('Pilih Provinsi', 'wp-agency'); ?>">
-                                    <option value=""><?php _e('Pilih Provinsi', 'wp-agency'); ?></option>
-                                </select>
-                            </div>
+                            <?php
+                            do_action('wilayah_indonesia_province_select', [
+                                'name' => 'provinsi_code',
+                                'id' => 'create-division-provinsi',
+                                'class' => 'regular-text wilayah-province-select',
+                                'required' => 'required',
+                                'filter' => 'division' // Add this to indicate it's for division
+                            ]);
+                            ?>
                         </div>
 
                         <div class="division-form-group">

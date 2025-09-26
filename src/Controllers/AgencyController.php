@@ -105,7 +105,6 @@ class AgencyController {
         add_action('wp_ajax_create_agency_button', [$this, 'createAgencyButton']);
 
         add_action('wp_ajax_create_pdf_button', [$this, 'createPdfButton']);
-        add_action('wp_ajax_get_available_provinces', [$this, 'getAvailableProvinces']);
         add_action('wp_ajax_get_available_provinces_for_agency_creation', [$this, 'getAvailableProvincesForAgencyCreation']);
 
         add_action('wp_ajax_get_regencies_by_province', [$this, 'getRegenciesByProvince']);
@@ -1071,7 +1070,7 @@ public function createPdfButton() {
      * Get available provinces for agency creation
      * Returns provinces that are not yet assigned to any agency
      */
-    public function getAvailableProvinces() {
+    public function getAvailableProvincesForAgencyCreation() {
         try {
             check_ajax_referer('wp_agency_nonce', 'nonce');
 
@@ -1084,7 +1083,7 @@ public function createPdfButton() {
 
             // Query to get unassigned provinces
             $provinces = $wpdb->get_results("
-                SELECT p.id, p.code, p.name
+                SELECT p.id, p.name
                 FROM {$wpdb->prefix}wi_provinces p
                 LEFT JOIN {$wpdb->prefix}app_agencies a ON a.provinsi_code = p.code
                 WHERE a.provinsi_code IS NULL
@@ -1195,50 +1194,6 @@ public function createPdfButton() {
 
             wp_send_json_success([
                 'regencies' => $options
-            ]);
-
-        } catch (\Exception $e) {
-            wp_send_json_error([
-                'message' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Get available provinces for agency creation
-     * Returns provinces that are not yet assigned to any agency
-     */
-    public function getAvailableProvincesForAgencyCreation() {
-        try {
-            check_ajax_referer('wp_agency_nonce', 'nonce');
-
-            // Check permission to create agencies
-            if (!current_user_can('add_agency')) {
-                throw new \Exception('Insufficient permissions to create agencies');
-            }
-
-            global $wpdb;
-
-            // Query to get unassigned provinces
-            $provinces = $wpdb->get_results("
-                SELECT p.code, p.name
-                FROM {$wpdb->prefix}wi_provinces p
-                LEFT JOIN {$wpdb->prefix}app_agencies a ON a.provinsi_code = p.code
-                WHERE a.provinsi_code IS NULL
-                ORDER BY p.name ASC
-            ");
-
-            // Format for select options
-            $options = [];
-            foreach ($provinces as $province) {
-                $options[] = [
-                    'value' => $province->code,
-                    'label' => esc_html($province->name)
-                ];
-            }
-
-            wp_send_json_success([
-                'provinces' => $options
             ]);
 
         } catch (\Exception $e) {
