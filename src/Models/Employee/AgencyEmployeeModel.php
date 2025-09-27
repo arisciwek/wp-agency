@@ -283,9 +283,9 @@ class AgencyEmployeeModel {
 
         // Add search if provided
         if (!empty($search)) {
-            $where .= " AND (e.name LIKE %s OR e.department LIKE %s)";
+            $where .= " AND (e.name LIKE %s OR e.position LIKE %s OR b.name LIKE %s)";
             $search_param = '%' . $wpdb->esc_like($search) . '%';
-            $params = array_merge($params, [$search_param, $search_param, $search_param, $search_param]);
+            $params = array_merge($params, [$search_param, $search_param, $search_param]);
             error_log('Search Where Clause Added: ' . $where);
             error_log('Search Parameters: ' . print_r($params, true));
         }
@@ -300,7 +300,7 @@ class AgencyEmployeeModel {
         // Map frontend column to actual column
         $orderColumnMap = [
             'name' => 'e.name',
-            'department' => 'e.department',
+            'department' => 'e.name', // Map department ordering to name since department is generated
             'division_name' => 'b.name',
             'status' => 'e.status'
         ];

@@ -144,8 +144,6 @@ class AgencyEmployeeController {
                 ['agency_id' => $agency_id]
             );
 
-            error_log("Cache keys getDataTableCache result: " . print_r($cached_result) );
-
             if ($cached_result !== null) {
                 wp_send_json($cached_result);
                 return;
@@ -168,11 +166,10 @@ class AgencyEmployeeController {
             // Format data with validation
             $data = [];
             foreach ($result['data'] as $employee) {
-                // Get agency for permission check
-                // Kode yang benar:
+                // Check permission - skip employees user cannot view
                 $relation = $this->validator->getUserRelation($employee->id);
                 if (!$this->validator->canViewEmployee($relation)) {
-                    throw new \Exception('Anda tidak memiliki izin untuk melihat detail karyawan ini.');
+                    continue; // Skip this employee instead of throwing error
                 }
 
                 $data[] = [
