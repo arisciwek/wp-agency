@@ -106,12 +106,10 @@ class AgencyController {
 
         add_action('wp_ajax_create_pdf_button', [$this, 'createPdfButton']);
         add_action('wp_ajax_get_available_provinces_for_agency_creation', [$this, 'getAvailableProvincesForAgencyCreation']);
-
-        add_action('wp_ajax_get_regencies_by_province', [$this, 'getRegenciesByProvince']);
-
         add_action('wp_ajax_get_available_regencies_for_agency_creation', [$this, 'getAvailableRegenciesForAgencyCreation']);
 
         add_action('wp_ajax_get_available_provinces_for_agency_editing', [$this, 'getAvailableProvincesForAgencyEditing']);
+        add_action('wp_ajax_get_regencies_by_province', [$this, 'getRegenciesByProvince']);
 
 
     }
