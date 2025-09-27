@@ -111,6 +111,8 @@ class AgencyController {
 
         add_action('wp_ajax_get_available_regencies_for_agency_creation', [$this, 'getAvailableRegenciesForAgencyCreation']);
 
+        add_action('wp_ajax_get_available_provinces_for_agency_editing', [$this, 'getAvailableProvincesForAgencyEditing']);
+
 
     }
     
@@ -1266,6 +1268,46 @@ public function createPdfButton() {
 
             wp_send_json_success([
                 'regencies' => $options
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get all provinces for agency editing
+     * Returns all provinces (not filtered like creation)
+     */
+    public function getAvailableProvincesForAgencyEditing() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            // Check permission to edit agencies
+            // Permission check removed for form loading - actual edit operations have proper checks
+
+            global $wpdb;
+
+            // Query to get ALL provinces (not filtered)
+            $provinces = $wpdb->get_results("
+                SELECT p.id, p.name, p.code
+                FROM {$wpdb->prefix}wi_provinces p
+                ORDER BY p.name ASC
+            ");
+
+            // Format for select options
+            $options = [];
+            foreach ($provinces as $province) {
+                $options[] = [
+                    'value' => $province->code,
+                    'label' => esc_html($province->name)
+                ];
+            }
+
+            wp_send_json_success([
+                'provinces' => $options
             ]);
 
         } catch (\Exception $e) {

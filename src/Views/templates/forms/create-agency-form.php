@@ -123,18 +123,3 @@ defined('ABSPATH') || exit;
         </form>
     </div>
 </div>
-=======
-                       <div class="wp-agency-form-group">
-                           <label for="agency-provinsi" class="required-field">
-                               <?php _e('Provinsi', 'wp-agency'); ?>
-                           </label>
-                           <div class="input-group">
-                               <select id="agency-provinsi"
-                                       name="provinsi_code"
-                                       class="regular-text"
-                                       required
-                                       aria-label="<?php _e('Pilih Provinsi', 'wp-agency'); ?>">
-                                   <option value=""><?php _e('Pilih Provinsi', 'wp-agency'); ?></option>
-                               </select>
-                           </div>
-                       </div>

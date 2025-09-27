@@ -109,16 +109,13 @@ error_log('Regency select hook exists: ' . (has_action('wilayah_indonesia_regenc
                                 <?php _e('Provinsi', 'wp-agency'); ?>
                             </label>
                             <div class="input-group">
-                                <?php
-                                do_action('wilayah_indonesia_province_select', [
-                                    'name' => 'provinsi_code',
-                                    'id' => 'edit-provinsi',
-                                    'class' => 'regular-text wilayah-province-select',
-                                    'data-placeholder' => __('Pilih Provinsi', 'wp-agency'),
-                                    'required' => 'required',
-                                    'aria-label' => __('Pilih Provinsi', 'wp-agency')
-                                ]);
-                                ?>
+                                <select id="edit-provinsi"
+                                        name="provinsi_code"
+                                        class="regular-text"
+                                        required
+                                        aria-label="<?php _e('Pilih Provinsi', 'wp-agency'); ?>">
+                                    <option value=""><?php _e('Pilih Provinsi', 'wp-agency'); ?></option>
+                                </select>
                             </div>
                         </div>
 
@@ -127,17 +124,13 @@ error_log('Regency select hook exists: ' . (has_action('wilayah_indonesia_regenc
                                 <?php _e('Kabupaten/Kota', 'wp-agency'); ?>
                             </label>
                             <div class="input-group">
-                                <?php
-                                do_action('wilayah_indonesia_regency_select', [
-                                    'name' => 'regency_code',
-                                    'id' => 'edit-regency',
-                                    'class' => 'regular-text wilayah-regency-select',
-                                    'data-loading-text' => __('Memuat...', 'wp-agency'),
-                                    'required' => 'required',
-                                    'aria-label' => __('Pilih Kabupaten/Kota', 'wp-agency'),
-                                    'data-dependent' => 'edit-provinsi'
-                                ]);
-                                ?>
+                                <select id="edit-regency"
+                                        name="regency_code"
+                                        class="regular-text"
+                                        required
+                                        aria-label="<?php _e('Pilih Kabupaten/Kota', 'wp-agency'); ?>">
+                                    <option value=""><?php _e('Pilih Kabupaten/Kota', 'wp-agency'); ?></option>
+                                </select>
                             </div>
                         </div>
 
