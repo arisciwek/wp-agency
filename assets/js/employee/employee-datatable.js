@@ -200,6 +200,8 @@
                     },
                     error: (xhr, error, thrown) => {
                         console.error('DataTables Error:', error);
+                        console.error('XHR Response:', xhr.responseText);
+                        console.error('XHR Status:', xhr.status);
                         if (window.EmployeeToast) {
                             EmployeeToast.error('Gagal memuat data');
                         }

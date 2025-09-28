@@ -151,9 +151,9 @@ class AgencyEmployeeController {
 
             // Get fresh data if no cache
             $result = $this->model->getDataTableData(
-                $agency_id, 
+                $agency_id,
                 $start,
-                $length, 
+                $length,
                 $search,
                 $orderColumn,
                 $orderDir
@@ -166,10 +166,12 @@ class AgencyEmployeeController {
             // Format data with validation
             $data = [];
             foreach ($result['data'] as $employee) {
-                // Check permission - skip employees user cannot view
-                $relation = $this->validator->getUserRelation($employee->id);
-                if (!$this->validator->canViewEmployee($relation)) {
-                    continue; // Skip this employee instead of throwing error
+                // Skip permission check if user has admin access
+                if ($access['access_type'] !== 'admin') {
+                    $relation = $this->validator->getUserRelation($employee->id);
+                    if (!$this->validator->canViewEmployee($relation)) {
+                        continue; // Skip this employee instead of throwing error
+                    }
                 }
 
                 $data[] = [
@@ -240,10 +242,7 @@ class AgencyEmployeeController {
             }
         }
 
-        return sprintf(
-            '<div class="department-badges-container">%s</div>',
-            implode('', $badges)
-        );
+        return '<div class="department-badges-container">' . implode('', $badges) . '</div>';
     }
 
     /**
@@ -296,17 +295,15 @@ class AgencyEmployeeController {
      * Generate action buttons HTML
      */
     private function generateActionButtons($employee) {
-        $actions = '';
-        
+        $actions = [];
+
         // Dapatkan relasi dan periksa permission
         $relation = $this->validator->getUserRelation($employee->id);
-        
+
         // View Button
         if ($this->validator->canViewEmployee($relation)) {
-            $actions .= sprintf(
-                '<button type="button" class="button view-employee" data-id="%d" title="%s">
-                    <i class="dashicons dashicons-visibility"></i>
-                </button> ',
+            $actions[] = sprintf(
+                '<button type="button" class="button view-employee" data-id="%d" title="%s"><i class="dashicons dashicons-visibility"></i></button>',
                 $employee->id,
                 __('Lihat', 'wp-agency')
             );
@@ -314,10 +311,8 @@ class AgencyEmployeeController {
 
         // Edit Button
         if ($this->validator->canEditEmployee($relation)) {
-            $actions .= sprintf(
-                '<button type="button" class="button edit-employee" data-id="%d" title="%s">
-                    <i class="dashicons dashicons-edit"></i>
-                </button> ',
+            $actions[] = sprintf(
+                '<button type="button" class="button edit-employee" data-id="%d" title="%s"><i class="dashicons dashicons-edit"></i></button>',
                 $employee->id,
                 __('Edit', 'wp-agency')
             );
@@ -325,10 +320,8 @@ class AgencyEmployeeController {
 
         // Delete Button
         if ($this->validator->canDeleteEmployee($relation)) {
-            $actions .= sprintf(
-                '<button type="button" class="button delete-employee" data-id="%d" title="%s">
-                    <i class="dashicons dashicons-trash"></i>
-                </button>',
+            $actions[] = sprintf(
+                '<button type="button" class="button delete-employee" data-id="%d" title="%s"><i class="dashicons dashicons-trash"></i></button>',
                 $employee->id,
                 __('Hapus', 'wp-agency')
             );
@@ -337,15 +330,13 @@ class AgencyEmployeeController {
         // Status Toggle Button
         if ($this->validator->canEditEmployee($relation)) {
             $newStatus = $employee->status === 'active' ? 'inactive' : 'active';
-            $statusTitle = $employee->status === 'active' ? 
-                __('Nonaktifkan', 'wp-agency') : 
+            $statusTitle = $employee->status === 'active' ?
+                __('Nonaktifkan', 'wp-agency') :
                 __('Aktifkan', 'wp-agency');
             $statusIcon = $employee->status === 'active' ? 'remove' : 'yes';
-            
-            $actions .= sprintf(
-                '<button type="button" class="button toggle-status" data-id="%d" data-status="%s" title="%s">
-                    <i class="dashicons dashicons-%s"></i>
-                </button>',
+
+            $actions[] = sprintf(
+                '<button type="button" class="button toggle-status" data-id="%d" data-status="%s" title="%s"><i class="dashicons dashicons-%s"></i></button>',
                 $employee->id,
                 $newStatus,
                 $statusTitle,
@@ -353,7 +344,7 @@ class AgencyEmployeeController {
             );
         }
 
-        return $actions;
+        return implode('', $actions);
     }
 
     /**
