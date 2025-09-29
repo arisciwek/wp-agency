@@ -1,3 +1,24 @@
+# TODO-0511: Fix Employee Count Difference on Reload vs Menu Switch
+
+## Issue
+- Employee count shows 9 when reloading page with agency hash (#8), but 86 when switching menus
+- 86 is correct (total employees), 9 is agency-specific count
+
+## Root Cause
+- loadStats() in agency-script.js passes agencyId from URL hash to get_agency_stats
+- When hash present, stats show per-agency counts instead of global totals
+- Dashboard should always show global statistics
+
+## Solution
+- Modify loadStats() to always pass id: 0 for global statistics
+- Remove hash-based agencyId logic from stats loading
+
+## Tasks
+- [x] Update loadStats() in agency-script.js to always send id: 0
+- [x] Test: Reload page with hash, verify employee count shows 86 (global total)
+
+---
+
 # TODO: Fix Empty Select Lists in Edit Agency Form
 
 ## Current Issue

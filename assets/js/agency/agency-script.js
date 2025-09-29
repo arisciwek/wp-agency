@@ -638,16 +638,13 @@
          * $(document).on('agency:created', () => Agency.loadStats());
          */
         async loadStats() {
-            const hash = window.location.hash;
-            const agencyId = hash ? parseInt(hash.substring(1)) : 0;
-            
             $.ajax({
                 url: wpAgencyData.ajaxUrl,
                 type: 'POST',
                 data: {
                     action: 'get_agency_stats',
                     nonce: wpAgencyData.nonce,
-                    id: agencyId
+                    id: 0
                 },
                 success: (response) => {
                     if (response.success) {
