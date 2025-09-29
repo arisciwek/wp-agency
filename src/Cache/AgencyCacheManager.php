@@ -303,8 +303,9 @@ class AgencyCacheManager {
             }
         }
 
-        // Gunakan 'datatable' sebagai type (sama dengan getDataTableCache)
-        return $this->set('datatable', $data, 0, ...$components); // No caching for immediate updates
+        // Disable caching for DataTable to prevent stale responses
+        // return $this->set('datatable', $data, 0, ...$components);
+        return true; // Skip caching
     }
 
     /**

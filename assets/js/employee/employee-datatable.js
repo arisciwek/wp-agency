@@ -33,6 +33,7 @@
         initialized: false,
         currentHighlight: null,
         agencyId: null,
+        isLoading: false,
         $container: null,
         $tableContainer: null,
         $loadingState: null,
@@ -47,11 +48,7 @@
             this.$emptyState = this.$container.find('.empty-state');
             this.$errorState = this.$container.find('.error-state');
 
-            if (this.initialized && this.agencyId === agencyId) {
-                this.refresh();
-                return;
-            }
-
+            // Always reinitialize when called to ensure fresh data
             this.agencyId = agencyId;
             this.showLoading();
             this.initDataTable();
@@ -185,6 +182,8 @@
                 ajax: {
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
+                    cache: false, // Disable caching for immediate updates
+                    timeout: 10000,
                     data: (d) => {
                         if (!self.agencyId) {
                             console.error('Agency ID belum di-set');
@@ -208,6 +207,12 @@
                         self.showError();
                     },
                     dataSrc: (response) => {
+                        if (response.success === false) {
+                            // Handle server error response
+                            console.error('Server error in DataTable response:', response.data);
+                            self.showError();
+                            return [];
+                        }
                         if (!response.data || response.data.length === 0) {
                             self.showEmpty();
                         } else {
@@ -284,6 +289,7 @@
         },
 
         showLoading() {
+            this.isLoading = true;
             this.$tableContainer.hide();
             this.$emptyState.hide();
             this.$errorState.hide();
@@ -291,6 +297,7 @@
         },
 
         showEmpty() {
+            this.isLoading = false;
             this.$tableContainer.hide();
             this.$loadingState.hide();
             this.$errorState.hide();
@@ -298,6 +305,7 @@
         },
 
         showError() {
+            this.isLoading = false;
             this.$tableContainer.hide();
             this.$loadingState.hide();
             this.$emptyState.hide();
@@ -305,6 +313,7 @@
         },
 
         showTable() {
+            this.isLoading = false;
             this.$loadingState.hide();
             this.$emptyState.hide();
             this.$errorState.hide();
@@ -312,7 +321,7 @@
         },
 
         refresh() {
-            if (this.table) {
+            if (this.table && !this.isLoading) {
                 this.showLoading();
                 this.table.ajax.reload(() => {
                     const info = this.table.page.info();

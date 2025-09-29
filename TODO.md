@@ -47,3 +47,34 @@ Use hardcoded select elements + AJAX like create form, but show ALL provinces fo
 - [x] Temporarily disable cache to clear corrupted data
 - [x] Re-enable cache after confirming fix works
 - [x] Test: Switch to employee-list tab, verify DataTable loads without parsererror
+
+---
+
+# TODO-2255: Fix Spinning Icon on Employee Tab When Switching from Division Tab
+
+## Issue
+- Spinning loading icon persists indefinitely when clicking "Unit" tab then "Staff" tab in agency right panel
+- Loading state (.employee-loading-state with spinner) does not hide after DataTable initialization
+
+## Root Cause
+- DataTable AJAX success callback receives error JSON from server ({success: false, data: {message}}), but dataSrc tries to access response.data.length where data is object, causing TypeError
+- No timeout on AJAX, potential for hanging requests
+- Race conditions on rapid tab switches causing overlapping loading states
+- Cached error responses not handled properly
+
+## Solution
+- Enhanced dataSrc in employee-datatable.js to detect and handle error responses (response.success === false)
+- Added 10s timeout and cache: false to DataTable AJAX
+- Added isLoading flag to prevent overlapping refresh calls
+- Added small delay (100ms) in switchTab before DataTable init to ensure tab visibility
+- Changed init to always reinitialize like division-datatable.js for consistency
+- Disabled DataTable caching in backend to prevent stale responses
+
+## Tasks
+- [x] Modify dataSrc in employee-datatable.js to check for response.success === false and show error state
+- [x] Add timeout: 10000 and cache: false to DataTable AJAX config
+- [x] Add isLoading flag and prevent overlapping operations
+- [x] Add setTimeout in agency-script.js switchTab for employee-list init
+- [x] Change init to always reinitialize for fresh data
+- [x] Disable DataTable caching in AgencyCacheManager to prevent stale responses
+- [x] Test: Switch from Staff to other tab then back to Staff, verify spinner hides and data loads

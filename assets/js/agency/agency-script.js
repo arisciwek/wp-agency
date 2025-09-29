@@ -501,7 +501,7 @@
                     success: (response) => {
                         if (response.success) {
                             $('#tombol-tambah-karyawan').html(response.data.button);
-                            
+
                             // Bind click event using delegation
                             $('#tombol-tambah-karyawan').off('click', '#add-employee-btn')
                                 .on('click', '#add-employee-btn', () => {
@@ -513,9 +513,12 @@
                     }
                 });
 
-                if (window.EmployeeDataTable) {
-                    window.EmployeeDataTable.init(this.currentId);
-                }
+                // Small delay to ensure tab visibility before initializing DataTable
+                setTimeout(() => {
+                    if (window.EmployeeDataTable) {
+                        window.EmployeeDataTable.init(this.currentId);
+                    }
+                }, 100);
             }
             
             // Add division tab handling

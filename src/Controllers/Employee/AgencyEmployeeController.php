@@ -634,7 +634,7 @@ class AgencyEmployeeController {
 
             // Buat employee via model
             $employee_id = $this->model->create($data);
-            
+
             if (!$employee_id) {
                 throw new \Exception('Gagal membuat demo employee');
             }
