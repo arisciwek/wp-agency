@@ -123,3 +123,23 @@ Use hardcoded select elements + AJAX like create form, but show ALL provinces fo
 - [x] Add $this->cache->invalidateDataTableCache('agency_list'); in AgencyController update method (already present)
 - [x] Check and fix DataTable refresh in agency-datatable.js (fixed event name mismatch)
 - [x] Test: Edit agency name, submit, verify DataTable updates and spinner hides (fixed caching issue)
+
+---
+
+# TODO-1930: Select Available Regency on Agency Editing
+
+## Issue
+- Edit agency form loads all regencies by province, but should only show available regencies for the agency
+- Available regencies are those in the agency's province that have existing divisions
+
+## Solution
+- Change AJAX action from 'get_regencies_by_province' to 'get_available_regencies_for_agency_editing'
+- Update query to filter regencies based on agency's province and existing divisions
+- Update JS to pass agency_id instead of province_code
+
+## Tasks
+- [x] Change add_action in AgencyController.php from 'wp_ajax_get_regencies_by_province' to 'wp_ajax_get_available_regencies_for_agency_editing'
+- [x] Rename and update getRegenciesByProvince method to getAvailableRegenciesForAgencyEditing with new query
+- [x] Update edit-agency-form.js loadRegenciesByProvince to call new action with agency_id
+- [x] Add debug logging for raw query as requested
+- [x] Test: Edit agency form should only show regencies with divisions in the agency's province

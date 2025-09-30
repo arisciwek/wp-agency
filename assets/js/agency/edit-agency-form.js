@@ -591,8 +591,9 @@
             const $provinceSelect = this.form.find('[name="provinsi_code"]');
             const $regencySelect = this.form.find('[name="regency_code"]');
             const provinceCode = $provinceSelect.val();
+            const agencyId = this.form.find('#agency-id').val();
 
-            if (!provinceCode) {
+            if (!provinceCode || !agencyId) {
                 $regencySelect
                     .html('<option value="">Pilih Kabupaten/Kota</option>')
                     .prop('disabled', true);
@@ -605,8 +606,8 @@
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
                     data: {
-                        action: 'get_regencies_by_province',
-                        province_code: provinceCode,
+                        action: 'get_available_regencies_for_agency_editing',
+                        agency_id: agencyId,
                         nonce: wpAgencyData.nonce
                     }
                 });

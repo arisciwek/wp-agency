@@ -109,7 +109,7 @@ class AgencyController {
         add_action('wp_ajax_get_available_regencies_for_agency_creation', [$this, 'getAvailableRegenciesForAgencyCreation']);
 
         add_action('wp_ajax_get_available_provinces_for_agency_editing', [$this, 'getAvailableProvincesForAgencyEditing']);
-        add_action('wp_ajax_get_regencies_by_province', [$this, 'getRegenciesByProvince']);
+        add_action('wp_ajax_get_available_regencies_for_agency_editing', [$this, 'getAvailableRegenciesForAgencyEditing']);
 
 
     }
@@ -1113,83 +1113,73 @@ public function createPdfButton() {
     }
 
     /**
-     * Get regencies by province code for agency creation
-     * Returns all regencies in the selected province
+     * Get available regencies for agency editing
+     * Returns regencies in the agency's province where divisions exist
      */
-    public function getRegenciesByProvince() {
+    public function getAvailableRegenciesForAgencyEditing() {
         try {
             check_ajax_referer('wp_agency_nonce', 'nonce');
 
-            // Check permission to create agencies
-            if (!current_user_can('add_agency')) {
-                throw new \Exception('Insufficient permissions to create agencies');
+            $agency_id = isset($_POST['agency_id']) ? (int)$_POST['agency_id'] : 0;
+            if (!$agency_id) {
+                throw new \Exception('Agency ID is required');
             }
 
-            $province_code = isset($_POST['province_code']) ? sanitize_text_field($_POST['province_code']) : '';
-            if (empty($province_code)) {
-                throw new \Exception('Province code is required');
+            // Validate access to the agency
+            $access = $this->validator->validateAccess($agency_id);
+            if (!$access['has_access']) {
+                throw new \Exception('You do not have permission to edit this agency');
             }
 
             global $wpdb;
 
-            // Check if wi_regencies table exists and has data
-            $regencies_table = $wpdb->prefix . 'wi_regencies';
-            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$regencies_table'") == $regencies_table;
+            // First get the agency's current regency to include it even if no divisions
+            $agency_regency = $wpdb->get_row($wpdb->prepare("
+                SELECT r.id, r.code, r.name FROM {$wpdb->prefix}wi_regencies r
+                JOIN {$wpdb->prefix}app_agencies a ON a.regency_code = r.code
+                WHERE a.id = %d
+            ", $agency_id));
 
-            if (!$table_exists) {
-                error_log("DEBUG: wi_regencies table does not exist, returning sample data");
-                // Return sample data for testing
-                $sample_regencies = [
-                    ['id' => 1, 'code' => '1101', 'name' => 'Kabupaten Aceh Selatan'],
-                    ['id' => 2, 'code' => '1102', 'name' => 'Kabupaten Aceh Tenggara'],
-                    ['id' => 3, 'code' => '1103', 'name' => 'Kabupaten Aceh Timur'],
-                    ['id' => 4, 'code' => '1104', 'name' => 'Kabupaten Aceh Tengah'],
-                    ['id' => 5, 'code' => '1105', 'name' => 'Kabupaten Aceh Barat'],
-                ];
+            // Debug raw query as per TODO - get available regencies with divisions
+            $available_query = $wpdb->prepare("
+                SELECT r.id, r.code, r.name FROM {$wpdb->prefix}wi_regencies r
+                JOIN {$wpdb->prefix}wi_provinces p ON p.id = r.province_id
+                JOIN {$wpdb->prefix}app_agencies a ON a.provinsi_code = p.code
+                WHERE a.id = %d AND EXISTS (
+                    SELECT 1 FROM {$wpdb->prefix}app_divisions d WHERE d.regency_code = r.code
+                )
+                GROUP BY r.id, r.code, r.name
+            ", $agency_id);
 
-                $regencies = array_map(function($regency) {
-                    return (object) $regency;
-                }, $sample_regencies);
-            } else {
-                // First get the province_id from province_code
-                $province_id = $wpdb->get_var($wpdb->prepare("
-                    SELECT id FROM {$wpdb->prefix}wi_provinces
-                    WHERE code = %s
-                ", $province_code));
+            error_log('DEBUG: Available regencies query: ' . $available_query);
 
-                if (!$province_id) {
-                    throw new \Exception('Province not found');
+            // Execute the query
+            $regencies = $wpdb->get_results($available_query);
+
+            // Include agency's current regency if not already in the list
+            if ($agency_regency) {
+                $exists = false;
+                foreach ($regencies as $regency) {
+                    if ($regency->code === $agency_regency->code) {
+                        $exists = true;
+                        break;
+                    }
                 }
-
-                // Query to get regencies by province_id
-                $regencies = $wpdb->get_results($wpdb->prepare("
-                    SELECT r.id, r.code, r.name
-                    FROM {$wpdb->prefix}wi_regencies r
-                    WHERE r.province_id = %d
-                    ORDER BY r.name ASC
-                ", $province_id));
-
-                // If no regencies found in database, use sample data
-                if (empty($regencies)) {
-                    $sample_regencies = [
-                        ['id' => 1, 'code' => '1101', 'name' => 'Kabupaten Aceh Selatan'],
-                        ['id' => 2, 'code' => '1102', 'name' => 'Kabupaten Aceh Tenggara'],
-                        ['id' => 3, 'code' => '1103', 'name' => 'Kabupaten Aceh Timur'],
-                        ['id' => 4, 'code' => '1104', 'name' => 'Kabupaten Aceh Tengah'],
-                        ['id' => 5, 'code' => '1105', 'name' => 'Kabupaten Aceh Barat'],
-                    ];
-
-                    $regencies = array_map(function($regency) {
-                        return (object) $regency;
-                    }, $sample_regencies);
+                if (!$exists) {
+                    array_unshift($regencies, $agency_regency);
                 }
             }
+
+            // Sort by name
+            usort($regencies, function($a, $b) {
+                return strcmp($a->name, $b->name);
+            });
 
             // Format for select options
             $options = [];
             foreach ($regencies as $regency) {
                 $options[] = [
-                    'value' => $regency->code,
+                    'value' => $regency->code, // Assuming regency has code field, adjust if needed
                     'label' => esc_html($regency->name)
                 ];
             }
