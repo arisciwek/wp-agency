@@ -1,3 +1,43 @@
+# TODO-2152: Add Read Roles to Plugin
+
+## Issue
+Need to add the following roles to the plugin:
+- admin dinas
+- admin unit
+- pengawas
+- pengawas spesialis
+- kepala unit
+- kepala seksi
+- kepala bidang
+- kepala dinas
+
+Per province (agency) must have:
+- 4 pengawas
+- 2 pengawas spesialis
+- 2 kepala unit
+- 2 kepala seksi
+- 2 kepala bidang
+- 1 kepala dinas
+
+If the number of users is insufficient, add users to the respective province.
+
+## Solution
+- Update activator.php to create the new roles
+- Update deactivator.php to remove the new roles
+- Update demo data files to assign roles appropriately
+- Expand AgencyEmployeeUsersData.php to have sufficient users per agency with correct role assignments
+
+## Tasks
+- [x] Update includes/class-activator.php to create the new roles
+- [x] Update includes/class-deactivator.php to remove the new roles
+- [x] Update src/Database/Demo/Data/AgencyUsersData.php to add 'admin dinas' role to all users (multiple roles)
+- [x] Update src/Database/Demo/Data/DivisionUsersData.php to add 'admin unit' role to all users
+- [x] Update src/Database/Demo/Data/AgencyEmployeeUsersData.php to add sufficient users and assign roles per province: 4 pengawas, 2 pengawas spesialis, 2 kepala unit, 2 kepala seksi, 2 kepala bidang, 1 kepala dinas per agency
+- [ ] Test plugin activation/deactivation with new roles
+- [ ] Verify demo data generation assigns roles correctly
+
+---
+
 # TODO-0511: Fix Employee Count Difference on Reload vs Menu Switch
 
 ## Issue

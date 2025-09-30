@@ -52,7 +52,7 @@ class PermissionModel {
         'add_employee' => 'Tambah Karyawan',
         'edit_all_employees' => 'Edit Karyawan',
         'edit_own_employee' => 'Edit Karyawan Sendiri',
-        'delete_employee' => 'Hapus Karyawan'        
+        'delete_employee' => 'Hapus Karyawan'
     ];
 
     // Define base capabilities untuk setiap role beserta nilai default-nya

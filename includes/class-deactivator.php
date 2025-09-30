@@ -119,8 +119,22 @@ class WP_Agency_Deactivator {
                 }
             }
 
-            remove_role('agency');
-            self::debug("Capabilities and agency role removed successfully");
+            $roles_to_remove = [
+                'agency',
+                'admin_dinas',
+                'admin_unit',
+                'pengawas',
+                'pengawas_spesialis',
+                'kepala_unit',
+                'kepala_seksi',
+                'kepala_bidang',
+                'kepala_dinas'
+            ];
+
+            foreach ($roles_to_remove as $role_slug) {
+                remove_role($role_slug);
+            }
+            self::debug("Capabilities and roles removed successfully");
         } catch (\Exception $e) {
             self::debug("Error removing capabilities: " . $e->getMessage());
         }

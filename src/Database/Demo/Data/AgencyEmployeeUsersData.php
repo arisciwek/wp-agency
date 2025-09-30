@@ -32,7 +32,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 1,
             'username' => 'finance_aceh1',
             'display_name' => 'Aditya Pratama',
-            'role' => 'agency',
+            'role' => 'kepala_unit',
             'departments' => [
                 'finance' => true,
                 'operation' => true,
@@ -46,7 +46,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 1,
             'username' => 'legal_aceh1',
             'display_name' => 'Sarah Wijaya',
-            'role' => 'agency',
+            'role' => 'kepala_unit',
             'departments' => [
                 'finance' => false,
                 'operation' => false,
@@ -61,7 +61,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 2,
             'username' => 'finance_aceh2',
             'display_name' => 'Bima Setiawan',
-            'role' => 'agency',
+            'role' => 'kepala_seksi',
             'departments' => [
                 'finance' => true,
                 'operation' => false,
@@ -75,7 +75,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 2,
             'username' => 'operation_aceh2',
             'display_name' => 'Diana Puspita',
-            'role' => 'agency',
+            'role' => 'kepala_seksi',
             'departments' => [
                 'finance' => false,
                 'operation' => true,
@@ -90,7 +90,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 3,
             'username' => 'operation_aceh3',
             'display_name' => 'Eko Wibowo',
-            'role' => 'agency',
+            'role' => 'kepala_bidang',
             'departments' => [
                 'finance' => false,
                 'operation' => true,
@@ -104,12 +104,111 @@ class AgencyEmployeeUsersData {
             'division_id' => 3,
             'username' => 'finance_aceh3',
             'display_name' => 'Fina Sari',
-            'role' => 'agency',
+            'role' => 'kepala_bidang',
             'departments' => [
                 'finance' => true,
                 'operation' => false,
                 'legal' => false,
                 'purchase' => true
+            ]
+        ],
+        // Additional users for Agency 1
+        188 => [
+            'id' => 188,
+            'agency_id' => 1,
+            'division_id' => 1,
+            'username' => 'kepala_dinas_aceh',
+            'display_name' => 'Ahmad Santoso',
+            'role' => 'kepala_dinas',
+            'departments' => [
+                'finance' => false,
+                'operation' => false,
+                'legal' => true,
+                'purchase' => true
+            ]
+        ],
+        189 => [
+            'id' => 189,
+            'agency_id' => 1,
+            'division_id' => 1,
+            'username' => 'pengawas_aceh1',
+            'display_name' => 'Budi Hartono',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        190 => [
+            'id' => 190,
+            'agency_id' => 1,
+            'division_id' => 1,
+            'username' => 'pengawas_aceh2',
+            'display_name' => 'Cici Lestari',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        191 => [
+            'id' => 191,
+            'agency_id' => 1,
+            'division_id' => 1,
+            'username' => 'pengawas_aceh3',
+            'display_name' => 'Dedi Kurniawan',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => false,
+                'legal' => false,
+                'purchase' => true
+            ]
+        ],
+        192 => [
+            'id' => 192,
+            'agency_id' => 1,
+            'division_id' => 1,
+            'username' => 'pengawas_aceh4',
+            'display_name' => 'Elsa Putri',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => false,
+                'legal' => true,
+                'purchase' => true
+            ]
+        ],
+        193 => [
+            'id' => 193,
+            'agency_id' => 1,
+            'division_id' => 1,
+            'username' => 'pengawas_spesialis_aceh1',
+            'display_name' => 'Fajar Nugroho',
+            'role' => 'pengawas_spesialis',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        194 => [
+            'id' => 194,
+            'agency_id' => 1,
+            'division_id' => 1,
+            'username' => 'pengawas_spesialis_aceh2',
+            'display_name' => 'Gina Sari',
+            'role' => 'pengawas_spesialis',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
             ]
         ],
         // Agency 2 (Disnaker Provinsi Sumatera Utara) - Division 1 (Pusat)
@@ -119,7 +218,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 4,
             'username' => 'legal_sumut1',
             'display_name' => 'Gunawan Santoso',
-            'role' => 'agency',
+            'role' => 'kepala_dinas',
             'departments' => [
                 'finance' => false,
                 'operation' => false,
@@ -133,7 +232,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 4,
             'username' => 'finance_sumut1',
             'display_name' => 'Hana Permata',
-            'role' => 'agency',
+            'role' => 'pengawas',
             'departments' => [
                 'finance' => true,
                 'operation' => true,
@@ -191,11 +290,110 @@ class AgencyEmployeeUsersData {
             'division_id' => 6,
             'username' => 'legal_sumut3',
             'display_name' => 'Luna Safitri',
-            'role' => 'agency',
+            'role' => 'pengawas_spesialis',
             'departments' => [
                 'finance' => false,
                 'operation' => false,
                 'legal' => true,
+                'purchase' => true
+            ]
+        ],
+        // Additional users for Agency 2
+        195 => [
+            'id' => 195,
+            'agency_id' => 2,
+            'division_id' => 4,
+            'username' => 'pengawas_spesialis_sumut',
+            'display_name' => 'Hendro Wibowo',
+            'role' => 'pengawas_spesialis',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        196 => [
+            'id' => 196,
+            'agency_id' => 2,
+            'division_id' => 4,
+            'username' => 'kepala_unit_sumut1',
+            'display_name' => 'Ika Sari',
+            'role' => 'kepala_unit',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        197 => [
+            'id' => 197,
+            'agency_id' => 2,
+            'division_id' => 4,
+            'username' => 'kepala_unit_sumut2',
+            'display_name' => 'Joko Santoso',
+            'role' => 'kepala_unit',
+            'departments' => [
+                'finance' => true,
+                'operation' => false,
+                'legal' => false,
+                'purchase' => true
+            ]
+        ],
+        198 => [
+            'id' => 198,
+            'agency_id' => 2,
+            'division_id' => 4,
+            'username' => 'kepala_seksi_sumut1',
+            'display_name' => 'Kartika Dewi',
+            'role' => 'kepala_seksi',
+            'departments' => [
+                'finance' => false,
+                'operation' => false,
+                'legal' => true,
+                'purchase' => true
+            ]
+        ],
+        199 => [
+            'id' => 199,
+            'agency_id' => 2,
+            'division_id' => 4,
+            'username' => 'kepala_seksi_sumut2',
+            'display_name' => 'Lutfi Rahman',
+            'role' => 'kepala_seksi',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        200 => [
+            'id' => 200,
+            'agency_id' => 2,
+            'division_id' => 4,
+            'username' => 'kepala_bidang_sumut1',
+            'display_name' => 'Maya Putri',
+            'role' => 'kepala_bidang',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        201 => [
+            'id' => 201,
+            'agency_id' => 2,
+            'division_id' => 4,
+            'username' => 'kepala_bidang_sumut2',
+            'display_name' => 'Nanda Wijaya',
+            'role' => 'kepala_bidang',
+            'departments' => [
+                'finance' => true,
+                'operation' => false,
+                'legal' => false,
                 'purchase' => true
             ]
         ],

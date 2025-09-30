@@ -57,13 +57,27 @@ class WP_Agency_Activator {
                 return;
             }
 
-            // 3. Create disnaker role first if it doesn't exist
-            if (!get_role('agency')) {
-                add_role(
-                    'agency',
-                    __('Disnaker', 'wp-agency'),
-                    [] // Start with empty capabilities
-                );
+            // 3. Create roles if they don't exist
+            $roles_to_create = [
+                'agency' => __('Disnaker', 'wp-agency'),
+                'admin_dinas' => __('Admin Dinas', 'wp-agency'),
+                'admin_unit' => __('Admin Unit', 'wp-agency'),
+                'pengawas' => __('Pengawas', 'wp-agency'),
+                'pengawas_spesialis' => __('Pengawas Spesialis', 'wp-agency'),
+                'kepala_unit' => __('Kepala Unit', 'wp-agency'),
+                'kepala_seksi' => __('Kepala Seksi', 'wp-agency'),
+                'kepala_bidang' => __('Kepala Bidang', 'wp-agency'),
+                'kepala_dinas' => __('Kepala Dinas', 'wp-agency')
+            ];
+
+            foreach ($roles_to_create as $role_slug => $role_name) {
+                if (!get_role($role_slug)) {
+                    add_role(
+                        $role_slug,
+                        $role_name,
+                        [] // Start with empty capabilities
+                    );
+                }
             }
 
             // 4. Now initialize permission model and add capabilities
