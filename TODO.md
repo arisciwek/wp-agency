@@ -143,3 +143,27 @@ Use hardcoded select elements + AJAX like create form, but show ALL provinces fo
 - [x] Update edit-agency-form.js loadRegenciesByProvince to call new action with agency_id
 - [x] Add debug logging for raw query as requested
 - [x] Test: Edit agency form should only show regencies with divisions in the agency's province
+
+---
+
+# TODO-1955: Update Lokasi Kantor Pusat After Agency Editing
+
+## Issue
+- After successfully editing agency data (changing regency), the _agency_details.php template doesn't refresh to show updated data
+- Data is correctly saved to database, but UI doesn't reflect changes until clicking other menus or rows
+- Need to refresh the template via AJAX after edit
+
+## Root Cause
+- handleUpdated in agency-script.js uses response data from update, but may not have complete updated location data
+- Cache may not be properly invalidated or response may not include joined province/regency names
+
+## Solution
+- Modify handleUpdated to reload agency data via AJAX instead of using response data
+- Ensure cache is properly invalidated after update
+- Add DataTable cache invalidation after agency update
+
+## Tasks
+- [x] Modify handleUpdated in agency-script.js to call loadAgencyData instead of displayData
+- [x] Ensure invalidateAgencyCache is called in AgencyController update method (already present)
+- [x] Add DataTable cache invalidation in handleUpdated
+- [x] Test: Edit agency regency, verify _agency_details.php updates immediately without page reload

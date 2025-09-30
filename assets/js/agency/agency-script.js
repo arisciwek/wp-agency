@@ -589,20 +589,21 @@
         handleUpdated(response) {
             if (response && response.data && response.data.agency) {
                 const editedAgencyId = response.data.agency.id;
-                
-                if (editedAgencyId === parseInt(window.location.hash.substring(1))) {
+                const currentAgencyId = parseInt(window.location.hash.substring(1));
+
+                if (editedAgencyId === currentAgencyId) {
                     // Jika agency yang diedit sama dengan yang sedang dilihat
-                    // Langsung update panel tanpa mengubah hash
-                    this.displayData(response.data);
+                    // Reload data via AJAX untuk memastikan data terbaru
+                    this.loadAgencyData(editedAgencyId);
                 } else {
                     // Jika berbeda, ubah hash ke agency yang diedit
                     window.location.hash = editedAgencyId;
                 }
-                
-                // Refresh DataTable
-                //if (window.AgencyDataTable) {
-                //    window.AgencyDataTable.refresh();
-                //}
+
+                // Refresh DataTable setelah update
+                if (window.AgencyDataTable) {
+                    window.AgencyDataTable.refresh();
+                }
 
             }
         },
