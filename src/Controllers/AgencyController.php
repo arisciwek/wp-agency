@@ -996,19 +996,24 @@ public function createPdfButton() {
     public function getStats() {
         try {
             check_ajax_referer('wp_agency_nonce', 'nonce');
-            
+
             // Get agency_id from query param
             $agency_id = isset($_POST['id']) ? intval($_POST['id']) : 0;
             $current_user_id = get_current_user_id();
-            
+
+            // For global stats (agency_id = 0), use cache key without user_id since permissions don't affect global counts
+            $cache_key = 'agency_stats_' . $agency_id;
+            if ($agency_id > 0) {
+                $cache_key .= '_' . $current_user_id;
+            }
+
             // Check cache first
-            $cache_key = 'agency_stats_' . $agency_id . '_' . $current_user_id;
             $cached_stats = $this->cache->get($cache_key);
             if ($cached_stats !== null) {
                 wp_send_json_success($cached_stats);
                 return;
             }
-            
+
             // Validate access if agency_id provided
             if ($agency_id) {
                 $access = $this->validator->validateAccess($agency_id);
@@ -1016,18 +1021,18 @@ public function createPdfButton() {
                     throw new \Exception('You do not have permission to view this agency');
                 }
             }
-            
+
         $stats = [
-            'total_agencies' => $this->model->getTotalCount(),
-            'total_divisions' => $this->divisionModel->getTotalCount($agency_id),
+            'total_agencies' => $this->model->getTotalCountUnrestricted(),
+            'total_divisions' => $this->divisionModel->getTotalCountUnrestricted(),
             'total_employees' => $this->employeeModel->getTotalCount($agency_id)
         ];
-            
+
             // Cache for 5 minutes
             $this->cache->set($cache_key, $stats, 5 * MINUTE_IN_SECONDS);
-            
+
             wp_send_json_success($stats);
-            
+
         } catch (\Exception $e) {
             wp_send_json_error([
                 'message' => $e->getMessage()

@@ -197,7 +197,15 @@ class DivisionModel {
             return null;
         }
 
-        return (int) $wpdb->insert_id;
+        $new_id = (int) $wpdb->insert_id;
+
+        // Invalidate unrestricted count cache
+        $this->cache->delete('division_total_count_unrestricted');
+
+        // Invalidate dashboard stats cache
+        $this->cache->delete('agency_stats_0');
+
+        return $new_id;
     }
 
     public function find(int $id): ?object {
@@ -287,11 +295,21 @@ class DivisionModel {
     public function delete(int $id): bool {
         global $wpdb;
 
-        return $wpdb->delete(
+        $result = $wpdb->delete(
             $this->table,
             ['id' => $id],
             ['%d']
         ) !== false;
+
+        if ($result) {
+            // Invalidate unrestricted count cache
+            $this->cache->delete('division_total_count_unrestricted');
+
+            // Invalidate dashboard stats cache
+            $this->cache->delete('agency_stats_0');
+        }
+
+        return $result;
     }
 
     public function existsByNameInAgency(string $name, int $agency_id, ?int $excludeId = null): bool {
@@ -394,27 +412,27 @@ class DivisionModel {
     /**
      * Get total division count based on user permission
      * Only users with 'view_division_list' capability can see all divisions
-     * 
+     *
      * @param int|null $id Optional agency ID for filtering
      * @return int Total number of divisions
      */
     public function getTotalCount($agency_id): int {
         global $wpdb;
-        
+
         $current_user_id = get_current_user_id();
         $cache_key = 'division_total_count_' . $agency_id . '_' . $current_user_id;
-        
+
         // Cek cache terlebih dahulu
         $cached_count = $this->cache->get($cache_key);
         if ($cached_count !== null) {
             return (int) $cached_count;
         }
-        
+
         // Base query parts
         $select = "SELECT SQL_CALC_FOUND_ROWS r.*, p.name as agency_name";
         $from = " FROM {$this->table} r";
         $join = " LEFT JOIN {$this->agency_table} p ON r.agency_id = p.id";
-        
+
         // Default where clause
         $where = " WHERE 1=1";
         $params = [];
@@ -437,16 +455,40 @@ class DivisionModel {
         // Complete query
         $query = $select . $from . $join . $where;
         $final_query = !empty($params) ? $wpdb->prepare($query, $params) : $query;
-        
+
         // Execute query
         $wpdb->get_results($final_query);
-        
+
         // Get total
         $total = (int) $wpdb->get_var("SELECT FOUND_ROWS()");
-        
+
         // Simpan ke cache - 10 menit
         $this->cache->set($cache_key, $total, 10 * MINUTE_IN_SECONDS);
-        
+
+        return $total;
+    }
+
+    /**
+     * Get total division count without permission restrictions
+     * Used for dashboard statistics that should show global totals
+     *
+     * @return int Total number of divisions in database
+     */
+    public function getTotalCountUnrestricted(): int {
+        global $wpdb;
+
+        // Check cache first
+        $cached_total = $this->cache->get('division_total_count_unrestricted');
+        if ($cached_total !== null) {
+            return (int) $cached_total;
+        }
+
+        // Simple count query without any restrictions
+        $total = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$this->table}");
+
+        // Cache for 5 minutes
+        $this->cache->set('division_total_count_unrestricted', $total, 300);
+
         return $total;
     }
     

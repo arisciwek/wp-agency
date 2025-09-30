@@ -167,3 +167,31 @@ Use hardcoded select elements + AJAX like create form, but show ALL provinces fo
 - [x] Ensure invalidateAgencyCache is called in AgencyController update method (already present)
 - [x] Add DataTable cache invalidation in handleUpdated
 - [x] Test: Edit agency regency, verify _agency_details.php updates immediately without page reload
+
+---
+
+# TODO-2016: Fix Dashboard Data Not Matching Database
+
+## Issue
+- Dashboard statistics (total agencies, divisions, employees) do not match actual database counts
+- Counts are restricted by user permissions, showing only user's own data instead of global totals
+- When divisions/agencies are deleted, dashboard counts don't update due to cache not being invalidated
+
+## Root Cause
+- getTotalCount() methods in AgencyModel and DivisionModel apply permission restrictions
+- For dashboard stats, global totals should be shown without restrictions
+- Cache invalidation for unrestricted counts not implemented in CRUD operations
+
+## Solution
+- Add getTotalCountUnrestricted() methods to AgencyModel and DivisionModel
+- Modify AgencyController::getStats() to use unrestricted counts for dashboard
+- Add cache invalidation for unrestricted counts in create/update/delete operations
+
+## Tasks
+- [x] Add getTotalCountUnrestricted() method to AgencyModel
+- [x] Add getTotalCountUnrestricted() method to DivisionModel
+- [x] Modify AgencyController::getStats() to use unrestricted methods
+- [x] Add cache invalidation for unrestricted counts in AgencyModel CRUD operations
+- [x] Add cache invalidation for unrestricted counts in DivisionModel CRUD operations
+- [x] Add cache invalidation for global employee count in AgencyEmployeeModel CRUD operations
+- [x] Test: Dashboard shows correct global totals matching database and updates on CRUD operations

@@ -81,6 +81,8 @@ class AgencyEmployeeModel {
         // Invalidasi cache terkait agency_employee
         $this->cache->delete('agency_active_employee_count', (string)$data['agency_id']);
         $this->cache->delete('agency_employee_count', (string)$data['agency_id']);
+        // Also invalidate global employee count cache
+        $this->cache->delete('agency_employee_count');
         $this->cache->delete('division_agency_employee_list', (string)$data['division_id']);
         $this->cache->invalidateDataTableCache('agency_employee_list', [
             'agency_id' => $data['agency_id']
@@ -170,13 +172,17 @@ class AgencyEmployeeModel {
         $this->cache->delete('agency_employee', $id);
         $this->cache->delete('agency_employee_count', (string)$agency_id);
         $this->cache->delete('agency_active_employee_count', (string)$agency_id);
-        
+        // Also invalidate global employee count cache
+        $this->cache->delete('agency_employee_count');
+        // Invalidate dashboard stats cache
+        $this->cache->delete('agency_stats_0');
+
         // Invalidasi cache divisi lama dan baru jika berbeda
         $this->cache->delete('division_agency_employee_list', (string)$old_division_id);
         if ($old_division_id != $new_division_id) {
             $this->cache->delete('division_agency_employee_list', (string)$new_division_id);
         }
-        
+
         // Invalidasi cache datatable
         $this->cache->invalidateDataTableCache('agency_employee_list', [
             'agency_id' => $agency_id
@@ -193,7 +199,7 @@ class AgencyEmployeeModel {
         if (!$employee) {
             return false;
         }
-        
+
         $agency_id = $employee->agency_id;
         $division_id = $employee->division_id;
 
@@ -211,6 +217,10 @@ class AgencyEmployeeModel {
         $this->cache->delete('agency_employee', $id);
         $this->cache->delete('agency_employee_count', (string)$agency_id);
         $this->cache->delete('agency_active_employee_count', (string)$agency_id);
+        // Also invalidate global employee count cache
+        $this->cache->delete('agency_employee_count');
+        // Invalidate dashboard stats cache
+        $this->cache->delete('agency_stats_0');
         $this->cache->delete('division_agency_employee_list', (string)$division_id);
         $this->cache->invalidateDataTableCache('agency_employee_list', [
             'agency_id' => $agency_id

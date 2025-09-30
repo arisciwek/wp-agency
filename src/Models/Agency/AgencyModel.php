@@ -252,9 +252,15 @@
 
         $new_id = (int) $wpdb->insert_id;
         error_log('AgencyModel::create() - Insert successful. New ID: ' . $new_id);
-        
+
         $this->cache->invalidateAgencyCache($new_id);
-        
+
+        // Invalidate unrestricted count cache
+        $this->cache->delete('agency_total_count_unrestricted');
+
+        // Invalidate dashboard stats cache
+        $this->cache->delete('agency_stats_0');
+
         return $new_id;
     }
 
@@ -513,11 +519,17 @@
         if ($result !== false) {
             // Clear all related cache
             $this->cache->invalidateAgencyCache($id);
-            
+
             // If agency had a user_id, clear that user's cache too
             if (!empty($agency->user_id)) {
                 $this->cache->delete('user_agencies', $agency->user_id);
             }
+
+            // Invalidate unrestricted count cache
+            $this->cache->delete('agency_total_count_unrestricted');
+
+            // Invalidate dashboard stats cache
+            $this->cache->delete('agency_stats_0');
 
             return true;
         }
@@ -685,6 +697,30 @@
             error_log('Error in getAllAgencyIds: ' . $e->getMessage());
             return [];
         }
+    }
+
+    /**
+     * Get total agency count without permission restrictions
+     * Used for dashboard statistics that should show global totals
+     *
+     * @return int Total number of agencies in database
+     */
+    public function getTotalCountUnrestricted(): int {
+        global $wpdb;
+
+        // Check cache first
+        $cached_total = $this->cache->get('agency_total_count_unrestricted');
+        if ($cached_total !== null) {
+            return (int) $cached_total;
+        }
+
+        // Simple count query without any restrictions
+        $total = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$this->table}");
+
+        // Cache for 5 minutes
+        $this->cache->set('agency_total_count_unrestricted', $total, 300);
+
+        return $total;
     }
 
     // Di AgencyModel.php
