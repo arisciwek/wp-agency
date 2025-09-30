@@ -220,6 +220,7 @@ class AgencyCacheManager {
 
     /**
      * Get cached DataTable data
+     * Note: DataTable caching is disabled to prevent stale responses
      */
     public function getDataTableCache(
         string $context,
@@ -231,38 +232,8 @@ class AgencyCacheManager {
         string $orderDir,
         ?array $additionalParams = null
     ) {
-        // Validate required parameters
-        if (empty($context) || !$access_type || !is_numeric($start) || !is_numeric($length)) {
-            $this->debug_log('Invalid parameters in getDataTableCache');
-            return null;
-        }
-        
-        try {
-            // Build components untuk kunci cache
-            $components = [
-                $context,         // context specific (agency_list, division_list, etc)
-                (string)$access_type,
-                (string)$start,
-                (string)$length,
-                md5($search),
-                (string)$orderColumn,
-                (string)$orderDir
-            ];
-
-            // Add additional parameters if provided
-            if ($additionalParams) {
-                foreach ($additionalParams as $key => $value) {
-                    $components[] = $key . '_' . md5(serialize($value));
-                }
-            }
-
-            // Gunakan 'datatable' sebagai type, components lainnya sebagai komponen kunci
-            return $this->get('datatable', ...$components);
-
-        } catch (\Exception $e) {
-            $this->debug_log("Error getting datatable data for context {$context}: " . $e->getMessage());
-            return null;
-        }
+        // DataTable caching is disabled - always return null to force fresh data
+        return null;
     }
 
     /**

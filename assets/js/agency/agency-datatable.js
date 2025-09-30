@@ -78,6 +78,8 @@
                 ajax: {
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
+                    cache: false,
+                    timeout: 10000,
                     data: (d) => {
                         return {
                             ...d,
@@ -86,7 +88,7 @@
                         };
                     },
                     error: (xhr, error, thrown) => {
-                        console.error('DataTables Error:', error);
+                        console.error('DataTables Error:', error, thrown);
                         AgencyToast.error('Gagal memuat data agency');
                     }
                 },
@@ -164,8 +166,8 @@
                      .on('hashchange.agencyTable', () => this.handleHashChange());
 
              // CRUD event listeners
-             $(document).off('agency:created.datatable agency:updated.datatable agency:deleted.datatable')
-                       .on('agency:created.datatable agency:updated.datatable agency:deleted.datatable',
+             $(document).off('agency:created.datatable agency:updated.datatable agency:deleted.datatable agency:created agency:updated agency:deleted')
+                       .on('agency:created agency:updated agency:deleted',
                            () => this.refresh());
          },
 

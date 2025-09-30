@@ -99,3 +99,27 @@ Use hardcoded select elements + AJAX like create form, but show ALL provinces fo
 - [x] Change init to always reinitialize for fresh data
 - [x] Disable DataTable caching in AgencyCacheManager to prevent stale responses
 - [x] Test: Switch from Staff to other tab then back to Staff, verify spinner hides and data loads
+
+---
+
+# TODO: Fix DataTable Not Refreshing After Agency Edit
+
+## Issue
+- After successfully editing and saving agency data, the DataTable still shows the old agency name
+- Spinning icon with "Memproses..." message persists indefinitely
+- Data is correctly saved to database, but UI doesn't reflect changes
+
+## Root Cause
+- DataTable cache is not invalidated after agency update
+- Cached DataTable response contains old data
+- Possible AJAX timeout or error in refresh causing spinner to hang
+
+## Solution
+- Invalidate DataTable cache in AgencyController update method
+- Ensure refresh() properly reloads data and hides spinner
+- Add error handling for DataTable refresh
+
+## Tasks
+- [x] Add $this->cache->invalidateDataTableCache('agency_list'); in AgencyController update method (already present)
+- [x] Check and fix DataTable refresh in agency-datatable.js (fixed event name mismatch)
+- [x] Test: Edit agency name, submit, verify DataTable updates and spinner hides (fixed caching issue)

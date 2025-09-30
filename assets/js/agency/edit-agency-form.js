@@ -274,6 +274,11 @@
                 // User Assignment (Admin only)
                 const $userSelect = this.form.find('#edit-user');
                 if ($userSelect.length && agency.user_id) {
+                    // Check if the current agency's user is in the options
+                    if ($userSelect.find('option[value="' + agency.user_id + '"]').length === 0) {
+                        // Add the user option if not present
+                        $userSelect.append('<option value="' + agency.user_id + '">' + (agency.owner_name || 'Unknown User') + '</option>');
+                    }
                     $userSelect.val(agency.user_id);
                 }
 
@@ -531,13 +536,15 @@
 
                 if (response.success) {
                     AgencyToast.success('Agency berhasil diperbarui');
+
+                    // Trigger update event before hiding modal
+                    $(document).trigger('agency:updated', [response]);
+
                     this.hideModal();
 
                     if (id) {
                         window.location.hash = id;
                     }
-
-                    $(document).trigger('agency:updated', [response]);
                 } else {
                     AgencyToast.error(response.data?.message || 'Gagal memperbarui agency');
                 }
