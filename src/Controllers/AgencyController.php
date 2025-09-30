@@ -184,8 +184,6 @@ public function createPdfButton() {
                 'total_divisiones' => $agency->division_count,
                 'created_date' => date('d F Y H:i', strtotime($agency->created_at)),
                 'updated_date' => date('d F Y H:i', strtotime($agency->updated_at)),
-                'npwp' => $agency->npwp ?? '-',
-                'nib' => $agency->nib ?? '-',
                 'generated_date' => date('d F Y H:i')
             ];
 
@@ -241,8 +239,6 @@ public function createPdfButton() {
                 'total_divisiones' => $agency->division_count,
                 'created_date' => date('d F Y H:i', strtotime($agency->created_at)),
                 'updated_date' => date('d F Y H:i', strtotime($agency->updated_at)),
-                'npwp' => $agency->npwp ?? '-',
-                'nib' => $agency->nib ?? '-',
                 'generated_date' => date('d F Y H:i')
             ];
 
@@ -688,8 +684,6 @@ public function createPdfButton() {
 
             $data = [
                 'name' => sanitize_text_field($_POST['name']),
-                'npwp' => isset($_POST['npwp']) ? sanitize_text_field($_POST['npwp']) : null,
-                'nib' => isset($_POST['nib']) ? sanitize_text_field($_POST['nib']) : null,
                 'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
                 'provinsi_code' => isset($_POST['provinsi_code']) ? sanitize_text_field($_POST['provinsi_code']) : null,
                 'regency_code' => isset($_POST['regency_code']) ? sanitize_text_field($_POST['regency_code']) : null,
@@ -757,8 +751,6 @@ public function createPdfButton() {
             // 2. Prepare update data
             $data = [
                 'name' => sanitize_text_field($_POST['name']),
-                'npwp' => !empty($_POST['npwp']) ? sanitize_text_field($_POST['npwp']) : null,
-                'nib' => !empty($_POST['nib']) ? sanitize_text_field($_POST['nib']) : null,
                 'status' => !empty($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
                 'provinsi_code' => !empty($_POST['provinsi_code']) ? sanitize_text_field($_POST['provinsi_code']) : null,
                 'regency_code' => !empty($_POST['regency_code']) ? sanitize_text_field($_POST['regency_code']) : null

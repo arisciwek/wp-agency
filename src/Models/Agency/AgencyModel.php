@@ -208,8 +208,6 @@
         $insert_data = [
             'code' => $data['code'],
             'name' => $data['name'],
-            'npwp' => $data['npwp'] ?? null,
-            'nib' => $data['nib'] ?? null,
             'status' => $data['status'] ?? 'active',
             'user_id' => $data['user_id'],
             'provinsi_code' => $data['provinsi_code'] ?? null,
@@ -226,8 +224,6 @@
         $format = [
             '%s',  // code
             '%s',  // name
-            '%s',  // npwp (nullable)
-            '%s',  // nib (nullable)
             '%s',  // status
             '%d',  // user_id
             '%s',  // provinsi_code (nullable)
@@ -296,14 +292,11 @@
         global $wpdb;
 
         $updateData = array_merge($data, ['updated_at' => current_time('mysql')]);
-        
-        // Remove null values but keep empty strings for NPWP and NIB
-        $updateData = array_filter($updateData, function($value, $key) {
-            if ($key === 'npwp' || $key === 'nib') {
-                return $value !== null;
-            }
+
+        // Remove null values
+        $updateData = array_filter($updateData, function($value) {
             return $value !== null;
-        }, ARRAY_FILTER_USE_BOTH);
+        });
 
         $formats = [];
         foreach ($updateData as $key => $value) {
@@ -626,32 +619,7 @@
         return $exists;
     }
 
-    // Tambah method helper
-    public function existsByNPWP($npwp, $excludeId = null): bool 
-    {
-        global $wpdb;
-        
-        if ($excludeId) {
-            $sql = "SELECT EXISTS (SELECT 1 FROM {$this->table} WHERE npwp = %s AND id != %d)";
-            return (bool)$wpdb->get_var($wpdb->prepare($sql, $npwp, $excludeId));
-        } else {
-            $sql = "SELECT EXISTS (SELECT 1 FROM {$this->table} WHERE npwp = %s)";
-            return (bool)$wpdb->get_var($wpdb->prepare($sql, $npwp));
-        }
-    }
 
-    public function existsByNIB($nib, $excludeId = null): bool
-    {
-        global $wpdb;
-        
-        if ($excludeId) {
-            $sql = "SELECT EXISTS (SELECT 1 FROM {$this->table} WHERE nib = %s AND id != %d)";
-            return (bool)$wpdb->get_var($wpdb->prepare($sql, $nib, $excludeId));
-        } else {
-            $sql = "SELECT EXISTS (SELECT 1 FROM {$this->table} WHERE nib = %s)";
-            return (bool)$wpdb->get_var($wpdb->prepare($sql, $nib));
-        }
-    }
 
     /**
      * Get all active agency IDs with cache implementation

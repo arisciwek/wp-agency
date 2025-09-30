@@ -62,14 +62,6 @@ class APIController {
                         'required' => true,
                         'type' => 'string',
                         'sanitize_callback' => 'sanitize_text_field'
-                    ],
-                    'npwp' => [
-                        'type' => 'string',
-                        'sanitize_callback' => 'sanitize_text_field'
-                    ],
-                    'nib' => [
-                        'type' => 'string',
-                        'sanitize_callback' => 'sanitize_text_field'  
                     ]
                 ]
             ]
@@ -230,8 +222,6 @@ class APIController {
         try {
             $data = [
                 'name' => $request->get_param('name'),
-                'npwp' => $request->get_param('npwp'),
-                'nib' => $request->get_param('nib'),
                 'created_by' => get_current_user_id()
             ];
 
@@ -264,10 +254,8 @@ class APIController {
             $data = [];
 
             // Only update provided fields
-            foreach (['name', 'npwp', 'nib'] as $field) {
-                if ($request->has_param($field)) {
-                    $data[$field] = $request->get_param($field);
-                }
+            if ($request->has_param('name')) {
+                $data['name'] = $request->get_param('name');
             }
 
             $model = new \WPAgency\Models\Agency\AgencyModel();

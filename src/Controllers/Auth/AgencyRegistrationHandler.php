@@ -41,21 +41,12 @@ class AgencyRegistrationHandler {
         $email = sanitize_email($_POST['email']);
         $password = $_POST['password'];
         $name = sanitize_text_field($_POST['name']);
-        $nib = sanitize_text_field($_POST['nib']);
-        $npwp = $this->format_npwp(sanitize_text_field($_POST['npwp']));
 
         // Validasi dasar
-        if (empty($username) || empty($email) || empty($password) || 
-            empty($name) || empty($nib) || empty($npwp)) {
+        if (empty($username) || empty($email) || empty($password) ||
+            empty($name)) {
             wp_send_json_error([
                 'message' => __('Semua field wajib diisi.', 'wp-agency')
-            ]);
-        }
-
-        // Validasi format NPWP
-        if (!$this->validate_npwp($npwp)) {
-            wp_send_json_error([
-                'message' => __('Format NPWP tidak valid.', 'wp-agency')
             ]);
         }
 
@@ -72,29 +63,9 @@ class AgencyRegistrationHandler {
             ]);
         }
 
-        // Cek NIB dan NPWP di database
+        // Cek username dan email
         global $wpdb;
         $table_name = $wpdb->prefix . 'app_agencies';
-        
-        $existing_nib = $wpdb->get_var(
-            $wpdb->prepare("SELECT id FROM $table_name WHERE nib = %s", $nib)
-        );
-        
-        if ($existing_nib) {
-            wp_send_json_error([
-                'message' => __('NIB sudah terdaftar.', 'wp-agency')
-            ]);
-        }
-
-        $existing_npwp = $wpdb->get_var(
-            $wpdb->prepare("SELECT id FROM $table_name WHERE npwp = %s", $npwp)
-        );
-        
-        if ($existing_npwp) {
-            wp_send_json_error([
-                'message' => __('NPWP sudah terdaftar.', 'wp-agency')
-            ]);
-        }
 
         // Buat user WordPress
         $user_id = wp_create_user($username, $password, $email);
@@ -116,8 +87,6 @@ class AgencyRegistrationHandler {
         $agency_data = [
             'code' => $code,
             'name' => $name,
-            'nib' => $nib,
-            'npwp' => $npwp,
             'user_id' => $user_id,
             'created_by' => $user_id
         ];
@@ -144,27 +113,7 @@ class AgencyRegistrationHandler {
         ]);
     }
 
-    private function format_npwp($npwp) {
-        // Remove non-digits
-        $numbers = preg_replace('/\D/', '', $npwp);
-        
-        // Format to XX.XXX.XXX.X-XXX.XXX
-        if (strlen($numbers) === 15) {
-            return substr($numbers, 0, 2) . '.' .
-                   substr($numbers, 2, 3) . '.' .
-                   substr($numbers, 5, 3) . '.' .
-                   substr($numbers, 8, 1) . '-' .
-                   substr($numbers, 9, 3) . '.' .
-                   substr($numbers, 12, 3);
-        }
-        
-        return $npwp;
-    }
 
-    private function validate_npwp($npwp) {
-        // Check if NPWP matches the format: XX.XXX.XXX.X-XXX.XXX
-        return (bool) preg_match('/^\d{2}\.\d{3}\.\d{3}\.\d{1}\-\d{3}\.\d{3}$/', $npwp);
-    }
 
     private function generate_agency_code() {
         global $wpdb;

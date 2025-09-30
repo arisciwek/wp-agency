@@ -72,27 +72,7 @@ class AgencyValidator {
             $errors['name'] = __('Nama agency sudah ada.', 'wp-agency');
         }
 
-        // NPWP validation (optional)
-        if (!empty($data['npwp'])) {
-            $npwp = trim($data['npwp']);
-            if (!preg_match('/^\d{2}\.\d{3}\.\d{3}\.\d{1}-\d{3}\.\d{3}$/', $npwp)) {
-                $errors['npwp'] = __('Format NPWP tidak valid.', 'wp-agency');
-            }
-            if ($this->model->existsByNPWP($data['npwp'], $id)) {
-                $errors['npwp'] = __('NPWP sudah terdaftar.', 'wp-agency');
-            }
-        }
 
-        // NIB validation (optional)
-        if (!empty($data['nib'])) {
-            $nib = trim($data['nib']);
-            if (!preg_match('/^\d{13}$/', $nib)) {
-                $errors['nib'] = __('Format NIB tidak valid.', 'wp-agency');
-            }
-            if ($this->model->existsByNIB($data['nib'], $id)) {
-                $errors['nib'] = __('NIB sudah terdaftar.', 'wp-agency');
-            }
-        }
 
         return $errors;
     }

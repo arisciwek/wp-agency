@@ -91,25 +91,7 @@ defined('ABSPATH') || exit;
                 <p class="description"><?php _e('Nama ini akan digunakan sebagai identitas agency', 'wp-agency'); ?></p>
             </div>
 
-            <!-- NIB -->
-            <div class="form-group">
-                <label for="nib">Nomor Induk Berusaha (NIB) <span class="required">*</span></label>
-                <input type="text" 
-                       id="nib" 
-                       name="nib" 
-                       class="regular-text" 
-                       required>
-            </div>
 
-            <!-- NPWP -->
-            <div class="form-group">
-                <label for="npwp">NPWP <span class="required">*</span></label>
-                <input type="text" 
-                       id="npwp" 
-                       name="npwp" 
-                       class="regular-text" 
-                       required>
-            </div>
         </div>
     </div>
 	<div class="wp-agency-submit clearfix">

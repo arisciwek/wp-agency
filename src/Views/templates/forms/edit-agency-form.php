@@ -59,30 +59,7 @@ error_log('Regency select hook exists: ' . (has_action('wilayah_indonesia_regenc
                                    maxlength="100" 
                                    required>
                         </div>
-                        <div class="wp-agency-form-group">
-                            <label for="edit-npwp">
-                                <?php _e('NPWP', 'wp-agency'); ?>
-                            </label>
-                            <input type="text" 
-                                   id="edit-npwp" 
-                                   name="npwp" 
-                                   class="regular-text"
-                                   placeholder="00.000.000.0-000.000"
-                                   autocomplete="off">
-                            <span class="field-description">
-                                <?php _e('Format: 00.000.000.0-000.000', 'wp-agency'); ?>
-                            </span>
-                        </div>
-                        <div class="wp-agency-form-group">
-                            <label for="edit-nib">
-                                <?php _e('NIB', 'wp-agency'); ?>
-                            </label>
-                            <input type="text" 
-                                   id="edit-nib" 
-                                   name="nib" 
-                                   class="regular-text" 
-                                   maxlength="20">
-                        </div>
+
 
                         <div class="wp-agency-form-group">
                             <label for="edit-status" class="required-field">

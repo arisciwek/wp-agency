@@ -34,18 +34,8 @@
         },
 
         bindEvents() {
-            // NPWP formatter
-            $('#npwp').on('input', this.formatNPWP);
-            
             // Form submission
             this.form.on('submit', this.handleSubmit.bind(this));
-        },
-
-        formatNPWP(e) {
-            let value = $(this).val().replace(/\D/g, '');
-            if (value.length > 15) value = value.substr(0, 15);
-            value = value.replace(/(\d{2})(\d{3})(\d{3})(\d{1})(\d{3})(\d{3})/, '$1.$2.$3.$4-$5.$6');
-            $(this).val(value);
         },
 
         handleSubmit(e) {

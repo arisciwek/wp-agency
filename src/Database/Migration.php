@@ -195,4 +195,65 @@ class Migration {
 
         self::debug("Jurisdictions table migration completed");
     }
+
+    /**
+     * Run migration to remove unused npwp and nib fields from agencies table
+     */
+    public static function runRemoveUnusedFieldsMigration() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'app_agencies';
+
+        try {
+            $wpdb->query('START TRANSACTION');
+            self::debug("Starting removal of unused npwp and nib fields...");
+
+            // Check and drop npwp column
+            $has_npwp = false;
+            $columns = $wpdb->get_results("DESCRIBE {$table}");
+            foreach ($columns as $column) {
+                if ($column->Field === 'npwp') {
+                    $has_npwp = true;
+                    break;
+                }
+            }
+
+            if ($has_npwp) {
+                $wpdb->query("ALTER TABLE {$table} DROP COLUMN npwp");
+                self::debug("Dropped npwp column");
+            }
+
+            // Check and drop nib column
+            $has_nib = false;
+            $columns = $wpdb->get_results("DESCRIBE {$table}");
+            foreach ($columns as $column) {
+                if ($column->Field === 'nib') {
+                    $has_nib = true;
+                    break;
+                }
+            }
+
+            if ($has_nib) {
+                $wpdb->query("ALTER TABLE {$table} DROP COLUMN nib");
+                self::debug("Dropped nib column");
+            }
+
+            // Remove unique indexes for npwp and nib
+            $indexes = $wpdb->get_results("SHOW INDEX FROM {$table} WHERE Column_name IN ('npwp', 'nib')");
+            foreach ($indexes as $index) {
+                if ($index->Key_name === 'npwp' || $index->Key_name === 'nib') {
+                    $wpdb->query("ALTER TABLE {$table} DROP INDEX {$index->Key_name}");
+                    self::debug("Dropped index {$index->Key_name}");
+                }
+            }
+
+            self::debug("Removal of unused npwp and nib fields completed successfully.");
+            $wpdb->query('COMMIT');
+            return true;
+
+        } catch (\Exception $e) {
+            $wpdb->query('ROLLBACK');
+            self::debug('Removal of unused fields failed: ' . $e->getMessage());
+            throw $e;
+        }
+    }
 }

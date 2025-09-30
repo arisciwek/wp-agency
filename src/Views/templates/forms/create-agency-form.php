@@ -49,21 +49,7 @@ defined('ABSPATH') || exit;
                             <span class="field-hint"><?php _e('Masukkan nama lengkap disnaker', 'wp-agency'); ?></span>
                         </div>
 
-                        <div class="wp-agency-form-group">
-                            <label for="agency-npwp">
-                                <?php _e('NPWP', 'wp-agency'); ?>
-                            </label>
-                            <input type="text" id="agency-npwp" name="npwp" placeholder="00.000.000.0-000.000">
-                            <span class="field-hint"><?php _e('Format: 00.000.000.0-000.000', 'wp-agency'); ?></span>
-                        </div>
 
-                        <div class="wp-agency-form-group">
-                            <label for="agency-nib">
-                                <?php _e('NIB', 'wp-agency'); ?>
-                            </label>
-                            <input type="text" id="agency-nib" name="nib" maxlength="13">
-                            <span class="field-hint"><?php _e('Nomor Induk Berusaha (13 digit)', 'wp-agency'); ?></span>
-                        </div>
 
                         <div class="wp-agency-form-group">
                             <label for="agency-status" class="required-field">

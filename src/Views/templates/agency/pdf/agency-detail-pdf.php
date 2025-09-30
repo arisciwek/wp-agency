@@ -115,18 +115,7 @@ defined('ABSPATH') || exit;
             <td class="label">Last Updated</td>
             <td class="value">: <?php echo date('d F Y H:i', strtotime($agency->updated_at)); ?></td>
         </tr>
-        <?php if (!empty($agency->npwp)): ?>
-        <tr>
-            <td class="label">NPWP</td>
-            <td class="value">: <?php echo esc_html($agency->npwp); ?></td>
-        </tr>
-        <?php endif; ?>
-        <?php if (!empty($agency->nib)): ?>
-        <tr>
-            <td class="label">NIB</td>
-            <td class="value">: <?php echo esc_html($agency->nib); ?></td>
-        </tr>
-        <?php endif; ?>
+
     </table>
 
     <htmlpagefooter name="footer">

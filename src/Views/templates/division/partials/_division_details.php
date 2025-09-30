@@ -53,14 +53,7 @@ defined('ABSPATH') || exit;
                         <th><?php _e('Kode Agency', 'wp-agency'); ?></th>
                         <td><span id="agency-code"></span></td>
                     </tr>
-                    <tr>
-                        <th><?php _e('NPWP', 'wp-agency'); ?></th>
-                        <td><span id="agency-npwp"></span></td>
-                    </tr>
-                    <tr>
-                        <th><?php _e('NIB', 'wp-agency'); ?></th>
-                        <td><span id="agency-nib"></span></td>
-                    </tr>
+
                     <tr>
                         <th><?php _e('Status', 'wp-agency'); ?></th>
                         <td><span id="agency-status" class="status-badge"></span></td>

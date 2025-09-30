@@ -31,8 +31,6 @@ class AgencyDemoData extends AbstractDemoData {
     private static $user_ids = [];
     private static $used_emails = [];
     public $used_names = [];
-    public $used_npwp = [];
-    public $used_nib = [];
     protected $agency_users = [];
     private $agencyController;
 
@@ -207,8 +205,6 @@ class AgencyDemoData extends AbstractDemoData {
                     'id' => $agency['id'],
                     'code' => $this->agencyModel->generateAgencyCode(),
                     'name' => $agency['name'],
-                    'npwp' => $this->generateNPWP(),
-                    'nib' => $this->generateNIB(),
                     'status' => 'active',
                     'provinsi_code' => $provinsi_code ?: null,
                     'regency_code' => $regency_code ?: null,

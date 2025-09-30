@@ -47,55 +47,10 @@
 
             this.bindEvents();
             this.initializeValidation();
-            this.setupNPWPInput();
 
         },
 
-        // Replace the setupNPWPInput function in edit-agency-form.js with this:
-        setupNPWPInput() {
-            const $npwpInput = $('#edit-npwp');
-            
-            $npwpInput.off('input keydown blur').inputmask('remove');  // Remove any existing inputmask
-            
-            let currentValue = $npwpInput.val();  // Store initial value
-            
-            $npwpInput.inputmask({
-                mask: '99.999.999.9-999.999',
-                placeholder: '_',
-                clearMaskOnLostFocus: false,     // Don't clear mask when focus is lost
-                removeMaskOnSubmit: false,       // Keep mask when form is submitted
-                showMaskOnFocus: true,           // Show mask when field gets focus
-                showMaskOnHover: true,           // Show mask on hover
-                autoUnmask: false,               // Don't automatically unmask
-                onBeforePaste: function(pastedValue, opts) {
-                    return pastedValue.replace(/[^\d]/g, '');
-                },
-                onBeforeWrite: function(event, buffer, caretPos, opts) {
-                    // Prevent clearing of existing value
-                    if (buffer.join('').replace(/[^0-9]/g, '').length === 0) {
-                        return {
-                            refreshFromBuffer: true,
-                            buffer: currentValue.split('')
-                        };
-                    }
-                    return true;
-                },
-                onKeyDown: function(event, buffer, caretPos, opts) {
-                    currentValue = $(event.target).val();
-                }
-            });
 
-            // Restore initial value if exists
-            if (currentValue) {
-                $npwpInput.val(currentValue);
-            }
-        },
-
-        // Add this function to validate NPWP format
-        isValidNPWP(npwp) {
-            // Check if matches format: 99.999.999.9-999.999
-            return /^\d{2}\.\d{3}\.\d{3}\.\d{1}-\d{3}\.\d{3}$/.test(npwp);
-        },
 
         bindEvents() {
             // 1. Form submission handler
@@ -107,14 +62,7 @@
                 await this.handleUpdate();
             });
 
-            // 2. NIB validation
-            this.form.find('[name="nib"]').on('input', function() {
-                let val = $(this).val().replace(/\D/g, '');
-                if (val.length > 13) {
-                    val = val.substr(0, 13);
-                }
-                $(this).val(val);
-            });
+
 
             // 3. Province change handler - updated to call loadRegenciesByProvince
             this.form.on('change', '[name="provinsi_code"]', () => this.loadRegenciesByProvince());
@@ -152,17 +100,7 @@
                 }
             });
 
-            // 8. NPWP input handler
-            $('#edit-npwp').on('input', function() {
-                $(this).val(function(_, v) {
-                    const digits = v.replace(/\D/g, '').slice(0, 15);
-                    if (!digits) return '';
-                    
-                    if (digits.length === 15) {
-                        AgencyToast.success('Format NPWP lengkap');
-                    }
-                });
-            });
+
 
             // 9. Enter key handler dalam form fields
             this.form.find('input, select').on('keypress', function(e) {
@@ -216,23 +154,6 @@
                 // Basic Information
                 this.form.find('#agency-id').val(agency.id);
                 this.form.find('[name="name"]').val(agency.name);
-
-                // NPWP Handling with InputMask
-                if (agency.npwp) {
-                    const $npwpInput = $('#edit-npwp');
-                    // Remove any non-digit characters and format the NPWP
-                    const cleanNpwp = agency.npwp.replace(/\D/g, '');
-                    if (cleanNpwp.length === 15) {
-                        $npwpInput.val(agency.npwp);
-                    }
-                }
-
-                // NIB Handling
-                if (agency.nib) {
-                    this.form.find('[name="nib"]')
-                        .val(agency.nib)
-                        .trigger('input'); // Trigger input event for validation
-                }
 
                 // Status Handling
                 const status = agency.status || 'active';
@@ -321,15 +242,6 @@
 
         initializeValidation() {
             // Extend jQuery validation with custom methods
-            $.validator.addMethod("validNpwp", function(value, element) {
-                if (!value) return true; // Optional field
-                return /^\d{2}\.\d{3}\.\d{3}\.\d{1}-\d{3}\.\d{3}$/.test(value);
-            }, "Format NPWP tidak valid (99.999.999.9-999.999)");
-
-            $.validator.addMethod("validNib", function(value, element) {
-                if (!value) return true; // Optional field
-                return /^\d{13}$/.test(value);
-            }, "NIB harus 13 digit angka");
 
             $.validator.addMethod("validName", function(value, element) {
                 return this.optional(element) || /^[a-zA-Z0-9\s.,'-]+$/.test(value);
@@ -344,12 +256,6 @@
                         minlength: 3,
                         maxlength: 100,
                         validName: true
-                    },
-                    npwp: {
-                        validNpwp: true
-                    },
-                    nib: {
-                        validNib: true
                     },
                     provinsi_code: {
                         required: true
@@ -371,12 +277,6 @@
                         required: "Nama agency wajib diisi",
                         minlength: "Nama agency minimal 3 karakter",
                         maxlength: "Nama agency maksimal 100 karakter"
-                    },
-                    npwp: {
-                        validNpwp: "Format NPWP tidak valid (99.999.999.9-999.999)"
-                    },
-                    nib: {
-                        validNib: "NIB harus 13 digit angka"
                     },
                     provinsi_code: {
                         required: "Provinsi wajib dipilih"
@@ -463,33 +363,7 @@
                 }
             });
 
-            // Add custom validation handling for NPWP
-            $('#edit-npwp').on('blur', function() {
-                const value = $(this).val();
-                if (value && !$.validator.methods.validNpwp(value)) {
-                    $(this).addClass('error');
-                    if (!$(this).next('.form-error').length) {
-                        $('<span class="form-error">Format NPWP tidak valid</span>').insertAfter(this);
-                    }
-                } else {
-                    $(this).removeClass('error');
-                    $(this).next('.form-error').remove();
-                }
-            });
 
-            // Add real-time NIB validation
-            $('[name="nib"]').on('input', function() {
-                const value = $(this).val();
-                if (value && !$.validator.methods.validNib(value)) {
-                    $(this).addClass('error');
-                    if (!$(this).next('.form-error').length) {
-                        $('<span class="form-error">NIB harus 13 digit angka</span>').insertAfter(this);
-                    }
-                } else {
-                    $(this).removeClass('error');
-                    $(this).next('.form-error').remove();
-                }
-            });
 
             // Log validation initialization
             console.log('Form validation initialized');
@@ -517,8 +391,6 @@
                 nonce: wpAgencyData.nonce,
                 id: id,
                 name: this.form.find('[name="name"]').val().trim(),
-                npwp: this.form.find('#edit-npwp').val(),
-                nib: this.form.find('[name="nib"]').val().trim(),
                 status: this.form.find('[name="status"]').val(),
                 provinsi_code: this.form.find('[name="provinsi_code"]').val(),
                 regency_code: this.form.find('[name="regency_code"]').val(),
@@ -655,9 +527,6 @@
             this.form.find('.form-error').remove();
             this.form.find('.error').removeClass('error');
             this.form.validate().resetForm();
-
-            // Clear NPWP input
-            $('#edit-npwp').val('');
         }
     };
 

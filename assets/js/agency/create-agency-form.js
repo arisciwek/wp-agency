@@ -47,13 +47,7 @@
             this.initializeValidation();
         },
         
-        initializeInputMasks() {
-            // Input mask untuk NPWP
-            $('#agency-npwp').inputmask('99.999.999.9-999.999');
-            
-            // Input mask untuk NIB (13 digit)
-            $('#agency-nib').inputmask('9999999999999');
-        },
+
 
         bindEvents() {
             // Form submission
@@ -64,71 +58,9 @@
                 this.validateNameField(e.target);
             });
 
-            // Handle NPWP input segments
-            $('.npwp-segment').on('input', function() {
-                // Bersihkan input dari karakter non-digit
-                let $this = $(this);
-                let val = $this.val().replace(/\D/g, '');
-                $this.val(val);
 
-                // Auto move to next input when filled
-                if (val.length === parseInt($this.attr('maxlength'))) {
-                    let $next = $this.next('.npwp-segment');
-                    if ($next.length) {
-                        $next.focus();
-                    }
-                }
 
-                // Combine all segments into hidden input
-                let npwp = '';
-                $('.npwp-segment').each(function(index) {
-                    npwp += $(this).val();
-                    if (index === 0) npwp += '.';
-                    if (index === 1) npwp += '.';
-                    if (index === 2) npwp += '.';
-                    if (index === 3) npwp += '-';
-                    if (index === 4) npwp += '.';
-                });
-                $('input[name="npwp"]').val(npwp);
-            });
 
-            // Handle backspace for NPWP segments
-            $('.npwp-segment').on('keydown', function(e) {
-                let $this = $(this);
-                
-                // Handle backspace
-                if (e.keyCode === 8) {
-                    // Jika input kosong dan ada previous input, pindah ke input sebelumnya
-                    if (!$this.val()) {
-                        let $prev = $this.prev('.npwp-segment');
-                        if ($prev.length) {
-                            $prev.focus();
-                        }
-                    }
-                }
-                // Handle arrow keys
-                else if (e.keyCode === 37) { // Left arrow
-                    let $prev = $this.prev('.npwp-segment');
-                    if ($prev.length) {
-                        $prev.focus();
-                    }
-                }
-                else if (e.keyCode === 39) { // Right arrow
-                    let $next = $this.next('.npwp-segment');
-                    if ($next.length) {
-                        $next.focus();
-                    }
-                }
-            });
-
-            // NIB validation - hanya angka, max 13 digit
-            this.form.find('[name="nib"]').on('input', function() {
-                let val = $(this).val().replace(/\D/g, '');
-                if (val.length > 13) {
-                    val = val.substr(0, 13);
-                }
-                $(this).val(val);
-            });
 
             // Modal events
             $('.modal-close', this.modal).on('click', () => this.hideModal());
@@ -197,8 +129,6 @@
                 action: 'create_agency',
                 nonce: wpAgencyData.nonce,
                 name: this.form.find('[name="name"]').val().trim(),
-                npwp: this.form.find('[name="npwp"]').val().trim(),
-                nib: this.form.find('[name="nib"]').val().trim(),
                 provinsi_code: this.form.find('[name="provinsi_code"]').val(),
                 regency_code: this.form.find('[name="regency_code"]').val(),
                 status: this.form.find('[name="status"]').val()
@@ -256,14 +186,6 @@
                     regency_code: {
                         required: true
                     },
-                    npwp: {
-                        pattern: /^\d{2}\.\d{3}\.\d{3}\.\d{1}-\d{3}\.\d{3}$/
-                    },
-                    nib: {
-                        minlength: 13,
-                        maxlength: 13,
-                        digits: true
-                    },
                     user_id: {
                         required: this.form.find('#agency-owner').length > 0
                     }
@@ -273,14 +195,6 @@
                         required: 'Nama agency wajib diisi',
                         minlength: 'Nama agency minimal 3 karakter',
                         maxlength: 'Nama agency maksimal 100 karakter'
-                    },
-                    npwp: {
-                        pattern: 'Format NPWP tidak valid'
-                    },
-                    nib: {
-                        minlength: 'NIB harus 13 digit',
-                        maxlength: 'NIB harus 13 digit', 
-                        digits: 'NIB hanya boleh berisi angka'
                     },
                     provinsi_code: {
                         required: 'Provinsi wajib dipilih'

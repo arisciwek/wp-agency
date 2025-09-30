@@ -19,6 +19,19 @@
 
 ---
 
+# TODO-0532: Remove Unused NPWP and NIB Fields - COMPLETED ✅
+
+## Status: COMPLETED ✅
+
+Removed unused npwp and nib fields from the entire codebase:
+- Database schema (AgencysDB.php)
+- Models, controllers, validators
+- Forms, templates, JS validation
+- Demo data, API, docgen
+- Migration to drop columns
+
+---
+
 # TODO: Fix Empty Select Lists in Edit Agency Form
 
 ## Current Issue

@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Database/Tables
- * @version     1.0.2
+ * @version     1.0.3
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Database/Tables/AgencysDB.php
@@ -19,7 +19,6 @@
  * - code           : Format
  * - name           : Nama agency
  * - nik            : Nomor Induk Kependudukan
- * - npwp           : Nomor Pokok Wajib Pajak
  * - provinsi_code  : Kode provinsi (nullable)
  * - regency_code   : Kode cabang (nullable)
  * - user_id        : ID User WP sebagai Owner (nullable)
@@ -28,15 +27,19 @@
  * - updated_at     : Timestamp update terakhir
  *
  * Changelog:
+ * 1.0.3 - 2024-01-20
+ * - Removed npwp and nib fields as they are no longer used
+ * - Removed unique constraints for npwp and nib
+ *
  * 1.0.2 - 2024-01-19
  * - Modified code field to varchar(13) for new format CUST-TTTTRRRR
  * - Removed unique constraint from name field
  * - Added unique constraint for name+province+regency
- * 
+ *
  * 1.0.1 - 2024-01-11
  * - Added nik field with unique constraint
  * - Added npwp field with unique constraint
- * 
+ *
  * 1.0.0 - 2024-01-07
  * - Initial version
  */
@@ -55,8 +58,6 @@ class AgencysDB {
             id bigint(20) UNSIGNED NOT NULL auto_increment,
             code varchar(10) NOT NULL,
             name varchar(100) NOT NULL,
-            npwp varchar(20) NULL,
-            nib varchar(20) NULL,
             status enum('inactive','active') NOT NULL DEFAULT 'inactive',
             provinsi_code varchar(10) NULL,
             regency_code varchar(10) NULL,
@@ -66,8 +67,6 @@ class AgencysDB {
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             UNIQUE KEY code (code),
-            UNIQUE KEY nib (nib),
-            UNIQUE KEY npwp (npwp),
             UNIQUE KEY name_region (name, provinsi_code, regency_code),
             KEY created_by_index (created_by)
         ) $charset_collate;";

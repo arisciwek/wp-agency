@@ -11,7 +11,6 @@
  *
  * Description: Helper methods for agency demo data generation.
  *              Provides reusable functions for:
- *              - Business identifiers (NPWP, NIB) with validation
  *              - Agency data format standardization
  *              - Location data retrieval from provinces/regencies
  * 
@@ -21,16 +20,12 @@
  * - wi_provinces and wi_regencies tables
  *
  * Helper Methods:
- * - generateNPWP()           : Generate valid NPWP number
- * - generateNIB()            : Generate valid NIB number
  * - getRandomProvinceId()    : Get random province from wi_provinces
  * - getRandomRegencyId()     : Get random regency for a province
  * - validateLocationData()   : Ensure required location data exists
  * - clearAgencyData()      : Clean up agency records
  *
  * Data Formats:
- * - NPWP Format : XX.XXX.XXX.X-XXX.XXX
- * - NIB Format  : 13 digits sequential
  * - Agency Code: CUST-TTTTRRRR (T=timestamp, R=random)
  *
  * Usage:
@@ -114,36 +109,7 @@ trait AgencyDemoDataHelperTrait {
         );
     }
 
-    /**
-     * Generate NPWP number
-     */
-    private function generateNPWP(): string {
-        do {
-            $npwp = sprintf("%02d.%03d.%03d.%d-%03d.%03d",
-                rand(0, 99),
-                rand(0, 999),
-                rand(0, 999),
-                rand(0, 9),
-                rand(0, 999),
-                rand(0, 999)
-            );
-        } while (in_array($npwp, $this->used_npwp));
-        
-        $this->used_npwp[] = $npwp;
-        return $npwp;
-    }
 
-    /**
-     * Generate NIB number
-     */
-    private function generateNIB(): string {
-        do {
-            $nib = sprintf("%013d", rand(1000000000000, 9999999999999));
-        } while (in_array($nib, $this->used_nib));
-        
-        $this->used_nib[] = $nib;
-        return $nib;
-    }
 
     /**
      * Generate random Indonesian person name
