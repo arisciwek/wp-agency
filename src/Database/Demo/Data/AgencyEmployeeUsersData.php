@@ -1049,7 +1049,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 22,
             'username' => 'legal_kalbar1',
             'display_name' => 'Rahma Wati',
-            'role' => 'agency',
+            'role' => 'pengawas',
             'departments' => [
                 'finance' => false,
                 'operation' => false,
@@ -1078,7 +1078,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 23,
             'username' => 'finance_kalbar2',
             'display_name' => 'Tania Putri',
-            'role' => 'agency',
+            'role' => 'pengawas',
             'departments' => [
                 'finance' => true,
                 'operation' => false,
@@ -1107,7 +1107,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 24,
             'username' => 'operation_kalbar3',
             'display_name' => 'Vina Kusuma',
-            'role' => 'agency',
+            'role' => 'pengawas',
             'departments' => [
                 'finance' => true,
                 'operation' => true,
@@ -1136,7 +1136,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 25,
             'username' => 'legal_kaltim1',
             'display_name' => 'Xena Maharani',
-            'role' => 'agency',
+            'role' => 'pengawas',
             'departments' => [
                 'finance' => false,
                 'operation' => false,
@@ -1165,7 +1165,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 26,
             'username' => 'finance_kaltim2',
             'display_name' => 'Zahra Permata',
-            'role' => 'agency',
+            'role' => 'pengawas',
             'departments' => [
                 'finance' => true,
                 'operation' => false,
@@ -1194,7 +1194,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 27,
             'username' => 'operation_kaltim3',
             'display_name' => 'Bella Safina',
-            'role' => 'agency',
+            'role' => 'pengawas',
             'departments' => [
                 'finance' => true,
                 'operation' => true,
@@ -1223,7 +1223,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 28,
             'username' => 'legal_sulsel1',
             'display_name' => 'Devi Puspita',
-            'role' => 'agency',
+            'role' => 'pengawas',
             'departments' => [
                 'finance' => false,
                 'operation' => false,
@@ -1252,7 +1252,7 @@ class AgencyEmployeeUsersData {
             'division_id' => 29,
             'username' => 'finance_sulsel2',
             'display_name' => 'Farah Sari',
-            'role' => 'agency',
+            'role' => 'pengawas',
             'departments' => [
                 'finance' => true,
                 'operation' => false,
@@ -1281,12 +1281,516 @@ class AgencyEmployeeUsersData {
             'division_id' => 30,
             'username' => 'operation_sulsel3',
             'display_name' => 'Hana Pertiwi',
-            'role' => 'agency',
+            'role' => 'pengawas',
             'departments' => [
                 'finance' => true,
                 'operation' => true,
                 'legal' => false,
                 'purchase' => false
+            ]
+        ],
+        // Additional users for Agency 1 - Division 2 & 3 (Aceh)
+        220 => [
+            'id' => 220,
+            'agency_id' => 1,
+            'division_id' => 2,
+            'username' => 'pengawas_aceh_div2',
+            'display_name' => 'Irfan Maulana',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        221 => [
+            'id' => 221,
+            'agency_id' => 1,
+            'division_id' => 3,
+            'username' => 'pengawas_aceh_div3',
+            'display_name' => 'Siti Nurhaliza',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        // Additional user for Agency 4 - Division 12 (Banten)
+        222 => [
+            'id' => 222,
+            'agency_id' => 4,
+            'division_id' => 12,
+            'username' => 'pengawas_banten_div12',
+            'display_name' => 'Rudi Hermawan',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => false,
+                'legal' => false,
+                'purchase' => true
+            ]
+        ],
+        // Additional pengawas for Agency 5 (Jawa Barat) - Divisions 13, 14, 15
+        223 => [
+            'id' => 223,
+            'agency_id' => 5,
+            'division_id' => 13,
+            'username' => 'pengawas_jabar_div13_2',
+            'display_name' => 'Ahmad Fauzi',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => false,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        224 => [
+            'id' => 224,
+            'agency_id' => 5,
+            'division_id' => 14,
+            'username' => 'pengawas_jabar_div14_2',
+            'display_name' => 'Bambang Sutrisno',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => true
+            ]
+        ],
+        225 => [
+            'id' => 225,
+            'agency_id' => 5,
+            'division_id' => 15,
+            'username' => 'pengawas_jabar_div15_2',
+            'display_name' => 'Citra Dewi',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        // Additional pengawas for Agency 6 (Jawa Tengah) - Divisions 16, 17, 18
+        226 => [
+            'id' => 226,
+            'agency_id' => 6,
+            'division_id' => 16,
+            'username' => 'pengawas_jateng_div16_2',
+            'display_name' => 'Dian Pramesti',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => false,
+                'legal' => true,
+                'purchase' => true
+            ]
+        ],
+        227 => [
+            'id' => 227,
+            'agency_id' => 6,
+            'division_id' => 17,
+            'username' => 'pengawas_jateng_div17_2',
+            'display_name' => 'Edi Susanto',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        228 => [
+            'id' => 228,
+            'agency_id' => 6,
+            'division_id' => 18,
+            'username' => 'pengawas_jateng_div18_2',
+            'display_name' => 'Fitri Handayani',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        // Additional pengawas for Agency 7 (DKI Jakarta) - Divisions 19, 20, 21
+        229 => [
+            'id' => 229,
+            'agency_id' => 7,
+            'division_id' => 19,
+            'username' => 'pengawas_jakarta_div19_2',
+            'display_name' => 'Guntur Wibowo',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => false,
+                'legal' => false,
+                'purchase' => true
+            ]
+        ],
+        230 => [
+            'id' => 230,
+            'agency_id' => 7,
+            'division_id' => 20,
+            'username' => 'pengawas_jakarta_div20_2',
+            'display_name' => 'Hendra Kusuma',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        231 => [
+            'id' => 231,
+            'agency_id' => 7,
+            'division_id' => 21,
+            'username' => 'pengawas_jakarta_div21_2',
+            'display_name' => 'Indah Permata',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        // Additional pengawas for Agency 8 (Kalimantan Barat) - Divisions 22, 23, 24
+        232 => [
+            'id' => 232,
+            'agency_id' => 8,
+            'division_id' => 22,
+            'username' => 'pengawas_kalbar_div22_2',
+            'display_name' => 'Joko Prasetyo',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => false,
+                'legal' => true,
+                'purchase' => true
+            ]
+        ],
+        233 => [
+            'id' => 233,
+            'agency_id' => 8,
+            'division_id' => 23,
+            'username' => 'pengawas_kalbar_div23_2',
+            'display_name' => 'Kartika Sari',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        234 => [
+            'id' => 234,
+            'agency_id' => 8,
+            'division_id' => 24,
+            'username' => 'pengawas_kalbar_div24_2',
+            'display_name' => 'Lukman Hakim',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        // Additional pengawas for Agency 9 (Kalimantan Timur) - Divisions 25, 26, 27
+        235 => [
+            'id' => 235,
+            'agency_id' => 9,
+            'division_id' => 25,
+            'username' => 'pengawas_kaltim_div25_2',
+            'display_name' => 'Maya Anggraini',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => false,
+                'legal' => false,
+                'purchase' => true
+            ]
+        ],
+        236 => [
+            'id' => 236,
+            'agency_id' => 9,
+            'division_id' => 26,
+            'username' => 'pengawas_kaltim_div26_2',
+            'display_name' => 'Nugroho Santoso',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        237 => [
+            'id' => 237,
+            'agency_id' => 9,
+            'division_id' => 27,
+            'username' => 'pengawas_kaltim_div27_2',
+            'display_name' => 'Olivia Putri',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        // Additional pengawas for Agency 10 (Sulawesi Selatan) - Divisions 28, 29, 30
+        238 => [
+            'id' => 238,
+            'agency_id' => 10,
+            'division_id' => 28,
+            'username' => 'pengawas_sulsel_div28_2',
+            'display_name' => 'Pandu Wijaya',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => false,
+                'legal' => true,
+                'purchase' => true
+            ]
+        ],
+        239 => [
+            'id' => 239,
+            'agency_id' => 10,
+            'division_id' => 29,
+            'username' => 'pengawas_sulsel_div29_2',
+            'display_name' => 'Qori Maharani',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        240 => [
+            'id' => 240,
+            'agency_id' => 10,
+            'division_id' => 30,
+            'username' => 'pengawas_sulsel_div30_2',
+            'display_name' => 'Rizki Pratama',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        // Additional pengawas for Agency 2 (Sumatera Utara) - Need 4 more for divisions 4, 5
+        241 => [
+            'id' => 241,
+            'agency_id' => 2,
+            'division_id' => 4,
+            'username' => 'pengawas_sumut_div4_3',
+            'display_name' => 'Sandi Kurniawan',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => false,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        242 => [
+            'id' => 242,
+            'agency_id' => 2,
+            'division_id' => 4,
+            'username' => 'pengawas_sumut_div4_4',
+            'display_name' => 'Tari Wulandari',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => true
+            ]
+        ],
+        243 => [
+            'id' => 243,
+            'agency_id' => 2,
+            'division_id' => 5,
+            'username' => 'pengawas_sumut_div5_2',
+            'display_name' => 'Usman Hakim',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        244 => [
+            'id' => 244,
+            'agency_id' => 2,
+            'division_id' => 5,
+            'username' => 'pengawas_sumut_div5_3',
+            'display_name' => 'Vivi Anggraini',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => false,
+                'legal' => true,
+                'purchase' => true
+            ]
+        ],
+        // Additional pengawas for Agency 3 (Sumatera Barat) - Division 7
+        245 => [
+            'id' => 245,
+            'agency_id' => 3,
+            'division_id' => 7,
+            'username' => 'pengawas_sumbar_div7_2',
+            'display_name' => 'Wawan Setiawan',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        // Additional pengawas for Agency 5 (Jawa Barat) - Need 3 more for divisions 13, 14
+        246 => [
+            'id' => 246,
+            'agency_id' => 5,
+            'division_id' => 13,
+            'username' => 'pengawas_jabar_div13_3',
+            'display_name' => 'Xander Pratama',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        247 => [
+            'id' => 247,
+            'agency_id' => 5,
+            'division_id' => 13,
+            'username' => 'pengawas_jabar_div13_4',
+            'display_name' => 'Yanti Kusuma',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => false,
+                'legal' => false,
+                'purchase' => true
+            ]
+        ],
+        248 => [
+            'id' => 248,
+            'agency_id' => 5,
+            'division_id' => 14,
+            'username' => 'pengawas_jabar_div14_3',
+            'display_name' => 'Zulfikar Rahman',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => false,
+                'legal' => true,
+                'purchase' => true
+            ]
+        ],
+        // Additional pengawas for Agency 6 (Jawa Tengah) - Division 16
+        249 => [
+            'id' => 249,
+            'agency_id' => 6,
+            'division_id' => 16,
+            'username' => 'pengawas_jateng_div16_3',
+            'display_name' => 'Agus Santoso',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        // Additional pengawas for Agency 7 (DKI Jakarta) - Division 19
+        250 => [
+            'id' => 250,
+            'agency_id' => 7,
+            'division_id' => 19,
+            'username' => 'pengawas_jakarta_div19_3',
+            'display_name' => 'Bella Puspita',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        // Additional pengawas for remaining NULL branches
+        251 => [
+            'id' => 251,
+            'agency_id' => 3,
+            'division_id' => 7,
+            'username' => 'pengawas_sumbar_div7_3',
+            'display_name' => 'Cahya Permata',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => false,
+                'legal' => true,
+                'purchase' => true
+            ]
+        ],
+        252 => [
+            'id' => 252,
+            'agency_id' => 4,
+            'division_id' => 10,
+            'username' => 'pengawas_banten_div10_2',
+            'display_name' => 'Dimas Prasetyo',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => true,
+                'legal' => false,
+                'purchase' => false
+            ]
+        ],
+        253 => [
+            'id' => 253,
+            'agency_id' => 4,
+            'division_id' => 11,
+            'username' => 'pengawas_banten_div11_3',
+            'display_name' => 'Erna Kusuma',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => false,
+                'operation' => true,
+                'legal' => true,
+                'purchase' => false
+            ]
+        ],
+        254 => [
+            'id' => 254,
+            'agency_id' => 6,
+            'division_id' => 16,
+            'username' => 'pengawas_jateng_div16_4',
+            'display_name' => 'Faisal Rahman',
+            'role' => 'pengawas',
+            'departments' => [
+                'finance' => true,
+                'operation' => false,
+                'legal' => false,
+                'purchase' => true
             ]
         ],
     ];

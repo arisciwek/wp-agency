@@ -1,3 +1,85 @@
+# TODO-1256: Tambah User dengan Role Pengawas pada Setiap Division
+
+## Issue
+Periksa apakah ada division yang belum memiliki user dengan role 'pengawas'. Jika ada, tambahkan user dengan role tersebut.
+
+## Important Constraint
+- Di `/wp-customer/src/Database/Tables/BranchesDB.php` ada UNIQUE KEY `inspector_agency (agency_id, inspector_id)`
+- Artinya setiap pengawas hanya bisa ditugaskan sekali per agency
+- Perlu memastikan pengawas yang ditambahkan tidak duplikat dalam satu agency
+
+## Analysis Result
+Divisions yang BELUM memiliki user dengan role 'pengawas':
+- Division 2 (Agency 1 - Aceh): Tidak ada pengawas
+- Division 3 (Agency 1 - Aceh): Tidak ada pengawas  
+- Division 12 (Agency 4 - Banten): Tidak ada pengawas (hanya ada pengawas_spesialis)
+- Division 22 (Agency 8 - Kalimantan Barat): Semua user role 'agency'
+- Division 23 (Agency 8 - Kalimantan Barat): Semua user role 'agency'
+- Division 24 (Agency 8 - Kalimantan Barat): Semua user role 'agency'
+- Division 25 (Agency 9 - Kalimantan Timur): Semua user role 'agency'
+- Division 26 (Agency 9 - Kalimantan Timur): Semua user role 'agency'
+- Division 27 (Agency 9 - Kalimantan Timur): Semua user role 'agency'
+- Division 28 (Agency 10 - Sulawesi Selatan): Semua user role 'agency'
+- Division 29 (Agency 10 - Sulawesi Selatan): Semua user role 'agency'
+- Division 30 (Agency 10 - Sulawesi Selatan): Semua user role 'agency'
+
+## Solution
+- Analisis AgencyEmployeeUsersData.php untuk menentukan division mana yang belum memiliki 'pengawas'
+- Tambah user baru dengan role 'pengawas' untuk division yang belum memiliki
+- Pastikan setiap division memiliki setidaknya satu user dengan role 'pengawas'
+- Perhatikan constraint UNIQUE KEY saat assign pengawas ke branches
+
+## Tasks
+- [x] Analisis division yang belum memiliki user dengan role 'pengawas'
+- [x] Tambah user 'pengawas' untuk Division 2 dan 3 (Agency 1) - Added users 220, 221
+- [x] Tambah user 'pengawas' untuk Division 12 (Agency 4) - Added user 222
+- [x] Update role dari 'agency' ke 'pengawas' untuk beberapa user di Division 22-30 (Agency 8, 9, 10) - Updated users 171, 173, 175, 177, 179, 181, 183, 185, 187
+- [x] Verifikasi semua division memiliki setidaknya satu 'pengawas' - All divisions now have at least one pengawas
+- [x] Pastikan tidak ada duplikasi pengawas per agency di branches table - Constraint handled by BranchDemoData.php
+
+## Implementation Summary
+**Changes Made to AgencyEmployeeUsersData.php:**
+
+1. **Added 35 new pengawas users (IDs 220-254):**
+   - Users 220-221: Agency 1 (Aceh) - Divisions 2, 3
+   - User 222: Agency 4 (Banten) - Division 12
+   - Users 223-225: Agency 5 (Jawa Barat) - Divisions 13, 14, 15
+   - Users 226-228: Agency 6 (Jawa Tengah) - Divisions 16, 17, 18
+   - Users 229-231: Agency 7 (DKI Jakarta) - Divisions 19, 20, 21
+   - Users 232-234: Agency 8 (Kalimantan Barat) - Divisions 22, 23, 24
+   - Users 235-237: Agency 9 (Kalimantan Timur) - Divisions 25, 26, 27
+   - Users 238-240: Agency 10 (Sulawesi Selatan) - Divisions 28, 29, 30
+   - **Additional users batch 1 (241-250):**
+     - Users 241-244: Agency 2 (Sumatera Utara) - Divisions 4, 5 (4 users)
+     - User 245: Agency 3 (Sumatera Barat) - Division 7
+     - Users 246-248: Agency 5 (Jawa Barat) - Divisions 13, 14 (3 users)
+     - User 249: Agency 6 (Jawa Tengah) - Division 16
+     - User 250: Agency 7 (DKI Jakarta) - Division 19
+   - **Additional users batch 2 (251-254):**
+     - User 251: Agency 3 (Sumatera Barat) - Division 7
+     - User 252: Agency 4 (Banten) - Division 10
+     - User 253: Agency 4 (Banten) - Division 11
+     - User 254: Agency 6 (Jawa Tengah) - Division 16
+
+2. **Changed role from 'agency' to 'pengawas' for 9 users:**
+   - User 171: Rahma Wati (Agency 8, Division 22)
+   - User 173: Tania Putri (Agency 8, Division 23)
+   - User 175: Vina Kusuma (Agency 8, Division 24)
+   - User 177: Xena Maharani (Agency 9, Division 25)
+   - User 179: Zahra Permata (Agency 9, Division 26)
+   - User 181: Bella Safina (Agency 9, Division 27)
+   - User 183: Devi Puspita (Agency 10, Division 28)
+   - User 185: Farah Sari (Agency 10, Division 29)
+   - User 187: Hana Pertiwi (Agency 10, Division 30)
+
+**Result:**
+✅ All 30 divisions now have sufficient pengawas users to cover all branches.
+✅ The UNIQUE KEY constraint (inspector_agency) in BranchesDB.php ensures no duplicate pengawas assignments per agency.
+✅ BranchDemoData.php will automatically assign pengawas to all branches when demo data is regenerated.
+✅ Total pengawas added: 35 new users + 9 role changes = 44 pengawas users across all agencies.
+
+---
+
 # TODO-2152: Add Read Roles to Plugin
 
 ## Issue
