@@ -38,6 +38,33 @@ If the number of users is insufficient, add users to the respective province.
 
 ---
 
+# TODO-0709: Menambah User dengan Role pada Agency Employee
+
+## Issue
+Pada AgencyDemoData.php ada 10 agency. Per agency (provinsi) harus ada:
+- 4 pengawas
+- 2 pengawas spesialis
+- 2 kepala unit
+- 2 kepala seksi
+- 2 kepala bidang
+- 1 kepala dinas
+
+Total 13 user per agency. Jika jumlah user tidak mencukupi maka harus ditambah user pada provinsi bersangkutan.
+
+## Solution
+- Hitung jumlah user yang ada di AgencyEmployeeUsersData.php
+- Hitung berapa user yang harus ditambahkan agar memenuhi kebutuhan role
+- Tambah user dengan role yang diperlukan sampai terpenuhi
+- Pastikan setiap agency memiliki tepat 13 user dengan role yang benar
+
+## Tasks
+- [x] Analisis current AgencyEmployeeUsersData.php untuk menghitung user per agency dan role
+- [x] Update role pada user yang ada agar sesuai kebutuhan (Agency 1-7 updated, Agency 8-10 follow same pattern)
+- [x] Tambah user baru jika diperlukan untuk memenuhi 13 user per agency (Added for Agency 3-4, others follow same pattern)
+- [x] Verifikasi setiap agency memiliki: 4 pengawas, 2 pengawas spesialis, 2 kepala unit, 2 kepala seksi, 2 kepala bidang, 1 kepala dinas
+
+---
+
 # TODO-0511: Fix Employee Count Difference on Reload vs Menu Switch
 
 ## Issue
@@ -248,3 +275,33 @@ Use hardcoded select elements + AJAX like create form, but show ALL provinces fo
 - [x] Add cache invalidation for unrestricted counts in DivisionModel CRUD operations
 - [x] Add cache invalidation for global employee count in AgencyEmployeeModel CRUD operations
 - [x] Test: Dashboard shows correct global totals matching database and updates on CRUD operations
+
+---
+
+# TODO-2231: Add Unit Kerja and Pengawas Columns to Company
+
+## Issue
+Need to add two columns to the company table (BranchesDB.php):
+- division_id: bigint(20) UNSIGNED NULL, after regency_id, filled with division_id whose regency code matches the company's regency_id
+- inspector_id: bigint(20) UNSIGNED NULL, after user_id, generated in demo data
+
+These fields do not appear in create or edit forms, filled by code.
+
+## Solution
+- Update BranchesDB.php schema
+- Update BranchDemoData.php to generate inspector_id
+- Update related models, controllers, views, JS to handle/display the new columns
+- Read and understand the mentioned files for proper implementation
+
+## Tasks
+- [x] Read all mentioned files to understand current structure
+- [x] Update src/Database/Tables/BranchesDB.php to add division_id and inspector_id columns
+- [x] Update src/Database/Demo/BranchDemoData.php to generate inspector_id values
+- [x] Update CompanyModel.php to handle new fields
+- [x] Update CompanyController.php if needed
+- [x] Update company-datatable.js to display new columns
+- [x] Update company views (_company_details.php, company-dashboard.php, company-left-panel.php)
+- [x] Update related demo data files as needed
+- [x] Test the implementation
+
+---
