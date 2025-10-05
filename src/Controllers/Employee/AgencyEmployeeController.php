@@ -165,6 +165,9 @@ class AgencyEmployeeController {
 
             // Format data with validation
             $data = [];
+           // Get selected roles from form
+           $selected_roles = isset($_POST['roles']) ? (array)$_POST['roles'] : [];
+           $selected_roles = array_map('sanitize_text_field', $selected_roles);
             foreach ($result['data'] as $employee) {
                 // Skip permission check if user has admin access
                 if ($access['access_type'] !== 'admin') {
@@ -178,13 +181,7 @@ class AgencyEmployeeController {
                     'id' => $employee->id,
                     'name' => esc_html($employee->name),
                     'position' => esc_html($employee->position),
-                    'department' => $this->generateDepartmentsBadges([
-                        'finance' => (bool)$employee->finance,
-                        'operation' => (bool)$employee->operation,
-                        'legal' => (bool)$employee->legal,
-                        'purchase' => (bool)$employee->purchase
-                    ]),
-                    'email' => esc_html($employee->email),
+                    'role' => $this->getUserRole($employee->user_id),
                     'division_name' => esc_html($employee->division_name),
                     'status' => $employee->status,
                     'actions' => $this->generateActionButtons($employee)
@@ -221,28 +218,26 @@ class AgencyEmployeeController {
     }
 
     /**
-     * Generate HTML for department badges
+     * Get user role for display
      */
-    private function generateDepartmentsBadges(array $departments): string {
-        // Check if any department is true
-        $has_departments = array_filter($departments);
-        if (empty($has_departments)) {
-            return '<div class="department-badges-container empty">-</div>';
+    private function getUserRole(int $user_id): string {
+        $user = get_userdata($user_id);
+        if (!$user) {
+            return '-';
         }
 
-        $badges = [];
-        foreach ($departments as $dept => $active) {
-            if ($active) {
-                $label = ucfirst($dept); // Convert finance to Finance, etc.
-                $badges[] = sprintf(
-                    '<span class="department-badge %s">%s</span>',
-                    esc_attr($dept),
-                    esc_html($label)
-                );
-            }
+        $roles = $user->roles;
+        if (empty($roles)) {
+            return '-';
         }
 
-        return '<div class="department-badges-container">' . implode('', $badges) . '</div>';
+        // Get the primary role (first one)
+        $role = reset($roles);
+
+        // Get role names from single source of truth
+        $role_names = \WP_Agency_Activator::getRoles();
+
+        return $role_names[$role] ?? ucfirst($role);
     }
 
     /**
@@ -350,179 +345,250 @@ class AgencyEmployeeController {
     /**
      * Show employee dengan cache yang konsisten
      */
-    public function show() {
-        try {
-            check_ajax_referer('wp_agency_nonce', 'nonce');
+	// In the show() method, update to include user roles:
+	public function show() {
+	    try {
+		check_ajax_referer('wp_agency_nonce', 'nonce');
 
-            $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-            if (!$id) throw new \Exception('Invalid employee ID');
+		$id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+		if (!$id) throw new \Exception('Invalid employee ID');
 
-            // Dapatkan data employee dengan format cache yang konsisten
-            $cached_employee = $this->cache->get('agency_employee', $id);
-            
-            if ($cached_employee !== null) {
-                $employee = $cached_employee;
-            } else {
-                // Ambil dari database jika tidak ada di cache
-                $employee = $this->model->find($id);
-                
-                // Simpan ke cache dengan format yang konsisten
-                if ($employee) {
-                    $this->cache->set('agency_employee', $employee, $this->cache::getCacheExpiry(), $id);
-                }
-            }
+		// Get employee data from cache or database
+		$cached_employee = $this->cache->get('agency_employee', $id);
+		
+		if ($cached_employee !== null) {
+		    $employee = $cached_employee;
+		} else {
+		    $employee = $this->model->find($id);
+		    
+		    if ($employee) {
+		        $this->cache->set('agency_employee', $employee, $this->cache::getCacheExpiry(), $id);
+		    }
+		}
 
-            // Verifikasi keberadaan data
-            if (!$employee) throw new \Exception('Employee not found');
+		if (!$employee) throw new \Exception('Employee not found');
 
-            // Dapatkan relasi dan periksa permission
-            $relation = $this->validator->getUserRelation($id);
-            if (!$this->validator->canViewEmployee($relation)) {
-                throw new \Exception('Anda tidak memiliki izin untuk melihat detail karyawan ini.');
-            }
+		// Check permissions
+		$relation = $this->validator->getUserRelation($id);
+		if (!$this->validator->canViewEmployee($relation)) {
+		    throw new \Exception('Anda tidak memiliki izin untuk melihat detail karyawan ini.');
+		}
 
-            wp_send_json_success($employee);
+		// Get user roles for the employee
+		$user_roles = [];
+		if ($employee->user_id) {
+		    $user = get_userdata($employee->user_id);
+		    if ($user) {
+		        $user_roles = $user->roles;
+		    }
+		}
+		
+		// Add roles to employee data
+		$employee->user_roles = $user_roles;
 
-        } catch (\Exception $e) {
-            wp_send_json_error(['message' => $e->getMessage()]);
-        }
-    }
+		wp_send_json_success($employee);
+
+	    } catch (\Exception $e) {
+		wp_send_json_error(['message' => $e->getMessage()]);
+	    }
+	}
 
     /**
      * Store dengan cache invalidation
      */
-    public function store() {
-       try {
-           check_ajax_referer('wp_agency_nonce', 'nonce');
+	public function store() {
+	    try {
+		check_ajax_referer('wp_agency_nonce', 'nonce');
 
-           $data = [
-               'agency_id' => isset($_POST['agency_id']) ? (int)$_POST['agency_id'] : 0,
-               'division_id' => isset($_POST['division_id']) ? (int)$_POST['division_id'] : 0,
-               'name' => sanitize_text_field($_POST['name'] ?? ''),
-               'position' => sanitize_text_field($_POST['position'] ?? ''),
-               'finance' => isset($_POST['finance']) && $_POST['finance'] === "1",
-               'operation' => isset($_POST['operation']) && $_POST['operation'] === "1", 
-               'legal' => isset($_POST['legal']) && $_POST['legal'] === "1",
-               'purchase' => isset($_POST['purchase']) && $_POST['purchase'] === "1",
-               'keterangan' => sanitize_text_field($_POST['keterangan'] ?? ''),
-               'email' => sanitize_email($_POST['email'] ?? ''),
-               'phone' => sanitize_text_field($_POST['phone'] ?? ''),
-               'status' => isset($_POST['status']) && in_array($_POST['status'], ['active', 'inactive']) 
-                   ? $_POST['status'] 
-                   : 'active'
-           ];
+		// Get selected roles from form
+		$selected_roles = isset($_POST['roles']) ? (array)$_POST['roles'] : [];
+		$selected_roles = array_map('sanitize_text_field', $selected_roles);
 
-            if (!$this->validator->canCreateEmployee($data['agency_id'], $data['division_id'])) {
-                throw new \Exception('Anda tidak memiliki izin untuk menambah karyawan.');
-            }
+		if (empty($selected_roles)) {
+		    throw new \Exception('Minimal satu role harus dipilih');
+		}
 
-           $errors = $this->validator->validateCreate($data);
-           if (!empty($errors)) throw new \Exception(implode(', ', $errors));
+		$data = [
+		    'agency_id' => isset($_POST['agency_id']) ? (int)$_POST['agency_id'] : 0,
+		    'division_id' => isset($_POST['division_id']) ? (int)$_POST['division_id'] : 0,
+		    'name' => sanitize_text_field($_POST['name'] ?? ''),
+		    'position' => sanitize_text_field($_POST['position'] ?? ''),
+		    'finance' => isset($_POST['finance']) && $_POST['finance'] === "1",
+		    'operation' => isset($_POST['operation']) && $_POST['operation'] === "1", 
+		    'legal' => isset($_POST['legal']) && $_POST['legal'] === "1",
+		    'purchase' => isset($_POST['purchase']) && $_POST['purchase'] === "1",
+		    'keterangan' => sanitize_text_field($_POST['keterangan'] ?? ''),
+		    'email' => sanitize_email($_POST['email'] ?? ''),
+		    'phone' => sanitize_text_field($_POST['phone'] ?? ''),
+		    'status' => isset($_POST['status']) && in_array($_POST['status'], ['active', 'inactive']) 
+		        ? $_POST['status'] 
+		        : 'active',
+		    'roles' => $selected_roles // Add roles to data array for validation
+		];
 
-           $user_data = [
-               'user_login' => strstr($data['email'], '@', true) ?: sanitize_user(strtolower(str_replace(' ', '', $data['name']))),
-               'user_email' => $data['email'],
-               'first_name' => explode(' ', $data['name'], 2)[0],
-               'last_name' => explode(' ', $data['name'], 2)[1] ?? '',
-               'user_pass' => wp_generate_password(),
-               'role' => 'agency'
-           ];
+		if (!$this->validator->canCreateEmployee($data['agency_id'], $data['division_id'])) {
+		    throw new \Exception('Anda tidak memiliki izin untuk menambah karyawan.');
+		}
 
-           $user_id = wp_insert_user($user_data);
-           if (is_wp_error($user_id)) throw new \Exception($user_id->get_error_message());
+		$errors = $this->validator->validateCreate($data);
+		if (!empty($errors)) throw new \Exception(implode(', ', $errors));
 
-           $data['user_id'] = $user_id;
-           $id = $this->model->create($data);
-           if (!$id) {
-               wp_delete_user($user_id);
-               throw new \Exception('Failed to create employee');
-           }
+		// Create WordPress user with first role as primary
+		$primary_role = reset($selected_roles);
+		$user_data = [
+		    'user_login' => strstr($data['email'], '@', true) ?: sanitize_user(strtolower(str_replace(' ', '', $data['name']))),
+		    'user_email' => $data['email'],
+		    'first_name' => explode(' ', $data['name'], 2)[0],
+		    'last_name' => explode(' ', $data['name'], 2)[1] ?? '',
+		    'user_pass' => wp_generate_password(),
+		    'role' => $primary_role
+		];
 
-           wp_new_user_notification($user_id, null, 'user');
+		$user_id = wp_insert_user($user_data);
+		if (is_wp_error($user_id)) throw new \Exception($user_id->get_error_message());
 
-           $this->cache->invalidateDataTableCache('agency_employee_list', [
-               'agency_id' => $data['agency_id']
-           ]);
+		// Add additional roles if more than one selected
+		if (count($selected_roles) > 1) {
+		    $user = new \WP_User($user_id);
+		    foreach ($selected_roles as $role) {
+		        if ($role !== $primary_role) {
+		            $user->add_role($role);
+		        }
+		    }
+		}
 
-           $employee = $this->model->find($id);
-           if ($employee) {
-               $this->cache->set('agency_employee', $employee, $this->cache::getCacheExpiry(), $id);
-           }
+		// Remove roles from data array before database insert
+		unset($data['roles']);
+		
+		$data['user_id'] = $user_id;
+		$id = $this->model->create($data);
+		if (!$id) {
+		    wp_delete_user($user_id);
+		    throw new \Exception('Failed to create employee');
+		}
 
-           wp_send_json_success([
-               'message' => __('Karyawan berhasil ditambahkan dan email aktivasi telah dikirim', 'wp-agency'),
-               'employee' => $employee
-           ]);
+		wp_new_user_notification($user_id, null, 'user');
 
-       } catch (\Exception $e) {
-           wp_send_json_error(['message' => $e->getMessage()]);
-       }
-    }
+		$this->cache->invalidateDataTableCache('agency_employee_list', [
+		    'agency_id' => $data['agency_id']
+		]);
+
+		$employee = $this->model->find($id);
+		if ($employee) {
+		    $this->cache->set('agency_employee', $employee, $this->cache::getCacheExpiry(), $id);
+		}
+
+		wp_send_json_success([
+		    'message' => __('Karyawan berhasil ditambahkan dan email aktivasi telah dikirim', 'wp-agency'),
+		    'employee' => $employee
+		]);
+
+	    } catch (\Exception $e) {
+		wp_send_json_error(['message' => $e->getMessage()]);
+	    }
+	}
 
     /**
      * Update dengan cache invalidation
      */
-    public function update() {
-       try {
-           check_ajax_referer('wp_agency_nonce', 'nonce');
+	public function update() {
+	    try {
+		check_ajax_referer('wp_agency_nonce', 'nonce');
 
-           $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-           if (!$id) throw new \Exception('Invalid employee ID');
+		$id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+		if (!$id) throw new \Exception('Invalid employee ID');
 
-            // Dapatkan data employee dan verifikasi keberadaannya
-            $employee = $this->model->find($id);
-            if (!$employee) throw new \Exception('Employee not found');
+		// Get employee data and verify existence
+		$employee = $this->model->find($id);
+		if (!$employee) throw new \Exception('Employee not found');
 
-            // Dapatkan relasi dan periksa permission
-            $relation = $this->validator->getUserRelation($id);
-            if (!$this->validator->canEditEmployee($relation)) {
-                throw new \Exception('Anda tidak memiliki izin untuk mengedit karyawan ini.');
-            }
+		// Check permissions
+		$relation = $this->validator->getUserRelation($id);
+		if (!$this->validator->canEditEmployee($relation)) {
+		    throw new \Exception('Anda tidak memiliki izin untuk mengedit karyawan ini.');
+		}
 
-           $data = [
-               'name' => sanitize_text_field($_POST['name'] ?? ''),
-               'position' => sanitize_text_field($_POST['position'] ?? ''),
-               'email' => sanitize_email($_POST['email'] ?? ''),
-               'phone' => sanitize_text_field($_POST['phone'] ?? ''),
-               'division_id' => isset($_POST['division_id']) ? (int)$_POST['division_id'] : 0,
-               'finance' => isset($_POST['finance']) && $_POST['finance'] === "1",
-               'operation' => isset($_POST['operation']) && $_POST['operation'] === "1",
-               'legal' => isset($_POST['legal']) && $_POST['legal'] === "1",
-               'purchase' => isset($_POST['purchase']) && $_POST['purchase'] === "1",
-               'keterangan' => sanitize_text_field($_POST['keterangan'] ?? ''),
-               'status' => isset($_POST['status']) && in_array($_POST['status'], ['active', 'inactive']) 
-                   ? $_POST['status'] 
-                   : 'active'
-           ];
+		// Get selected roles from form
+		$selected_roles = isset($_POST['roles']) ? (array)$_POST['roles'] : [];
+		$selected_roles = array_map('sanitize_text_field', $selected_roles);
 
-           $errors = $this->validator->validateUpdate($data, $id);
-           if (!empty($errors)) throw new \Exception(implode(', ', $errors));
+		if (empty($selected_roles)) {
+		    throw new \Exception('Minimal satu role harus dipilih');
+		}
 
-           if (!$this->model->update($id, $data)) {
-               throw new \Exception('Failed to update employee');
-           }
+		$data = [
+		    'name' => sanitize_text_field($_POST['name'] ?? ''),
+		    'position' => sanitize_text_field($_POST['position'] ?? ''),
+		    'email' => sanitize_email($_POST['email'] ?? ''),
+		    'phone' => sanitize_text_field($_POST['phone'] ?? ''),
+		    'division_id' => isset($_POST['division_id']) ? (int)$_POST['division_id'] : 0,
+		    'finance' => isset($_POST['finance']) && $_POST['finance'] === "1",
+		    'operation' => isset($_POST['operation']) && $_POST['operation'] === "1",
+		    'legal' => isset($_POST['legal']) && $_POST['legal'] === "1",
+		    'purchase' => isset($_POST['purchase']) && $_POST['purchase'] === "1",
+		    'keterangan' => sanitize_text_field($_POST['keterangan'] ?? ''),
+		    'status' => isset($_POST['status']) && in_array($_POST['status'], ['active', 'inactive']) 
+		        ? $_POST['status'] 
+		        : 'active',
+		    'roles' => $selected_roles // Add roles to data array for validation
+		];
 
-            // Hapus cache untuk employee yang diupdate
-            $this->cache->delete('agency_employee', $id);
+		$errors = $this->validator->validateUpdate($data, $id);
+		if (!empty($errors)) throw new \Exception(implode(', ', $errors));
 
-           $employee = $this->model->find($id);
-           if ($employee) {
-               $this->cache->set('agency_employee', $employee, $this->cache::getCacheExpiry(), $id);
- 
-               $this->cache->invalidateDataTableCache('agency_employee_list', [
-                   'agency_id' => $employee->agency_id
-               ]);
-           }
+		// Update WordPress user roles
+		if ($employee->user_id) {
+		    $user = new \WP_User($employee->user_id);
+		    if ($user->exists()) {
+		        // Remove all existing roles
+		        $existing_roles = $user->roles;
+		        foreach ($existing_roles as $role) {
+		            $user->remove_role($role);
+		        }
+		        
+		        // Add new roles
+		        foreach ($selected_roles as $role) {
+		            $user->add_role($role);
+		        }
 
-           wp_send_json_success([
-               'message' => __('Data karyawan berhasil diperbarui', 'wp-agency'),
-               'employee' => $employee
-           ]);
+		        // Update user email if changed
+		        if ($user->user_email !== $data['email']) {
+		            wp_update_user([
+		                'ID' => $employee->user_id,
+		                'user_email' => $data['email']
+		            ]);
+		        }
+		    }
+		}
 
-       } catch (\Exception $e) {
-           wp_send_json_error(['message' => $e->getMessage()]);
-       }
-    }
+		// Remove roles from data array before database update
+		unset($data['roles']);
+
+		if (!$this->model->update($id, $data)) {
+		    throw new \Exception('Failed to update employee');
+		}
+
+		// Clear cache
+		$this->cache->delete('agency_employee', $id);
+
+		$employee = $this->model->find($id);
+		if ($employee) {
+		    $this->cache->set('agency_employee', $employee, $this->cache::getCacheExpiry(), $id);
+
+		    $this->cache->invalidateDataTableCache('agency_employee_list', [
+		        'agency_id' => $employee->agency_id
+		    ]);
+		}
+
+		wp_send_json_success([
+		    'message' => __('Data karyawan berhasil diperbarui', 'wp-agency'),
+		    'employee' => $employee
+		]);
+
+	    } catch (\Exception $e) {
+		wp_send_json_error(['message' => $e->getMessage()]);
+	    }
+	}
 
     /**
      * Delete dengan cache invalidation

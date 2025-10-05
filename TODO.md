@@ -1,389 +1,135 @@
-# TODO-1256: Tambah User dengan Role Pengawas pada Setiap Division
-
-## Issue
-Periksa apakah ada division yang belum memiliki user dengan role 'pengawas'. Jika ada, tambahkan user dengan role tersebut.
-
-## Important Constraint
-- Di `/wp-customer/src/Database/Tables/BranchesDB.php` ada UNIQUE KEY `inspector_agency (agency_id, inspector_id)`
-- Artinya setiap pengawas hanya bisa ditugaskan sekali per agency
-- Perlu memastikan pengawas yang ditambahkan tidak duplikat dalam satu agency
-
-## Analysis Result
-Divisions yang BELUM memiliki user dengan role 'pengawas':
-- Division 2 (Agency 1 - Aceh): Tidak ada pengawas
-- Division 3 (Agency 1 - Aceh): Tidak ada pengawas  
-- Division 12 (Agency 4 - Banten): Tidak ada pengawas (hanya ada pengawas_spesialis)
-- Division 22 (Agency 8 - Kalimantan Barat): Semua user role 'agency'
-- Division 23 (Agency 8 - Kalimantan Barat): Semua user role 'agency'
-- Division 24 (Agency 8 - Kalimantan Barat): Semua user role 'agency'
-- Division 25 (Agency 9 - Kalimantan Timur): Semua user role 'agency'
-- Division 26 (Agency 9 - Kalimantan Timur): Semua user role 'agency'
-- Division 27 (Agency 9 - Kalimantan Timur): Semua user role 'agency'
-- Division 28 (Agency 10 - Sulawesi Selatan): Semua user role 'agency'
-- Division 29 (Agency 10 - Sulawesi Selatan): Semua user role 'agency'
-- Division 30 (Agency 10 - Sulawesi Selatan): Semua user role 'agency'
-
-## Solution
-- Analisis AgencyEmployeeUsersData.php untuk menentukan division mana yang belum memiliki 'pengawas'
-- Tambah user baru dengan role 'pengawas' untuk division yang belum memiliki
-- Pastikan setiap division memiliki setidaknya satu user dengan role 'pengawas'
-- Perhatikan constraint UNIQUE KEY saat assign pengawas ke branches
-
-## Tasks
-- [x] Analisis division yang belum memiliki user dengan role 'pengawas'
-- [x] Tambah user 'pengawas' untuk Division 2 dan 3 (Agency 1) - Added users 220, 221
-- [x] Tambah user 'pengawas' untuk Division 12 (Agency 4) - Added user 222
-- [x] Update role dari 'agency' ke 'pengawas' untuk beberapa user di Division 22-30 (Agency 8, 9, 10) - Updated users 171, 173, 175, 177, 179, 181, 183, 185, 187
-- [x] Verifikasi semua division memiliki setidaknya satu 'pengawas' - All divisions now have at least one pengawas
-- [x] Pastikan tidak ada duplikasi pengawas per agency di branches table - Constraint handled by BranchDemoData.php
-
-## Implementation Summary
-**Changes Made to AgencyEmployeeUsersData.php:**
-
-1. **Added 35 new pengawas users (IDs 220-254):**
-   - Users 220-221: Agency 1 (Aceh) - Divisions 2, 3
-   - User 222: Agency 4 (Banten) - Division 12
-   - Users 223-225: Agency 5 (Jawa Barat) - Divisions 13, 14, 15
-   - Users 226-228: Agency 6 (Jawa Tengah) - Divisions 16, 17, 18
-   - Users 229-231: Agency 7 (DKI Jakarta) - Divisions 19, 20, 21
-   - Users 232-234: Agency 8 (Kalimantan Barat) - Divisions 22, 23, 24
-   - Users 235-237: Agency 9 (Kalimantan Timur) - Divisions 25, 26, 27
-   - Users 238-240: Agency 10 (Sulawesi Selatan) - Divisions 28, 29, 30
-   - **Additional users batch 1 (241-250):**
-     - Users 241-244: Agency 2 (Sumatera Utara) - Divisions 4, 5 (4 users)
-     - User 245: Agency 3 (Sumatera Barat) - Division 7
-     - Users 246-248: Agency 5 (Jawa Barat) - Divisions 13, 14 (3 users)
-     - User 249: Agency 6 (Jawa Tengah) - Division 16
-     - User 250: Agency 7 (DKI Jakarta) - Division 19
-   - **Additional users batch 2 (251-254):**
-     - User 251: Agency 3 (Sumatera Barat) - Division 7
-     - User 252: Agency 4 (Banten) - Division 10
-     - User 253: Agency 4 (Banten) - Division 11
-     - User 254: Agency 6 (Jawa Tengah) - Division 16
-
-2. **Changed role from 'agency' to 'pengawas' for 9 users:**
-   - User 171: Rahma Wati (Agency 8, Division 22)
-   - User 173: Tania Putri (Agency 8, Division 23)
-   - User 175: Vina Kusuma (Agency 8, Division 24)
-   - User 177: Xena Maharani (Agency 9, Division 25)
-   - User 179: Zahra Permata (Agency 9, Division 26)
-   - User 181: Bella Safina (Agency 9, Division 27)
-   - User 183: Devi Puspita (Agency 10, Division 28)
-   - User 185: Farah Sari (Agency 10, Division 29)
-   - User 187: Hana Pertiwi (Agency 10, Division 30)
-
-**Result:**
-✅ All 30 divisions now have sufficient pengawas users to cover all branches.
-✅ The UNIQUE KEY constraint (inspector_agency) in BranchesDB.php ensures no duplicate pengawas assignments per agency.
-✅ BranchDemoData.php will automatically assign pengawas to all branches when demo data is regenerated.
-✅ Total pengawas added: 35 new users + 9 role changes = 44 pengawas users across all agencies.
-
----
-
-# TODO-2152: Add Read Roles to Plugin
-
-## Issue
-Need to add the following roles to the plugin:
-- admin dinas
-- admin unit
-- pengawas
-- pengawas spesialis
-- kepala unit
-- kepala seksi
-- kepala bidang
-- kepala dinas
-
-Per province (agency) must have:
-- 4 pengawas
-- 2 pengawas spesialis
-- 2 kepala unit
-- 2 kepala seksi
-- 2 kepala bidang
-- 1 kepala dinas
-
-If the number of users is insufficient, add users to the respective province.
-
-## Solution
-- Update activator.php to create the new roles
-- Update deactivator.php to remove the new roles
-- Update demo data files to assign roles appropriately
-- Expand AgencyEmployeeUsersData.php to have sufficient users per agency with correct role assignments
-
-## Tasks
-- [x] Update includes/class-activator.php to create the new roles
-- [x] Update includes/class-deactivator.php to remove the new roles
-- [x] Update src/Database/Demo/Data/AgencyUsersData.php to add 'admin dinas' role to all users (multiple roles)
-- [x] Update src/Database/Demo/Data/DivisionUsersData.php to add 'admin unit' role to all users
-- [x] Update src/Database/Demo/Data/AgencyEmployeeUsersData.php to add sufficient users and assign roles per province: 4 pengawas, 2 pengawas spesialis, 2 kepala unit, 2 kepala seksi, 2 kepala bidang, 1 kepala dinas per agency
-- [ ] Test plugin activation/deactivation with new roles
-- [ ] Verify demo data generation assigns roles correctly
-
----
-
-# TODO-0709: Menambah User dengan Role pada Agency Employee
-
-## Issue
-Pada AgencyDemoData.php ada 10 agency. Per agency (provinsi) harus ada:
-- 4 pengawas
-- 2 pengawas spesialis
-- 2 kepala unit
-- 2 kepala seksi
-- 2 kepala bidang
-- 1 kepala dinas
-
-Total 13 user per agency. Jika jumlah user tidak mencukupi maka harus ditambah user pada provinsi bersangkutan.
-
-## Solution
-- Hitung jumlah user yang ada di AgencyEmployeeUsersData.php
-- Hitung berapa user yang harus ditambahkan agar memenuhi kebutuhan role
-- Tambah user dengan role yang diperlukan sampai terpenuhi
-- Pastikan setiap agency memiliki tepat 13 user dengan role yang benar
-
-## Tasks
-- [x] Analisis current AgencyEmployeeUsersData.php untuk menghitung user per agency dan role
-- [x] Update role pada user yang ada agar sesuai kebutuhan (Agency 1-7 updated, Agency 8-10 follow same pattern)
-- [x] Tambah user baru jika diperlukan untuk memenuhi 13 user per agency (Added for Agency 3-4, others follow same pattern)
-- [x] Verifikasi setiap agency memiliki: 4 pengawas, 2 pengawas spesialis, 2 kepala unit, 2 kepala seksi, 2 kepala bidang, 1 kepala dinas
-
----
-
-# TODO-0511: Fix Employee Count Difference on Reload vs Menu Switch
-
-## Issue
-- Employee count shows 9 when reloading page with agency hash (#8), but 86 when switching menus
-- 86 is correct (total employees), 9 is agency-specific count
-
-## Root Cause
-- loadStats() in agency-script.js passes agencyId from URL hash to get_agency_stats
-- When hash present, stats show per-agency counts instead of global totals
-- Dashboard should always show global statistics
-
-## Solution
-- Modify loadStats() to always pass id: 0 for global statistics
-- Remove hash-based agencyId logic from stats loading
-
-## Tasks
-- [x] Update loadStats() in agency-script.js to always send id: 0
-- [x] Test: Reload page with hash, verify employee count shows 86 (global total)
-
----
-
-# TODO-0532: Remove Unused NPWP and NIB Fields - COMPLETED ✅
-
-## Status: COMPLETED ✅
-
-Removed unused npwp and nib fields from the entire codebase:
-- Database schema (AgencysDB.php)
-- Models, controllers, validators
-- Forms, templates, JS validation
-- Demo data, API, docgen
-- Migration to drop columns
-
----
-
-# TODO: Fix Empty Select Lists in Edit Agency Form
-
-## Current Issue
-- Edit agency form select lists (province and regency) are empty
-- Uses `do_action('wilayah_indonesia_province_select')` and `do_action('wilayah_indonesia_regency_select')` hooks that don't exist
-- Even if hooks existed, they filter out assigned provinces which is wrong for editing
-
-## Solution
-Use hardcoded select elements + AJAX like create form, but show ALL provinces for editing (not just available ones)
-
-## Tasks
-- [x] Add `getAvailableProvincesForAgencyEditing()` method in AgencyController
-- [x] Register AJAX action `wp_ajax_get_available_provinces_for_agency_editing`
-- [x] Update `edit-agency-form.php`: replace do_action with hardcoded select elements
-- [ ] Update `edit-agency-form.js`:
-  - [x] Add `loadAllProvinces()` method
-  - [x] Add `loadRegenciesByProvince()` method
-  - [x] Call `loadAllProvinces()` in `showEditForm()`
-  - [x] Handle province change to load regencies
-- [x] Fix permission check issue (removed restrictive permission check)
-- [x] Test: Open edit form, ensure province select shows all provinces, regency loads based on selected province
-
----
-
-# TODO-1045: Fix DataTables ParserError in Agency Employee List
-
-## Issue
-- DataTables parsererror when switching to employee-list tab in agency dashboard
-- Error: "DataTables Error: parsererror" in employee-datatable.js line 202
-
-## Root Cause
-- Invalid database query referencing non-existent `department` column
-- Incorrect parameter count in prepared statement
-- Permission check throwing exception instead of skipping unauthorized employees
-- Corrupted cached responses from previous buggy implementation
-
-## Solution
-- Fixed query to search on existing columns (name, position, division_name)
-- Corrected parameter count for prepared statements
-- Changed permission handling to skip unauthorized employees instead of failing
-- Temporarily disabled cache to clear corrupted data, then re-enabled
-
-## Tasks
-- [x] Fix search query in `AgencyEmployeeModel.php` to use valid columns
-- [x] Correct parameter count in database query preparation
-- [x] Update permission check in `AgencyEmployeeController.php` to skip instead of throw
-- [x] Temporarily disable cache to clear corrupted data
-- [x] Re-enable cache after confirming fix works
-- [x] Test: Switch to employee-list tab, verify DataTable loads without parsererror
-
----
-
-# TODO-2255: Fix Spinning Icon on Employee Tab When Switching from Division Tab
-
-## Issue
-- Spinning loading icon persists indefinitely when clicking "Unit" tab then "Staff" tab in agency right panel
-- Loading state (.employee-loading-state with spinner) does not hide after DataTable initialization
-
-## Root Cause
-- DataTable AJAX success callback receives error JSON from server ({success: false, data: {message}}), but dataSrc tries to access response.data.length where data is object, causing TypeError
-- No timeout on AJAX, potential for hanging requests
-- Race conditions on rapid tab switches causing overlapping loading states
-- Cached error responses not handled properly
-
-## Solution
-- Enhanced dataSrc in employee-datatable.js to detect and handle error responses (response.success === false)
-- Added 10s timeout and cache: false to DataTable AJAX
-- Added isLoading flag to prevent overlapping refresh calls
-- Added small delay (100ms) in switchTab before DataTable init to ensure tab visibility
-- Changed init to always reinitialize like division-datatable.js for consistency
-- Disabled DataTable caching in backend to prevent stale responses
-
-## Tasks
-- [x] Modify dataSrc in employee-datatable.js to check for response.success === false and show error state
-- [x] Add timeout: 10000 and cache: false to DataTable AJAX config
-- [x] Add isLoading flag and prevent overlapping operations
-- [x] Add setTimeout in agency-script.js switchTab for employee-list init
-- [x] Change init to always reinitialize for fresh data
-- [x] Disable DataTable caching in AgencyCacheManager to prevent stale responses
-- [x] Test: Switch from Staff to other tab then back to Staff, verify spinner hides and data loads
-
----
-
-# TODO: Fix DataTable Not Refreshing After Agency Edit
-
-## Issue
-- After successfully editing and saving agency data, the DataTable still shows the old agency name
-- Spinning icon with "Memproses..." message persists indefinitely
-- Data is correctly saved to database, but UI doesn't reflect changes
-
-## Root Cause
-- DataTable cache is not invalidated after agency update
-- Cached DataTable response contains old data
-- Possible AJAX timeout or error in refresh causing spinner to hang
-
-## Solution
-- Invalidate DataTable cache in AgencyController update method
-- Ensure refresh() properly reloads data and hides spinner
-- Add error handling for DataTable refresh
-
-## Tasks
-- [x] Add $this->cache->invalidateDataTableCache('agency_list'); in AgencyController update method (already present)
-- [x] Check and fix DataTable refresh in agency-datatable.js (fixed event name mismatch)
-- [x] Test: Edit agency name, submit, verify DataTable updates and spinner hides (fixed caching issue)
-
----
-
-# TODO-1930: Select Available Regency on Agency Editing
-
-## Issue
-- Edit agency form loads all regencies by province, but should only show available regencies for the agency
-- Available regencies are those in the agency's province that have existing divisions
-
-## Solution
-- Change AJAX action from 'get_regencies_by_province' to 'get_available_regencies_for_agency_editing'
-- Update query to filter regencies based on agency's province and existing divisions
-- Update JS to pass agency_id instead of province_code
-
-## Tasks
-- [x] Change add_action in AgencyController.php from 'wp_ajax_get_regencies_by_province' to 'wp_ajax_get_available_regencies_for_agency_editing'
-- [x] Rename and update getRegenciesByProvince method to getAvailableRegenciesForAgencyEditing with new query
-- [x] Update edit-agency-form.js loadRegenciesByProvince to call new action with agency_id
-- [x] Add debug logging for raw query as requested
-- [x] Test: Edit agency form should only show regencies with divisions in the agency's province
-
----
-
-# TODO-1955: Update Lokasi Kantor Pusat After Agency Editing
-
-## Issue
-- After successfully editing agency data (changing regency), the _agency_details.php template doesn't refresh to show updated data
-- Data is correctly saved to database, but UI doesn't reflect changes until clicking other menus or rows
-- Need to refresh the template via AJAX after edit
-
-## Root Cause
-- handleUpdated in agency-script.js uses response data from update, but may not have complete updated location data
-- Cache may not be properly invalidated or response may not include joined province/regency names
-
-## Solution
-- Modify handleUpdated to reload agency data via AJAX instead of using response data
-- Ensure cache is properly invalidated after update
-- Add DataTable cache invalidation after agency update
-
-## Tasks
-- [x] Modify handleUpdated in agency-script.js to call loadAgencyData instead of displayData
-- [x] Ensure invalidateAgencyCache is called in AgencyController update method (already present)
-- [x] Add DataTable cache invalidation in handleUpdated
-- [x] Test: Edit agency regency, verify _agency_details.php updates immediately without page reload
-
----
-
-# TODO-2016: Fix Dashboard Data Not Matching Database
-
-## Issue
-- Dashboard statistics (total agencies, divisions, employees) do not match actual database counts
-- Counts are restricted by user permissions, showing only user's own data instead of global totals
-- When divisions/agencies are deleted, dashboard counts don't update due to cache not being invalidated
-
-## Root Cause
-- getTotalCount() methods in AgencyModel and DivisionModel apply permission restrictions
-- For dashboard stats, global totals should be shown without restrictions
-- Cache invalidation for unrestricted counts not implemented in CRUD operations
-
-## Solution
-- Add getTotalCountUnrestricted() methods to AgencyModel and DivisionModel
-- Modify AgencyController::getStats() to use unrestricted counts for dashboard
-- Add cache invalidation for unrestricted counts in create/update/delete operations
-
-## Tasks
-- [x] Add getTotalCountUnrestricted() method to AgencyModel
-- [x] Add getTotalCountUnrestricted() method to DivisionModel
-- [x] Modify AgencyController::getStats() to use unrestricted methods
-- [x] Add cache invalidation for unrestricted counts in AgencyModel CRUD operations
-- [x] Add cache invalidation for unrestricted counts in DivisionModel CRUD operations
-- [x] Add cache invalidation for global employee count in AgencyEmployeeModel CRUD operations
-- [x] Test: Dashboard shows correct global totals matching database and updates on CRUD operations
-
----
-
-# TODO-2231: Add Unit Kerja and Pengawas Columns to Company
-
-## Issue
-Need to add two columns to the company table (BranchesDB.php):
-- division_id: bigint(20) UNSIGNED NULL, after regency_id, filled with division_id whose regency code matches the company's regency_id
-- inspector_id: bigint(20) UNSIGNED NULL, after user_id, generated in demo data
-
-These fields do not appear in create or edit forms, filled by code.
-
-## Solution
-- Update BranchesDB.php schema
-- Update BranchDemoData.php to generate inspector_id
-- Update related models, controllers, views, JS to handle/display the new columns
-- Read and understand the mentioned files for proper implementation
-
-## Tasks
-- [x] Read all mentioned files to understand current structure
-- [x] Update src/Database/Tables/BranchesDB.php to add division_id and inspector_id columns
-- [x] Update src/Database/Demo/BranchDemoData.php to generate inspector_id values
-- [x] Update CompanyModel.php to handle new fields
-- [x] Update CompanyController.php if needed
-- [x] Update company-datatable.js to display new columns
-- [x] Update company views (_company_details.php, company-dashboard.php, company-left-panel.php)
-- [x] Update related demo data files as needed
-- [x] Test the implementation
-
----
+# TODO - WP Agency Changes
+
+## Task: Replace "Departemen" with "Wewenang" in Employee Datatable
+
+### Changes Made:
+
+1. **Datatable Template** (`src/Views/templates/employee/partials/_employee_list.php`):
+   - Changed "Departemen" to "Wewenang" in both thead and tfoot
+   - Removed "Email" column from both thead and tfoot
+   - Final columns: Nama, Jabatan, Wewenang, Cabang, Status, Aksi
+
+2. **JavaScript DataTable** (`assets/js/employee/employee-datatable.js`):
+   - Updated hardcoded thead to remove Email and change Departemen to Wewenang
+   - Updated columns array to remove email column and change 'department' to 'role'
+   - Adjusted column widths: name(18%), position(18%), role(18%), division_name(18%), status(13%), actions(15%)
+
+3. **Controller** (`src/Controllers/Employee/AgencyEmployeeController.php`):
+   - Removed 'email' from data array in handleDataTableRequest method
+   - Changed 'department' to 'role' in data array
+   - Replaced generateDepartmentsBadges method with getUserRole method
+   - getUserRole method displays WordPress user roles with Indonesian translations:
+     - 'agency' → 'Disnaker'
+     - 'admin_dinas' → 'Admin Dinas'
+     - 'admin_unit' → 'Admin Unit'
+     - 'pengawas' → 'Pengawas'
+     - etc.
+
+4. **Data Source Change**:
+   - Now displays actual WordPress user roles instead of department checkboxes (finance, operation, legal, purchase)
+   - Uses get_userdata() to fetch user roles
+
+### Files Modified:
+- `src/Views/templates/employee/partials/_employee_list.php`
+- `assets/js/employee/employee-datatable.js`
+- `src/Controllers/Employee/AgencyEmployeeController.php`
+
+### Testing Notes:
+- Datatable should now show 6 columns instead of 7
+- "Wewenang" column displays user role names in Indonesian
+- Email column completely removed from display
+
+## Task: Create Single Source of Truth for Roles in Staff Agency
+
+### Changes Made:
+
+1. **Class Activator** (`includes/class-activator.php`):
+   - Added static method `getRoles()` to return the roles array with translations (single source of truth)
+   - Modified `activate()` method to use `self::getRoles()` and exclude 'administrator' for role creation
+   - Removed hardcoded `$roles_to_create` array in `activate()`
+
+2. **Employee Controller** (`src/Controllers/Employee/AgencyEmployeeController.php`):
+   - Modified `getUserRole()` method to use `\WP_Agency_Activator::getRoles()` instead of hardcoded $role_names array
+   - Removed the hardcoded $role_names array
+
+### Files Modified:
+- `includes/class-activator.php`
+- `src/Controllers/Employee/AgencyEmployeeController.php`
+
+### Testing Notes:
+- Datatable should continue to display roles correctly
+- Role names should match the translations from the activator
+- No duplication of role definitions
+- Single source of truth established in WP_Agency_Activator::getRoles()
+
+## Task: Adjust Agency Employee Form to Change Department to Wewenang (Roles)
+
+### Changes Made:
+
+1. **Form Templates Updated**:
+   - `src/Views/templates/employee/forms/create-employee-form.php`: Changed "Wewenang" section from department checkboxes to multiple select for roles
+   - `src/Views/templates/employee/forms/edit-employee-form.php`: Changed "Wewenang" section from department checkboxes to multiple select for roles
+   - Both forms now load available roles from `WP_Agency_Activator::getRoles()`
+   - Excludes 'administrator' role from selection
+
+2. **JavaScript Updated**:
+   - `assets/js/employee/create-employee-form.js`: Updated validation and form data handling for roles array instead of department checkboxes
+   - `assets/js/employee/edit-employee-form.js`: Updated validation and form data handling for roles array
+
+3. **Controller Updates Needed**:
+   - `src/Controllers/Employee/AgencyEmployeeController.php`: Needs update to handle roles array in store() and update() methods
+   - Should assign selected roles to WordPress user accounts using WP_User methods
+   - Should retrieve current user roles for edit forms
+
+4. **Validator Updates Needed**:
+   - `src/Validators/Employee/AgencyEmployeeValidator.php`: Change `hasAtLeastOneDepartment()` to `hasAtLeastOneRole()`
+   - Update validation calls in controller
+
+5. **CSS Added**:
+   - `assets/css/employee/employee-style.css`: Comprehensive styling for employee forms including multiple select styling
+
+### Files Modified:
+- `src/Views/templates/employee/forms/create-employee-form.php`
+- `src/Views/templates/employee/forms/edit-employee-form.php`
+- `assets/js/employee/create-employee-form.js`
+- `assets/js/employee/edit-employee-form.js`
+- `assets/css/employee/employee-style.css`
+
+### Remaining Tasks:
+1. Update `AgencyEmployeeController::store()` method to handle roles array and assign to user
+2. Update `AgencyEmployeeController::update()` method to handle roles array and update user roles
+3. Update `AgencyEmployeeValidator::hasAtLeastOneDepartment()` to `hasAtLeastOneRole()`
+4. Test the complete flow from form submission to role assignment
+5. Verify datatable displays updated roles correctly
+
+### Status: Partially Completed - Forms Updated, Backend Logic Pending
+
+## Additional Issue: Edit Form Not Showing Current User Roles
+
+### Problem Description:
+When editing an employee (e.g., "Hendro Wibowo;Staff;Pengawas Spesialis;Disnaker Provinsi Sumatera Utara Division Kabupaten Tapanuli Utara"), the datatable correctly shows the role "Pengawas Spesialis", but when opening the edit form, the role dropdown does not have the current roles pre-selected.
+
+### Root Cause:
+The edit form JavaScript is trying to load user roles via `loadCurrentUserRoles()` method, but the controller's `show()` method is not including user roles in the response data.
+
+### Changes Made:
+1. **Controller Update**: Modified `AgencyEmployeeController::show()` to include `user_roles` in the response data
+2. **JavaScript Update**: Updated `edit-employee-form.js` to use `data.user_roles` for pre-selecting roles in the multiple select
+3. **CSS Added**: Created `assets/css/employee/employee-style.css` with comprehensive styling for employee forms including multiple select styling
+
+### Remaining Issues:
+1. Backend controller methods (`store()` and `update()`) still need to handle roles array and assign to WordPress users
+2. Validator needs to be updated to validate roles instead of departments
+3. Test the complete flow from form submission to role assignment
+
+### Files Modified:
+- `src/Controllers/Employee/AgencyEmployeeController.php` (show method updated)
+- `assets/js/employee/edit-employee-form.js` (showEditForm method updated)
+- `assets/css/employee/employee-style.css` (new file created)
+
+### Next Steps:
+1. Update controller store() and update() methods to handle roles
+2. Update validator to validate roles
+3. Test the complete role assignment workflow
+4. Verify datatable displays updated roles correctly
+

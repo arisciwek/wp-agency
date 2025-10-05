@@ -3,7 +3,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Assets/JS/Employee
- * @version     1.0.0
+ * @version     1.0.1
  * @author      arisciwek
  *
  * Path: /wp-agency/assets/js/employee/create-employee-form.js
@@ -19,7 +19,8 @@
  * - EmployeeToast for notifications
  * - WIModal for confirmations
  *
- * Last modified: 2024-01-12
+ * Last modified: 2024-07-27
+ * - Updated to handle multiple select roles instead of department checkboxes
  */
 (function($) {
     'use strict';
@@ -126,7 +127,7 @@
             });
         },
 
-        // Di bagian initializeValidation()
+        // Updated validation for roles instead of department
         initializeValidation() {
             this.form.validate({
                 rules: {
@@ -143,10 +144,9 @@
                         minlength: 2,
                         maxlength: 100
                     },
-                    department: {
+                    'roles[]': {
                         required: true,
-                        minlength: 2,
-                        maxlength: 100
+                        minlength: 1
                     },
                     email: {
                         required: true,
@@ -155,7 +155,6 @@
                     },
                     phone: {
                         maxlength: 20,
-                        // Ganti pattern dengan method validate khusus
                         phoneID: true
                     }
                 },
@@ -173,10 +172,9 @@
                         minlength: 'Jabatan minimal 2 karakter',
                         maxlength: 'Jabatan maksimal 100 karakter'
                     },
-                    department: {
-                        required: 'Departemen wajib diisi',
-                        minlength: 'Departemen minimal 2 karakter',
-                        maxlength: 'Departemen maksimal 100 karakter'
+                    'roles[]': {
+                        required: 'Minimal satu role harus dipilih',
+                        minlength: 'Minimal satu role harus dipilih'
                     },
                     email: {
                         required: 'Email wajib diisi',
@@ -275,18 +273,15 @@
                 position: this.form.find('[name="position"]').val().trim(),
                 // Status aktif secara default untuk karyawan baru
                 status: 'active',
-                // Department values
-                finance: this.form.find('[name="finance"]').is(':checked') ? "1" : "0",
-                operation: this.form.find('[name="operation"]').is(':checked') ? "1" : "0",
-                legal: this.form.find('[name="legal"]').is(':checked') ? "1" : "0",
-                purchase: this.form.find('[name="purchase"]').is(':checked') ? "1" : "0",
+                // Roles array instead of department checkboxes
+                roles: this.form.find('[name="roles[]"]').val(),
                 // Optional fields
                 keterangan: this.form.find('[name="keterangan"]').val().trim(),
                 email: this.form.find('[name="email"]').val().trim(),
                 phone: this.form.find('[name="phone"]').val().trim()
             };
-            
-            console.log('Sending data:', formData); // Add this
+
+            console.log('Sending data:', formData);
 
             this.setLoadingState(true);
 

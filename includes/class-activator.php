@@ -58,17 +58,9 @@ class WP_Agency_Activator {
             }
 
             // 3. Create roles if they don't exist
-            $roles_to_create = [
-                'agency' => __('Disnaker', 'wp-agency'),
-                'admin_dinas' => __('Admin Dinas', 'wp-agency'),
-                'admin_unit' => __('Admin Unit', 'wp-agency'),
-                'pengawas' => __('Pengawas', 'wp-agency'),
-                'pengawas_spesialis' => __('Pengawas Spesialis', 'wp-agency'),
-                'kepala_unit' => __('Kepala Unit', 'wp-agency'),
-                'kepala_seksi' => __('Kepala Seksi', 'wp-agency'),
-                'kepala_bidang' => __('Kepala Bidang', 'wp-agency'),
-                'kepala_dinas' => __('Kepala Dinas', 'wp-agency')
-            ];
+            $all_roles = self::getRoles();
+            // Exclude 'administrator' as it's a WordPress default role
+            $roles_to_create = array_diff_key($all_roles, ['administrator' => '']);
 
             foreach ($roles_to_create as $role_slug => $role_name) {
                 if (!get_role($role_slug)) {
@@ -141,5 +133,24 @@ class WP_Agency_Activator {
 
     private static function addVersion() {
         add_option('wp_agency_version', WP_AGENCY_VERSION);
+    }
+
+    /**
+     * Get all available roles with their display names
+     * Single source of truth for roles in the plugin
+     */
+    public static function getRoles(): array {
+        return [
+            'administrator' => __('Administrator', 'wp-agency'),
+            'agency' => __('Disnaker', 'wp-agency'),
+            'admin_dinas' => __('Admin Dinas', 'wp-agency'),
+            'admin_unit' => __('Admin Unit', 'wp-agency'),
+            'pengawas' => __('Pengawas', 'wp-agency'),
+            'pengawas_spesialis' => __('Pengawas Spesialis', 'wp-agency'),
+            'kepala_unit' => __('Kepala Unit', 'wp-agency'),
+            'kepala_seksi' => __('Kepala Seksi', 'wp-agency'),
+            'kepala_bidang' => __('Kepala Bidang', 'wp-agency'),
+            'kepala_dinas' => __('Kepala Dinas', 'wp-agency')
+        ];
     }
 }

@@ -69,8 +69,7 @@ defined('ABSPATH') || exit;
                     <tr>
                         <th><?php _e('Nama', 'wp-agency'); ?></th>
                         <th><?php _e('Jabatan', 'wp-agency'); ?></th>
-                        <th><?php _e('Departemen', 'wp-agency'); ?></th>
-                        <th><?php _e('Email', 'wp-agency'); ?></th>
+                        <th><?php _e('Wewenang', 'wp-agency'); ?></th>
                         <th><?php _e('Cabang', 'wp-agency'); ?></th>
                         <th><?php _e('Status', 'wp-agency'); ?></th>
                         <th class="text-center no-sort">
@@ -85,8 +84,7 @@ defined('ABSPATH') || exit;
                     <tr>
                         <th><?php _e('Nama', 'wp-agency'); ?></th>
                         <th><?php _e('Jabatan', 'wp-agency'); ?></th>
-                        <th><?php _e('Departemen', 'wp-agency'); ?></th>
-                        <th><?php _e('Email', 'wp-agency'); ?></th>
+                        <th><?php _e('Wewenang', 'wp-agency'); ?></th>
                         <th><?php _e('Cabang', 'wp-agency'); ?></th>
                         <th><?php _e('Status', 'wp-agency'); ?></th>
                         <th><?php _e('Aksi', 'wp-agency'); ?></th>

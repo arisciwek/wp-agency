@@ -97,6 +97,40 @@ class AgencyEmployeeValidator {
         return false;
     }
 
+    /**
+     * Check if at least one role is selected
+     * (Replaces hasAtLeastOneDepartment)
+     */
+    protected function hasAtLeastOneRole(array $roles): bool {
+        return !empty($roles) && is_array($roles) && count($roles) > 0;
+    }
+
+    /**
+     * Validate roles array
+     */
+    protected function validateRoles(array $roles): array {
+        $errors = [];
+        
+        if (empty($roles)) {
+            $errors[] = __('Minimal satu role harus dipilih', 'wp-agency');
+            return $errors;
+        }
+
+        // Get valid roles from the source of truth
+        $valid_roles = array_keys(\WP_Agency_Activator::getRoles());
+        
+        // Remove administrator from valid selections
+        $valid_roles = array_diff($valid_roles, ['administrator']);
+        
+        foreach ($roles as $role) {
+            if (!in_array($role, $valid_roles)) {
+                $errors[] = sprintf(__('Role "%s" tidak valid', 'wp-agency'), $role);
+            }
+        }
+        
+        return $errors;
+    }
+        
    public function canCreateEmployee($agency_id, $division_id): bool {
        $current_user_id = get_current_user_id();
 
@@ -137,81 +171,133 @@ class AgencyEmployeeValidator {
         return false;
     }
 
-   public function validateCreate(array $data): array {
-       $errors = [];
+    /**
+     * Validate create data
+     */
+    public function validateCreate(array $data): array {
+        $errors = [];
 
-       // Permission check
-       if (!$this->canCreateEmployee($data['agency_id'], $data['division_id'])) {
-           $errors['permission'] = __('Anda tidak memiliki izin untuk menambah karyawan.', 'wp-agency');
-           return $errors;
-       }
+        // Required fields
+        if (empty($data['name'])) {
+            $errors[] = __('Nama karyawan wajib diisi', 'wp-agency');
+        } elseif (strlen($data['name']) < 3) {
+            $errors[] = __('Nama karyawan minimal 3 karakter', 'wp-agency');
+        } elseif (strlen($data['name']) > 100) {
+            $errors[] = __('Nama karyawan maksimal 100 karakter', 'wp-agency');
+        }
 
-       // Basic data validation
-       $errors = array_merge($errors, $this->validateBasicData($data));
+        if (empty($data['position'])) {
+            $errors[] = __('Jabatan wajib diisi', 'wp-agency');
+        } elseif (strlen($data['position']) < 2) {
+            $errors[] = __('Jabatan minimal 2 karakter', 'wp-agency');
+        } elseif (strlen($data['position']) > 100) {
+            $errors[] = __('Jabatan maksimal 100 karakter', 'wp-agency');
+        }
 
-       // Agency ID validation
-       if (empty($data['agency_id'])) {
-           $errors['agency_id'] = __('ID Agency wajib diisi.', 'wp-agency');
-       } else {
-           $agency = $this->agency_model->find($data['agency_id']);
-           if (!$agency) {
-               $errors['agency_id'] = __('Agency tidak ditemukan.', 'wp-agency');
-           }
-       }
+        if (empty($data['email'])) {
+            $errors[] = __('Email wajib diisi', 'wp-agency');
+        } elseif (!is_email($data['email'])) {
+            $errors[] = __('Format email tidak valid', 'wp-agency');
+        } elseif (email_exists($data['email'])) {
+            $errors[] = __('Email sudah digunakan', 'wp-agency');
+        }
 
-       // Division ID validation
-       if (empty($data['division_id'])) {
-           $errors['division_id'] = __('ID Division wajib diisi.', 'wp-agency');
-       }
+        if (empty($data['division_id'])) {
+            $errors[] = __('Cabang wajib dipilih', 'wp-agency');
+        }
 
-       // Email uniqueness
-       if (!empty($data['email']) && $this->employee_model->existsByEmail($data['email'])) {
-           $errors['email'] = __('Email sudah digunakan.', 'wp-agency');
-       }
+        // Validate roles (if provided separately)
+        if (isset($data['roles'])) {
+            $role_errors = $this->validateRoles($data['roles']);
+            $errors = array_merge($errors, $role_errors);
+        }
 
-       // Department validation
-       if (!$this->hasAtLeastOneDepartment($data)) {
-           $errors['department'] = __('Minimal satu departemen harus dipilih.', 'wp-agency');
-       }
+        // Optional fields validation
+        if (!empty($data['phone'])) {
+            if (strlen($data['phone']) > 20) {
+                $errors[] = __('Nomor telepon maksimal 20 karakter', 'wp-agency');
+            }
+            // Indonesian phone number validation
+            if (!preg_match('/^(\+62|62|0)[\s-]?8[1-9]{1}[\s-]?\d{1,4}[\s-]?\d{1,4}[\s-]?\d{1,4}$/', $data['phone'])) {
+                $errors[] = __('Format nomor telepon tidak valid', 'wp-agency');
+            }
+        }
 
-       return $errors;
-   }
+        if (!empty($data['keterangan']) && strlen($data['keterangan']) > 200) {
+            $errors[] = __('Keterangan maksimal 200 karakter', 'wp-agency');
+        }
 
+        return $errors;
+    }
+
+    /**
+     * Validate update data
+     */
     public function validateUpdate(array $data, int $id): array {
         $errors = [];
 
-        // Check if employee exists
-        $employee = $this->employee_model->find($id);
-        if (!$employee) {
-            $errors['id'] = __('Karyawan tidak ditemukan.', 'wp-agency');
-            return $errors;
+        // Required fields
+        if (empty($data['name'])) {
+            $errors[] = __('Nama karyawan wajib diisi', 'wp-agency');
+        } elseif (strlen($data['name']) < 3) {
+            $errors[] = __('Nama karyawan minimal 3 karakter', 'wp-agency');
+        } elseif (strlen($data['name']) > 100) {
+            $errors[] = __('Nama karyawan maksimal 100 karakter', 'wp-agency');
         }
 
-        // Get agency for context
-        $agency = $this->agency_model->find($employee->agency_id);
-        if (!$agency) {
-            $errors['agency'] = __('Agency tidak ditemukan.', 'wp-agency');
-            return $errors;
+        if (empty($data['position'])) {
+            $errors[] = __('Jabatan wajib diisi', 'wp-agency');
+        } elseif (strlen($data['position']) < 2) {
+            $errors[] = __('Jabatan minimal 2 karakter', 'wp-agency');
+        } elseif (strlen($data['position']) > 100) {
+            $errors[] = __('Jabatan maksimal 100 karakter', 'wp-agency');
         }
 
-        // Validasi permission yang disesuaikan dengan pola baru
-        $relation = $this->getUserRelation($id);
-        if (!$this->canEditEmployee($relation)) {
-            $errors['permission'] = __('Anda tidak memiliki izin untuk mengedit karyawan ini.', 'wp-agency');
-            return $errors;
+        if (empty($data['email'])) {
+            $errors[] = __('Email wajib diisi', 'wp-agency');
+        } elseif (!is_email($data['email'])) {
+            $errors[] = __('Format email tidak valid', 'wp-agency');
+        } else {
+            // Check if email is already used by another user
+            $current_employee = $this->model->find($id);
+            if ($current_employee && $current_employee->user_id) {
+                $user = get_userdata($current_employee->user_id);
+                if ($user && $user->user_email !== $data['email']) {
+                    if (email_exists($data['email'])) {
+                        $errors[] = __('Email sudah digunakan oleh user lain', 'wp-agency');
+                    }
+                }
+            }
         }
 
-        // Basic data validation
-        $errors = array_merge($errors, $this->validateBasicData($data));
-
-        // Email uniqueness (excluding current ID)
-        if (!empty($data['email']) && $this->employee_model->existsByEmail($data['email'], $id)) {
-            $errors['email'] = __('Email sudah digunakan.', 'wp-agency');
+        if (empty($data['division_id'])) {
+            $errors[] = __('Cabang wajib dipilih', 'wp-agency');
         }
 
-        // Department validation on update
-        if (!$this->hasAtLeastOneDepartment($data)) {
-            $errors['department'] = __('Minimal satu departemen harus dipilih.', 'wp-agency');
+        // Validate roles (if provided separately)
+        if (isset($data['roles'])) {
+            $role_errors = $this->validateRoles($data['roles']);
+            $errors = array_merge($errors, $role_errors);
+        }
+
+        // Optional fields validation
+        if (!empty($data['phone'])) {
+            if (strlen($data['phone']) > 20) {
+                $errors[] = __('Nomor telepon maksimal 20 karakter', 'wp-agency');
+            }
+            // Indonesian phone number validation
+            if (!preg_match('/^(\+62|62|0)[\s-]?8[1-9]{1}[\s-]?\d{1,4}[\s-]?\d{1,4}[\s-]?\d{1,4}$/', $data['phone'])) {
+                $errors[] = __('Format nomor telepon tidak valid', 'wp-agency');
+            }
+        }
+
+        if (!empty($data['keterangan']) && strlen($data['keterangan']) > 200) {
+            $errors[] = __('Keterangan maksimal 200 karakter', 'wp-agency');
+        }
+
+        // Validate status if provided
+        if (!empty($data['status']) && !in_array($data['status'], ['active', 'inactive'])) {
+            $errors[] = __('Status tidak valid', 'wp-agency');
         }
 
         return $errors;

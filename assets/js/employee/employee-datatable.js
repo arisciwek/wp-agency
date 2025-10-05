@@ -166,7 +166,8 @@
                 <thead>
                     <tr>
                         <th>Nama</th>
-                        <th>Departemen</th>
+                        <th>Jabatan</th>
+                        <th>Wewenang</th>
                         <th>Cabang</th>
                         <th>Status</th>
                         <th>Aksi</th>
@@ -222,37 +223,38 @@
                     }
                 },
                 columns: [
-                    { data: 'name', width: '20%' },
-                    { data: 'department', width: '15%' },
-                    { data: 'division_name', width: '15%' },
+                    { data: 'name', width: '18%' },
+                    { data: 'position', width: '18%' },
+                    { data: 'role', width: '18%' },
+                    { data: 'division_name', width: '18%' },
                     {
                         data: 'status',
-                        width: '10%',
+                        width: '13%',
                         render: function(data, type, row) {
                             // Pastikan data status adalah string murni
                             // dan bukan HTML yang sudah di-generate
                             console.log('Raw status:', data);
-                            
+
                             // Normalisasi nilai status untuk perbandingan
                             let statusValue = data;
                             if (typeof data === 'string' && data.includes('status-badge')) {
                                 // Jika data sudah dalam bentuk HTML, ekstrak nilai aslinya
                                 statusValue = data.includes('Aktif') ? 'active' : 'inactive';
                             }
-                            
+
                             // Normalisasi untuk perbandingan
                             statusValue = String(statusValue).toLowerCase().trim();
                             const isActive = statusValue === 'active';
-                            
+
                             const statusClass = isActive ? 'status-active' : 'status-inactive';
                             const statusText = isActive ? 'Aktif' : 'Nonaktif';
-                            
+
                             return `<span class="status-badge ${statusClass}">${statusText}</span>`;
                         }
                     },
                     {
                         data: 'actions',
-                        width: '10%',
+                        width: '15%',
                         orderable: false,
                         className: 'text-center nowrap'
                     }
@@ -337,7 +339,7 @@
 
     $(document).ready(() => {
         window.EmployeeDataTable = EmployeeDataTable;
-        
+
         $(document).on('agency:selected', (event, agency) => {
             if (agency && agency.id) {
                 EmployeeDataTable.init(agency.id);

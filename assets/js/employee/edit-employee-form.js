@@ -3,7 +3,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Assets/JS/Employee
- * @version     1.0.0
+ * @version     1.0.1
  * @author      arisciwek
  *
  * Path: /wp-agency/assets/js/employee/edit-employee-form.js
@@ -19,7 +19,8 @@
  * - AgencyToast for notifications
  * - WIModal for confirmations
  *
- * Last modified: 2024-01-12
+ * Last modified: 2024-07-27
+ * - Updated to handle multiple select roles instead of department checkboxes
  */
 (function($) {
     'use strict';
@@ -66,34 +67,37 @@
             });
         },
 
-        async loadEmployeeData(id) {
-            try {
-                const response = await $.ajax({
-                    url: wpAgencyData.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'get_employee',
-                        id: id,
-                        nonce: wpAgencyData.nonce
-                    }
-                });
+	async loadEmployeeData(id) {
+	    try {
+		const response = await $.ajax({
+		    url: wpAgencyData.ajaxUrl,
+		    type: 'POST',
+		    data: {
+		        action: 'get_employee',
+		        id: id,
+		        nonce: wpAgencyData.nonce
+		    }
+		});
 
-                if (response.success && response.data) {
-                    console.log('Response data: ', response.data);
-                    // Store agency ID for division loading
-                    this.agencyId = response.data.agency_id;
-                    
-                    // Load divisions then show form
-                    await this.loadDivisions(response.data.agency_id, response.data.division_id);
-                    this.showEditForm(response.data);
-                } else {
-                    AgencyToast.error(response.data?.message || 'Gagal memuat data karyawan');
-                }
-            } catch (error) {
-                console.error('Load employee error:', error);
-                AgencyToast.error('Gagal menghubungi server');
-            }
-        },
+		if (response.success && response.data) {
+		    console.log('Employee data received:', response.data);
+		    
+		    // Store agency ID for division loading
+		    this.agencyId = response.data.agency_id;
+
+		    // Load divisions then show form
+		    await this.loadDivisions(response.data.agency_id, response.data.division_id);
+		    
+		    // Show form with data (user_roles will be included)
+		    this.showEditForm(response.data);
+		} else {
+		    AgencyToast.error(response.data?.message || 'Gagal memuat data karyawan');
+		}
+	    } catch (error) {
+		console.error('Load employee error:', error);
+		AgencyToast.error('Gagal menghubungi server');
+	    }
+	},
 
         async loadDivisions(agencyId, selectedDivisionId = null) {
             try {
@@ -125,40 +129,65 @@
             }
         },
 
-        async showEditForm(data) {
-            if (!data) {
-                AgencyToast.error('Data karyawan tidak valid');
-                return;
-            }
+	async showEditForm(data) {
+	    if (!data) {
+		AgencyToast.error('Data karyawan tidak valid');
+		return;
+	    }
 
-            // Reset form first
-            this.resetForm();
+	    // Reset form first
+	    this.resetForm();
 
-            // Load divisions first
-            await this.loadDivisions(data.agency_id, data.division_id);
+	    // Load divisions first
+	    await this.loadDivisions(data.agency_id, data.division_id);
 
-            // Populate form data
-            this.form.find('#edit-employee-id').val(data.id);
-            this.form.find('[name="name"]').val(data.name);
-            this.form.find('[name="position"]').val(data.position);
-            this.form.find('[name="email"]').val(data.email);
-            this.form.find('[name="phone"]').val(data.phone);
-            console.log('Setting status to:', data.status); // Add this debug log
-            this.form.find('[name="status"]').val(data.status);
-            this.form.find('[name="keterangan"]').val(data.keterangan || '');
+	    // Populate form data
+	    this.form.find('#edit-employee-id').val(data.id);
+	    this.form.find('[name="name"]').val(data.name);
+	    this.form.find('[name="position"]').val(data.position);
+	    this.form.find('[name="email"]').val(data.email);
+	    this.form.find('[name="phone"]').val(data.phone);
+	    console.log('Setting status to:', data.status);
+	    this.form.find('[name="status"]').val(data.status);
+	    this.form.find('[name="keterangan"]').val(data.keterangan || '');
 
-            // Set department checkboxes
-            this.form.find('[name="finance"]').prop('checked', data.finance === "1");
-            this.form.find('[name="operation"]').prop('checked', data.operation === "1");
-            this.form.find('[name="legal"]').prop('checked', data.legal === "1");
-            this.form.find('[name="purchase"]').prop('checked', data.purchase === "1");
+	    // Set selected roles - data.user_roles should be available from the controller
+	    if (data.user_roles && data.user_roles.length > 0) {
+		console.log('Setting roles:', data.user_roles);
+		this.form.find('[name="roles[]"]').val(data.user_roles);
+		
+		// Trigger change event to update any UI elements that depend on selection
+		this.form.find('[name="roles[]"]').trigger('change');
+	    } else {
+		console.log('No roles found for user');
+		// Clear selection if no roles
+		this.form.find('[name="roles[]"]').val([]);
+	    }
 
-            // Update modal title
-            this.modal.find('.modal-header h3').text(`Edit Karyawan: ${data.name}`);
+	    // Update modal title
+	    this.modal.find('.modal-header h3').text(`Edit Karyawan: ${data.name}`);
 
-            // Show modal with animation
-            this.modal.fadeIn(300, () => {
-                this.form.find('[name="name"]').focus();
+	    // Show modal with animation
+	    this.modal.fadeIn(300, () => {
+		this.form.find('[name="name"]').focus();
+	    });
+	},
+
+	// Remove or simplify the loadCurrentUserRoles method as it's no longer needed:
+	async loadCurrentUserRoles(userId) {
+	    // This method is no longer needed as roles come from the server
+	    // Keep it empty for backward compatibility or remove it entirely
+	},
+
+        async getUserData(userId) {
+            // This is a simplified approach - in a real implementation,
+            // you might need to add an AJAX endpoint to get user roles
+            // For now, we'll assume the roles are available or use a placeholder
+            // You may need to modify the backend to include user roles in the employee data
+            return new Promise((resolve) => {
+                // Placeholder - replace with actual AJAX call if needed
+                // For now, we'll assume roles are passed in employee data or handle differently
+                resolve({ roles: [] }); // Default empty
             });
         },
 
@@ -169,15 +198,13 @@
             });
         },
 
-        // Di bagian initializeValidation(), ganti validasi phone dengan custom method phoneID
+        // Updated validation for roles
         initializeValidation() {
             // Tambahkan custom method untuk validasi nomor telepon Indonesia
             $.validator.addMethod("phoneID", function(value, element) {
-                // Kosongkan value jika opsional
                 if (this.optional(element)) {
                     return true;
                 }
-                // Validasi format nomor telepon Indonesia
                 return /^(\+62|62|0)[\s-]?8[1-9]{1}[\s-]?\d{1,4}[\s-]?\d{1,4}[\s-]?\d{1,4}$/.test(value);
             }, "Format nomor telepon tidak valid");
 
@@ -196,6 +223,10 @@
                         minlength: 2,
                         maxlength: 100
                     },
+                    'roles[]': {
+                        required: true,
+                        minlength: 1
+                    },
                     email: {
                         required: true,
                         email: true,
@@ -203,7 +234,7 @@
                     },
                     phone: {
                         maxlength: 20,
-                        phoneID: true  // Gunakan custom method phoneID
+                        phoneID: true
                     },
                     keterangan: {
                         maxlength: 200
@@ -225,6 +256,10 @@
                         required: 'Jabatan wajib diisi',
                         minlength: 'Jabatan minimal 2 karakter',
                         maxlength: 'Jabatan maksimal 100 karakter'
+                    },
+                    'roles[]': {
+                        required: 'Minimal satu role harus dipilih',
+                        minlength: 'Minimal satu role harus dipilih'
                     },
                     email: {
                         required: 'Email wajib diisi',
@@ -316,25 +351,17 @@
             }
 
             const id = this.form.find('#edit-employee-id').val();
-            // Get department selections
-            const finance = this.form.find('[name="finance"]').is(':checked') ? "1" : "0";
-            const operation = this.form.find('[name="operation"]').is(':checked') ? "1" : "0";
-            const legal = this.form.find('[name="legal"]').is(':checked') ? "1" : "0";
-            const purchase = this.form.find('[name="purchase"]').is(':checked') ? "1" : "0";
-
 
             const formData = {
                 action: 'update_employee',
                 nonce: wpAgencyData.nonce,
                 id: id,
-                agency_id: this.agencyId, // Added agency_id from class property
+                agency_id: this.agencyId,
                 division_id: this.form.find('[name="division_id"]').val(),
                 name: this.form.find('[name="name"]').val().trim(),
                 position: this.form.find('[name="position"]').val().trim(),
-                finance: finance,
-                operation: operation,
-                legal: legal,
-                purchase: purchase,
+                // Roles array instead of department checkboxes
+                roles: this.form.find('[name="roles[]"]').val(),
                 keterangan: this.form.find('[name="keterangan"]').val().trim(),
                 email: this.form.find('[name="email"]').val().trim(),
                 phone: this.form.find('[name="phone"]').val().trim(),

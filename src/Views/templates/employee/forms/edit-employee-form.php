@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Views/Templates/Employee/Forms
- * @version     1.0.0
+ * @version     1.0.1
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Views/templates/employee/forms/edit-employee-form.php
@@ -15,6 +15,10 @@
  *              Terintegrasi dengan komponen toast notification.
  *
  * Changelog:
+ * 1.0.1 - 2024-07-27
+ * - Changed Wewenang section from department checkboxes to multiple select roles
+ * - Updated to use WP_Agency_Activator::getRoles() for role options
+ * - Added pre-selection of current user roles
  * 1.0.0 - 2024-01-12
  * - Initial release
  * - Added form structure
@@ -43,7 +47,7 @@ defined('ABSPATH') || exit;
                 <div class="employee-form-section">
                     <div class="section-header">
                         <h4><?php _e('Informasi Dasar', 'wp-agency'); ?></h4>
-                    </div>                  
+                    </div>
                   <div class="employee-form-group">
                     <label for="edit-employee-name" class="required-field">
                       <?php _e('Nama Karyawan', 'wp-agency'); ?>
@@ -61,7 +65,7 @@ defined('ABSPATH') || exit;
                       <?php _e('Jabatan', 'wp-agency'); ?>
                     </label>
                     <input type="text"
-                           id="edit-employee-position" 
+                           id="edit-employee-position"
                            name="position"
                            class="regular-text"
                            maxlength="100"
@@ -69,31 +73,29 @@ defined('ABSPATH') || exit;
                   </div>
                 </div>
 
-                <!-- Departemen -->
+                <!-- Wewenang -->
                 <div class="employee-form-section">
                     <div class="section-header">
-                        <h4><?php _e('Departemen', 'wp-agency'); ?></h4>
-                    </div>              
-                    <div class="department-checkboxes">
-                        <?php
-                        $departments = [
-                            'finance' => __('Finance', 'wp-agency'),
-                            'operation' => __('Operation', 'wp-agency'),
-                            'legal' => __('Legal', 'wp-agency'),
-                            'purchase' => __('Purchase', 'wp-agency')
-                        ];
-
-                        foreach ($departments as $key => $label) : ?>
-                            <div class="checkbox-wrapper">
-                                <label>
-                                    <input type="checkbox" 
-                                           name="<?php echo esc_attr($key); ?>" 
-                                           value="1"
-                                           data-department="<?php echo esc_attr($key); ?>">
-                                    <?php echo esc_html($label); ?>
-                                </label>
-                            </div>
-                        <?php endforeach; ?>
+                        <h4><?php _e('Wewenang', 'wp-agency'); ?></h4>
+                    </div>
+                    <div class="employee-form-group">
+                        <label for="edit-employee-roles" class="required-field">
+                            <?php _e('Role', 'wp-agency'); ?>
+                        </label>
+                        <select id="edit-employee-roles" name="roles[]" multiple required>
+                            <?php
+                            $available_roles = \WP_Agency_Activator::getRoles();
+                            // Exclude administrator from selection
+                            unset($available_roles['administrator']);
+                            foreach ($available_roles as $role_slug => $role_name) : ?>
+                                <option value="<?php echo esc_attr($role_slug); ?>">
+                                    <?php echo esc_html($role_name); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description">
+                            <?php _e('Pilih satu atau lebih role untuk karyawan ini. Gunakan Ctrl+klik untuk memilih multiple.', 'wp-agency'); ?>
+                        </p>
                     </div>
                 </div>
 
@@ -113,7 +115,7 @@ defined('ABSPATH') || exit;
                      </select>
                    </div>
                  </div>
-                 
+
               </div>
                 <div class="row right-side">
                  <!-- Kontak -->
@@ -155,7 +157,7 @@ defined('ABSPATH') || exit;
                     <div class="section-header">
                        <h4><?php _e('Status', 'wp-agency'); ?></h4>
                     </div>
-                   
+
                    <div class="employee-form-group">
                      <label for="edit-employee-status" class="required-field">
                        <?php _e('Status', 'wp-agency'); ?>
@@ -172,7 +174,7 @@ defined('ABSPATH') || exit;
                     <div class="section-header">
                         <h4><?php _e('Keterangan', 'wp-agency'); ?></h4>
                     </div>
-                    
+
                     <div class="employee-form-group">
                         <label for="edit-employee-keterangan">
                             <?php _e('Keterangan', 'wp-agency'); ?>
@@ -186,7 +188,7 @@ defined('ABSPATH') || exit;
                             <?php _e('Maksimal 200 karakter', 'wp-agency'); ?>
                         </p>
                     </div>
-                </div>                 
+                </div>
                 </div>
             </div>
             <div class="modal-footer">

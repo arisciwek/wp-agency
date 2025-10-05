@@ -671,3 +671,147 @@
 }
 
 
+/* Multiple Select Roles Styling */
+select[multiple][name="roles[]"] {
+    min-height: 120px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+select[multiple][name="roles[]"] option {
+    padding: 6px 8px;
+    margin: 2px 0;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+select[multiple][name="roles[]"] option:hover {
+    background-color: #f0f6fc;
+}
+
+select[multiple][name="roles[]"] option:checked {
+    background-color: #007cba;
+    color: #fff;
+    font-weight: 500;
+}
+
+/* Role Selection Container */
+.roles-selection-group {
+    margin-bottom: 20px;
+}
+
+.roles-selection-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.roles-selection-group .description {
+    color: #666;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* Selected Roles Indicator */
+.selected-roles-indicator {
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.selected-roles-indicator .selected-count {
+    font-weight: 600;
+    color: #007cba;
+    margin-bottom: 4px;
+}
+
+.selected-roles-indicator .role-tag {
+    display: inline-block;
+    background: #007cba;
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    margin: 2px 4px 2px 0;
+}
+
+/* Role Colors for Visual Distinction */
+.role-agency {
+    background-color: #007cba !important; /* Primary Blue */
+}
+
+.role-admin_dinas {
+    background-color: #28a745 !important; /* Success Green */
+}
+
+.role-admin_unit {
+    background-color: #17a2b8 !important; /* Info Cyan */
+}
+
+.role-pengawas {
+    background-color: #ffc107 !important; /* Warning Yellow */
+    color: #212529 !important;
+}
+
+.role-pengawas_spesialis {
+    background-color: #fd7e14 !important; /* Orange */
+}
+
+.role-kepala_unit {
+    background-color: #6f42c1 !important; /* Purple */
+}
+
+.role-kepala_seksi {
+    background-color: #e83e8c !important; /* Pink */
+}
+
+.role-kepala_bidang {
+    background-color: #20c997 !important; /* Teal */
+}
+
+.role-kepala_dinas {
+    background-color: #dc3545 !important; /* Danger Red */
+}
+
+/* Focus and Validation States for Multiple Select */
+select[multiple][name="roles[]"]:focus {
+    border-color: #007cba;
+    box-shadow: 0 0 0 1px #007cba;
+    outline: none;
+}
+
+select[multiple][name="roles[]"].error {
+    border-color: #dc3545;
+}
+
+.roles-selection-group .form-error {
+    color: #dc3545;
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+}
+
+/* Responsive Adjustments for Multiple Select */
+@media screen and (max-width: 782px) {
+    select[multiple][name="roles[]"] {
+        min-height: 100px;
+        font-size: 13px;
+    }
+
+    .selected-roles-indicator {
+        padding: 6px;
+    }
+
+    .selected-roles-indicator .role-tag {
+        font-size: 10px;
+        padding: 1px 4px;
+    }
+}

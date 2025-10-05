@@ -301,7 +301,7 @@ class AgencyEmployeeModel {
         }
 
         // Validate order column
-        $validColumns = ['name', 'department', 'division_name', 'status'];
+        $validColumns = ['name', 'role', 'division_name', 'status'];
         if (!in_array($orderColumn, $validColumns)) {
             $orderColumn = 'name';
         }
@@ -310,7 +310,7 @@ class AgencyEmployeeModel {
         // Map frontend column to actual column
         $orderColumnMap = [
             'name' => 'e.name',
-            'department' => 'e.name', // Map department ordering to name since department is generated
+            'role' => 'e.name', // Map role ordering to name since role is generated
             'division_name' => 'b.name',
             'status' => 'e.status'
         ];
