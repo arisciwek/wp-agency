@@ -48,27 +48,27 @@ class JurisdictionData {
             'created_by' => 103
         ],
         7 => [  // Disnaker Provinsi Sumatera Barat Division Kota Padang
-            'regencies' => [],  // Additional: Kota Bukittinggi
+            'regencies' => [],  // Primary only: Kota Padang
             'created_by' => 104
         ],
-        8 => [  // Disnaker Provinsi Sumatera Barat Division Kabupaten Sijunjung
-            'regencies' => [],  // Primary only
+        8 => [  // Disnaker Provinsi Sumatera Barat Division Cabang Kabupaten Solok
+            'regencies' => ['1303'],  // Additional: Kabupaten Sijunjung
             'created_by' => 104
         ],
-        9 => [  // Disnaker Provinsi Sumatera Barat Division Kabupaten Pesisir Selatan
-            'regencies' => [],  // Additional: Solok
+        9 => [  // Disnaker Provinsi Sumatera Barat Division Cabang Kota Bukittinggi
+            'regencies' => ['1301'],  // Additional: Kabupaten Pesisir Selatan
             'created_by' => 104
         ],
-        10 => [  // Disnaker Provinsi Banten Division Kota Serang
-            'regencies' => [],  // Primary only
+        10 => [  // Disnaker Provinsi Banten Division Kabupaten Tangerang (Pusat)
+            'regencies' => [],  // Primary only: Kabupaten Tangerang
             'created_by' => 105
         ],
-        11 => [  // Disnaker Provinsi Banten Division Kota Cilegon
-            'regencies' => [],  // Primary only
+        11 => [  // Disnaker Provinsi Banten Division Cabang Kota Cilegon
+            'regencies' => ['3671'],  // Additional: Kota Serang
             'created_by' => 105
         ],
-        12 => [  // Disnaker Provinsi Banten Division Kota Tangerang Selatan
-            'regencies' => [],  // Primary only
+        12 => [  // Disnaker Provinsi Banten Division Cabang Kabupaten Lebak
+            'regencies' => ['3604'],  // Additional: Kabupaten Serang
             'created_by' => 105
         ],
         13 => [  // Disnaker Provinsi Jawa Barat Division Kabupaten Sukabumi

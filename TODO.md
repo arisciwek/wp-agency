@@ -65,3 +65,49 @@ In `validateUpdate` method, line 262 uses `$this->model->find($id)` but the prop
 ### Followup
 - Test pencarian kata seperti "pengawas" (di wewenang), "aktif" (di status), dll.
 - Pastikan pencarian tetap efisien dengan dataset besar
+
+## Buat Multi-Yurisdiksi di Agency Banten dan Sumatera Barat
+
+### Issue
+Division di agency Banten dan Sumatera Barat saat ini hanya memiliki satu yurisdiksi (regency utama). Perlu diimplementasikan multi-yurisdiksi untuk division di agency tersebut agar dapat menjangkau multiple regency dalam provinsi tersebut.
+
+### Root Cause
+Data demo jurisdiction di JurisdictionData.php untuk division Banten (ID 10,11,12) dan Sumatera Barat (ID 7,8,9) hanya memiliki regency utama, tidak ada additional regencies.
+
+### Steps to Fix
+- [x] Update `src/Database/Demo/Data/JurisdictionData.php` untuk menambahkan additional regencies pada division Banten dan Sumatera Barat
+- [x] Pastikan `JurisdictionDemoData.php` dapat membaca dan generate data multi-jurisdiction
+- [x] Test generate demo data untuk memastikan multi-jurisdiction terbuat
+- [x] Verify di database bahwa division Banten dan Sumatera Barat memiliki multiple jurisdictions
+
+### Contoh Data Banten
+Division Kabupaten Tangerang (ID 10):
+- Primary: Kabupaten Tangerang (3603)
+
+Division Cabang Kota Cilegon (ID 11):
+- Primary: Kota Cilegon (3672)
+- Additional: Kota Serang (3671)
+
+Division Cabang Kabupaten Lebak (ID 12):
+- Primary: Kabupaten Lebak (3602)
+- Additional: Kabupaten Serang (3604)
+
+### Contoh Data Sumatera Barat
+Division Kota Padang (ID 7):
+- Primary: Kota Padang (1371)
+
+Division Cabang Kabupaten Solok (ID 8):
+- Primary: Kabupaten Solok (1302)
+- Additional: Kabupaten Sijunjung (1303)
+
+Division Cabang Kota Bukittinggi (ID 9):
+- Primary: Kota Bukittinggi (1375)
+- Additional: Kabupaten Pesisir Selatan (1301)
+
+### Files to Edit
+- `src/Database/Demo/Data/JurisdictionData.php`
+
+### Followup
+- Jalankan generate demo data jurisdiction
+- Periksa tabel app_agency_jurisdictions untuk memastikan data multi-jurisdiction ada
+- Test di UI division datatable menampilkan multiple jurisdictions
