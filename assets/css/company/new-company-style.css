@@ -1,0 +1,498 @@
+/**
+ * New Company Tab Styles
+ *
+ * @package     WP_Agency
+ * @subpackage  Assets/CSS/Company
+ * @version     1.0.0
+ * @author      arisciwek
+ *
+ * Path: /wp-agency/assets/css/company/new-company-style.css
+ *
+ * Description: Styles untuk tab New Company di agency right panel.
+ *              Includes DataTable styling, modal styles,
+ *              dan responsive design rules.
+ *
+ * Changelog:
+ * 1.0.0 - 2025-01-13
+ * - Initial implementation
+ * - Added DataTable styles
+ * - Added modal styles
+ * - Added responsive design
+ */
+
+/* Header Styles */
+.wp-agency-new-company-header {
+    padding: 20px 0;
+    border-bottom: 1px solid #e5e5e5;
+    margin-bottom: 20px;
+}
+
+.new-company-header-title h3 {
+    margin: 0 0 5px 0;
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.new-company-header-title .description {
+    margin: 5px 0 0 0;
+    color: #666;
+    font-size: 13px;
+}
+
+/* Content Container */
+.wp-agency-new-company-content {
+    padding: 0;
+    position: relative;
+    min-height: 300px;
+}
+
+/* DataTable Container */
+#new-company .wi-table-container {
+    margin-top: 0;
+    overflow-x: auto;
+}
+
+/* DataTable Styling */
+#new-company-table {
+    width: 100% !important;
+    border-collapse: collapse;
+    margin: 0;
+}
+
+#new-company-table thead th {
+    background-color: #f1f1f1;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px;
+    border-bottom: 2px solid #ddd;
+    font-size: 13px;
+    color: #23282d;
+}
+
+#new-company-table tbody td {
+    padding: 10px;
+    border-bottom: 1px solid #e5e5e5;
+    font-size: 13px;
+    vertical-align: middle;
+}
+
+#new-company-table tbody tr:hover {
+    background-color: #f7f7f7;
+}
+
+/* Column Specific Styles */
+#new-company-table .column-code {
+    font-weight: 600;
+    color: #0073aa;
+}
+
+#new-company-table .column-company {
+    font-weight: 500;
+}
+
+#new-company-table .column-division,
+#new-company-table .column-regency {
+    color: #555;
+}
+
+#new-company-table .column-actions {
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Action Buttons */
+#new-company-table .button {
+    margin: 0 2px;
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    height: auto;
+    min-height: 26px;
+}
+
+#new-company-table .button .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    margin: -2px 0;
+}
+
+#new-company-table .button.view-company {
+    background: #f0f0f1;
+    border-color: #c3c4c7;
+    color: #2271b1;
+}
+
+#new-company-table .button.view-company:hover {
+    background: #e5e5e5;
+    border-color: #8c8f94;
+    color: #135e96;
+}
+
+#new-company-table .button.assign-inspector {
+    background: #2271b1;
+    border-color: #2271b1;
+    color: #fff;
+}
+
+#new-company-table .button.assign-inspector:hover {
+    background: #135e96;
+    border-color: #135e96;
+}
+
+/* Loading State */
+.new-company-loading-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.new-company-loading-state .spinner {
+    float: none;
+    margin: 0 auto 20px;
+    display: block;
+}
+
+.new-company-loading-state p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Empty State */
+.new-company-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.new-company-empty-state .empty-state-content .dashicons {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: #c3c4c7;
+    margin: 0 auto 20px;
+    display: block;
+}
+
+.new-company-empty-state h4 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.new-company-empty-state p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+/* Error State */
+.new-company-error-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.new-company-error-state .error-state-content .dashicons {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: #d63638;
+    margin: 0 auto 20px;
+    display: block;
+}
+
+.new-company-error-state h4 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.new-company-error-state p {
+    margin: 0 0 20px 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.new-company-error-state .reload-table {
+    margin-top: 15px;
+}
+
+/* Modal Styles */
+.wp-agency-modal {
+    position: fixed;
+    z-index: 100000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: none;
+    animation: fadeIn 0.3s;
+}
+
+.wp-agency-modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 0;
+    border: none;
+    width: 500px;
+    max-width: 90%;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s;
+}
+
+.wp-agency-modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #e5e5e5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.wp-agency-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.wp-agency-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    font-weight: bold;
+    line-height: 1;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.wp-agency-modal-close:hover,
+.wp-agency-modal-close:focus {
+    color: #23282d;
+    outline: none;
+}
+
+.wp-agency-modal-body {
+    padding: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.wp-agency-modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #e5e5e5;
+    text-align: right;
+    background-color: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+}
+
+.wp-agency-modal-footer .button {
+    margin-left: 10px;
+}
+
+.wp-agency-modal-footer .button:first-child {
+    margin-left: 0;
+}
+
+/* Form Styles in Modal */
+.wp-agency-modal .form-group {
+    margin-bottom: 20px;
+}
+
+.wp-agency-modal .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.wp-agency-modal .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #23282d;
+    font-size: 14px;
+}
+
+.wp-agency-modal .form-group input[type="text"],
+.wp-agency-modal .form-group select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: #fff;
+}
+
+.wp-agency-modal .form-group input[readonly] {
+    background-color: #f0f0f1;
+    color: #666;
+    cursor: not-allowed;
+}
+
+.wp-agency-modal .form-group .description {
+    margin-top: 5px;
+    color: #666;
+    font-size: 13px;
+    font-style: italic;
+}
+
+/* Inspector Info Notice */
+#inspector-info .notice {
+    margin: 15px 0 0 0;
+    padding: 12px;
+}
+
+#inspector-info .notice p {
+    margin: 0;
+    font-size: 13px;
+}
+
+/* DataTable Pagination */
+.dataTables_wrapper .dataTables_paginate {
+    margin-top: 20px;
+    text-align: right;
+}
+
+.dataTables_wrapper .dataTables_info {
+    margin-top: 20px;
+    color: #666;
+    font-size: 13px;
+}
+
+.dataTables_wrapper .dataTables_length {
+    margin-bottom: 20px;
+}
+
+.dataTables_wrapper .dataTables_length label,
+.dataTables_wrapper .dataTables_filter label {
+    font-size: 13px;
+    color: #23282d;
+}
+
+.dataTables_wrapper .dataTables_filter {
+    margin-bottom: 20px;
+    text-align: right;
+}
+
+.dataTables_wrapper .dataTables_filter input {
+    margin-left: 8px;
+    padding: 5px 10px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive Design */
+@media screen and (max-width: 782px) {
+    .wp-agency-modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+    
+    #new-company-table {
+        font-size: 12px;
+    }
+    
+    #new-company-table thead th,
+    #new-company-table tbody td {
+        padding: 8px 5px;
+    }
+    
+    #new-company-table .button {
+        padding: 3px 6px;
+        font-size: 11px;
+    }
+    
+    #new-company-table .button .dashicons {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+    }
+    
+    .new-company-header-title h3 {
+        font-size: 1.2em;
+    }
+    
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_length {
+        text-align: left;
+        margin-bottom: 15px;
+    }
+    
+    .dataTables_wrapper .dataTables_filter input {
+        width: 150px;
+    }
+}
+
+@media screen and (max-width: 600px) {
+    #new-company-table .column-division,
+    #new-company-table .column-regency {
+        display: none;
+    }
+    
+    #new-company-table thead th:nth-child(3),
+    #new-company-table thead th:nth-child(4),
+    #new-company-table tbody td:nth-child(3),
+    #new-company-table tbody td:nth-child(4) {
+        display: none;
+    }
+    
+    .wp-agency-modal-content {
+        margin: 20% auto;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .wp-agency-new-company-header,
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_paginate,
+    #new-company-table .column-actions,
+    #new-company-table thead th:last-child,
+    #new-company-table tbody td:last-child {
+        display: none !important;
+    }
+    
+    #new-company-table {
+        border: 1px solid #000;
+    }
+    
+    #new-company-table thead th,
+    #new-company-table tbody td {
+        border: 1px solid #000;
+    }
+}

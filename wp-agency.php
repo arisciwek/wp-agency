@@ -135,6 +135,9 @@ class WPAgency {
         // Jurisdiction Controller
         new \WPAgency\Controllers\Division\JurisdictionController();
 
+        // New Company Controller
+        new \WPAgency\Controllers\Company\NewCompanyController();
+
         // Membership Controller
         new \WPAgency\Controllers\Membership\AgencyMembershipController();
 

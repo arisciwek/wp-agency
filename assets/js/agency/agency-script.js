@@ -551,6 +551,20 @@
                     window.DivisionDataTable.init(this.currentId);
                 }
             }
+            
+            // Add new company tab handling
+            if (tabId === 'new-company' && this.currentId) {
+                console.log('Initializing New Company tab for agency:', this.currentId);
+                
+                // Small delay to ensure tab visibility before initializing DataTable
+                setTimeout(() => {
+                    if (window.NewCompanyDataTable) {
+                        window.NewCompanyDataTable.init(this.currentId);
+                    } else {
+                        console.error('NewCompanyDataTable not found');
+                    }
+                }, 100);
+            }
         },
 
          closePanel() {

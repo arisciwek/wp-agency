@@ -213,6 +213,9 @@ public function enqueue_frontend_assets() {
             // Tambahkan Employee styles
             wp_enqueue_style('wp-agency-employee', WP_AGENCY_URL . 'assets/css/employee/employee-style.css', [], $this->version);
             wp_enqueue_style('employee-toast', WP_AGENCY_URL . 'assets/css/employee/employee-toast.css', [], $this->version);
+            
+            // New Company styles
+            wp_enqueue_style('wp-agency-new-company', WP_AGENCY_URL . 'assets/css/company/new-company-style.css', [], $this->version);
         }
 
     }
@@ -415,13 +418,17 @@ public function enqueue_frontend_assets() {
                 WP_AGENCY_VERSION,
                 true
             );
+            
+            // New Company scripts
+            wp_enqueue_script('new-company-datatable', WP_AGENCY_URL . 'assets/js/company/new-company-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);
 
             // Gunakan wpAgencyData untuk semua
             $agency_nonce = wp_create_nonce('wp_agency_nonce');
             wp_localize_script('agency', 'wpAgencyData', [
                 'ajaxUrl' => admin_url('admin-ajax.php'),
                 'nonce' => $agency_nonce,
-                'debug' => true
+                'debug' => true,
+                'perPage' => 10
             ]);
         }
 

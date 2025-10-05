@@ -35,6 +35,7 @@ defined('ABSPATH') || exit;
     <a href="#" class="nav-tab" data-tab="membership-info">Membership</a>
     <a href="#" class="nav-tab" data-tab="division-list">Unit</a>
     <a href="#" class="nav-tab" data-tab="employee-list">Staff</a>
+    <a href="#" class="nav-tab" data-tab="new-company">New Company</a>
 </div>
 
 <?php
@@ -45,7 +46,8 @@ foreach ([
     'agency/partials/_agency_details.php',
     'agency/partials/_agency_membership.php',
     'division/partials/_agency_division_list.php',
-    'employee/partials/_employee_list.php'
+    'employee/partials/_employee_list.php',
+    'company/partials/_new_company_list.php'
 ] as $template) {
     include_once WP_AGENCY_PATH . 'src/Views/templates/' . $template;
 }
