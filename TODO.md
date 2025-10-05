@@ -1,135 +1,67 @@
-# TODO - WP Agency Changes
+# TODO WP-Agency
 
-## Task: Replace "Departemen" with "Wewenang" in Employee Datatable
+## Fix PHP Fatal Error in AgencyEmployeeValidator
 
-### Changes Made:
+### Issue
+- PHP Warning: Undefined property: WPAgency\Validators\Employee\AgencyEmployeeValidator::$model
+- PHP Fatal error: Call to a member function find() on null in AgencyEmployeeValidator.php:262
 
-1. **Datatable Template** (`src/Views/templates/employee/partials/_employee_list.php`):
-   - Changed "Departemen" to "Wewenang" in both thead and tfoot
-   - Removed "Email" column from both thead and tfoot
-   - Final columns: Nama, Jabatan, Wewenang, Cabang, Status, Aksi
+### Root Cause
+In `validateUpdate` method, line 262 uses `$this->model->find($id)` but the property is named `$employee_model`, not `$model`.
 
-2. **JavaScript DataTable** (`assets/js/employee/employee-datatable.js`):
-   - Updated hardcoded thead to remove Email and change Departemen to Wewenang
-   - Updated columns array to remove email column and change 'department' to 'role'
-   - Adjusted column widths: name(18%), position(18%), role(18%), division_name(18%), status(13%), actions(15%)
+### Steps to Fix
+- [x] Edit `src/Validators/Employee/AgencyEmployeeValidator.php` line 262: Change `$this->model` to `$this->employee_model`
+- [ ] Test the employee update functionality to ensure the fix works
+- [x] Verify no other similar typos in the codebase
 
-3. **Controller** (`src/Controllers/Employee/AgencyEmployeeController.php`):
-   - Removed 'email' from data array in handleDataTableRequest method
-   - Changed 'department' to 'role' in data array
-   - Replaced generateDepartmentsBadges method with getUserRole method
-   - getUserRole method displays WordPress user roles with Indonesian translations:
-     - 'agency' → 'Disnaker'
-     - 'admin_dinas' → 'Admin Dinas'
-     - 'admin_unit' → 'Admin Unit'
-     - 'pengawas' → 'Pengawas'
-     - etc.
+### Files to Edit
+- `src/Validators/Employee/AgencyEmployeeValidator.php`
 
-4. **Data Source Change**:
-   - Now displays actual WordPress user roles instead of department checkboxes (finance, operation, legal, purchase)
-   - Uses get_userdata() to fetch user roles
+### Followup
+- Run the update employee action in the plugin to confirm the error is resolved.
 
-### Files Modified:
-- `src/Views/templates/employee/partials/_employee_list.php`
+## Support Multi-Role pada Datatable Staff Agency
+
+### Issue
+- Datatable karyawan agency hanya menampilkan satu role (primary role) pada kolom "Wewenang"
+- Karyawan dapat memiliki multiple roles, namun tidak ditampilkan di datatable
+
+### Root Cause
+- Method `getUserRole` di `AgencyEmployeeController` hanya mengembalikan role pertama dari array roles user
+
+### Steps to Fix
+- [x] Modify `getUserRole` method in `src/Controllers/Employee/AgencyEmployeeController.php` to return all roles as formatted string
+- [x] Test datatable display to ensure multiple roles show correctly
+- [x] Verify column width is sufficient for multiple roles display (increased from 18% to 22%)
+
+### Files to Edit
+- `src/Controllers/Employee/AgencyEmployeeController.php`
 - `assets/js/employee/employee-datatable.js`
-- `src/Controllers/Employee/AgencyEmployeeController.php`
 
-### Testing Notes:
-- Datatable should now show 6 columns instead of 7
-- "Wewenang" column displays user role names in Indonesian
-- Email column completely removed from display
+### Followup
+- Check datatable in agency right panel to confirm multiple roles are displayed
 
-## Task: Create Single Source of Truth for Roles in Staff Agency
+## Support Pencarian Multi-Column pada Datatable Staff Agency
 
-### Changes Made:
+### Issue
+- Datatable karyawan agency menggunakan single search box global
+- Pencarian hanya mencari di kolom nama saja, tidak di kolom lain seperti jabatan, wewenang, cabang, status
+- Contoh: mencari "pengawas" tidak menemukan data karena "pengawas" ada di kolom wewenang, bukan nama
 
-1. **Class Activator** (`includes/class-activator.php`):
-   - Added static method `getRoles()` to return the roles array with translations (single source of truth)
-   - Modified `activate()` method to use `self::getRoles()` and exclude 'administrator' for role creation
-   - Removed hardcoded `$roles_to_create` array in `activate()`
+### Root Cause
+- Query pencarian di model hanya mencari di e.name, e.position, b.name (division)
+- Tidak termasuk pencarian di status dan wewenang (role dari user capabilities)
 
-2. **Employee Controller** (`src/Controllers/Employee/AgencyEmployeeController.php`):
-   - Modified `getUserRole()` method to use `\WP_Agency_Activator::getRoles()` instead of hardcoded $role_names array
-   - Removed the hardcoded $role_names array
+### Steps to Fix
+- [x] Update model `src/Models/Employee/AgencyEmployeeModel.php` method getDataTableData untuk menambahkan pencarian di kolom status dan wewenang (role)
+- [x] Untuk wewenang, gunakan subquery ke wp_usermeta untuk mencari di capabilities
+- [x] Test pencarian global untuk memastikan mencari di semua kolom: nama, jabatan, wewenang, cabang, status
+- [x] Verifikasi pencarian case-insensitive dan partial match
+- [x] Perbaiki pencarian multiple words dengan split pada spasi dan AND logic
 
-### Files Modified:
-- `includes/class-activator.php`
-- `src/Controllers/Employee/AgencyEmployeeController.php`
+### Files to Edit
+- `src/Models/Employee/AgencyEmployeeModel.php`
 
-### Testing Notes:
-- Datatable should continue to display roles correctly
-- Role names should match the translations from the activator
-- No duplication of role definitions
-- Single source of truth established in WP_Agency_Activator::getRoles()
-
-## Task: Adjust Agency Employee Form to Change Department to Wewenang (Roles)
-
-### Changes Made:
-
-1. **Form Templates Updated**:
-   - `src/Views/templates/employee/forms/create-employee-form.php`: Changed "Wewenang" section from department checkboxes to multiple select for roles
-   - `src/Views/templates/employee/forms/edit-employee-form.php`: Changed "Wewenang" section from department checkboxes to multiple select for roles
-   - Both forms now load available roles from `WP_Agency_Activator::getRoles()`
-   - Excludes 'administrator' role from selection
-
-2. **JavaScript Updated**:
-   - `assets/js/employee/create-employee-form.js`: Updated validation and form data handling for roles array instead of department checkboxes
-   - `assets/js/employee/edit-employee-form.js`: Updated validation and form data handling for roles array
-
-3. **Controller Updates Needed**:
-   - `src/Controllers/Employee/AgencyEmployeeController.php`: Needs update to handle roles array in store() and update() methods
-   - Should assign selected roles to WordPress user accounts using WP_User methods
-   - Should retrieve current user roles for edit forms
-
-4. **Validator Updates Needed**:
-   - `src/Validators/Employee/AgencyEmployeeValidator.php`: Change `hasAtLeastOneDepartment()` to `hasAtLeastOneRole()`
-   - Update validation calls in controller
-
-5. **CSS Added**:
-   - `assets/css/employee/employee-style.css`: Comprehensive styling for employee forms including multiple select styling
-
-### Files Modified:
-- `src/Views/templates/employee/forms/create-employee-form.php`
-- `src/Views/templates/employee/forms/edit-employee-form.php`
-- `assets/js/employee/create-employee-form.js`
-- `assets/js/employee/edit-employee-form.js`
-- `assets/css/employee/employee-style.css`
-
-### Remaining Tasks:
-1. Update `AgencyEmployeeController::store()` method to handle roles array and assign to user
-2. Update `AgencyEmployeeController::update()` method to handle roles array and update user roles
-3. Update `AgencyEmployeeValidator::hasAtLeastOneDepartment()` to `hasAtLeastOneRole()`
-4. Test the complete flow from form submission to role assignment
-5. Verify datatable displays updated roles correctly
-
-### Status: Partially Completed - Forms Updated, Backend Logic Pending
-
-## Additional Issue: Edit Form Not Showing Current User Roles
-
-### Problem Description:
-When editing an employee (e.g., "Hendro Wibowo;Staff;Pengawas Spesialis;Disnaker Provinsi Sumatera Utara Division Kabupaten Tapanuli Utara"), the datatable correctly shows the role "Pengawas Spesialis", but when opening the edit form, the role dropdown does not have the current roles pre-selected.
-
-### Root Cause:
-The edit form JavaScript is trying to load user roles via `loadCurrentUserRoles()` method, but the controller's `show()` method is not including user roles in the response data.
-
-### Changes Made:
-1. **Controller Update**: Modified `AgencyEmployeeController::show()` to include `user_roles` in the response data
-2. **JavaScript Update**: Updated `edit-employee-form.js` to use `data.user_roles` for pre-selecting roles in the multiple select
-3. **CSS Added**: Created `assets/css/employee/employee-style.css` with comprehensive styling for employee forms including multiple select styling
-
-### Remaining Issues:
-1. Backend controller methods (`store()` and `update()`) still need to handle roles array and assign to WordPress users
-2. Validator needs to be updated to validate roles instead of departments
-3. Test the complete flow from form submission to role assignment
-
-### Files Modified:
-- `src/Controllers/Employee/AgencyEmployeeController.php` (show method updated)
-- `assets/js/employee/edit-employee-form.js` (showEditForm method updated)
-- `assets/css/employee/employee-style.css` (new file created)
-
-### Next Steps:
-1. Update controller store() and update() methods to handle roles
-2. Update validator to validate roles
-3. Test the complete role assignment workflow
-4. Verify datatable displays updated roles correctly
-
+### Followup
+- Test pencarian kata seperti "pengawas" (di wewenang), "aktif" (di status), dll.
+- Pastikan pencarian tetap efisien dengan dataset besar

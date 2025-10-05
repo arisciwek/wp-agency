@@ -259,7 +259,7 @@ class AgencyEmployeeValidator {
             $errors[] = __('Format email tidak valid', 'wp-agency');
         } else {
             // Check if email is already used by another user
-            $current_employee = $this->model->find($id);
+            $current_employee = $this->employee_model->find($id);
             if ($current_employee && $current_employee->user_id) {
                 $user = get_userdata($current_employee->user_id);
                 if ($user && $user->user_email !== $data['email']) {

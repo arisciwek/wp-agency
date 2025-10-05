@@ -231,13 +231,17 @@ class AgencyEmployeeController {
             return '-';
         }
 
-        // Get the primary role (first one)
-        $role = reset($roles);
-
         // Get role names from single source of truth
         $role_names = \WP_Agency_Activator::getRoles();
 
-        return $role_names[$role] ?? ucfirst($role);
+        // Get all role display names
+        $display_roles = [];
+        foreach ($roles as $role) {
+            $display_roles[] = $role_names[$role] ?? ucfirst($role);
+        }
+
+        // Return comma-separated list of roles
+        return implode(', ', $display_roles);
     }
 
     /**

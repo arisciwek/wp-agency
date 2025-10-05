@@ -293,11 +293,18 @@ class AgencyEmployeeModel {
 
         // Add search if provided
         if (!empty($search)) {
-            $where .= " AND (e.name LIKE %s OR e.position LIKE %s OR b.name LIKE %s)";
-            $search_param = '%' . $wpdb->esc_like($search) . '%';
-            $params = array_merge($params, [$search_param, $search_param, $search_param]);
-            error_log('Search Where Clause Added: ' . $where);
-            error_log('Search Parameters: ' . print_r($params, true));
+            $search_terms = array_filter(array_map('trim', explode(' ', $search)));
+            if (!empty($search_terms)) {
+                $conditions = [];
+                foreach ($search_terms as $term) {
+                    $term_escaped = '%' . $wpdb->esc_like($term) . '%';
+                    $conditions[] = "(e.name LIKE %s OR e.position LIKE %s OR b.name LIKE %s OR e.status LIKE %s OR EXISTS (SELECT 1 FROM {$wpdb->usermeta} WHERE user_id = e.user_id AND meta_key = 'wp_capabilities' AND meta_value LIKE %s))";
+                    $params = array_merge($params, [$term_escaped, $term_escaped, $term_escaped, $term_escaped, $term_escaped]);
+                }
+                $where .= " AND (" . implode(' AND ', $conditions) . ")";
+                error_log('Search Where Clause Added: ' . $where);
+                error_log('Search Parameters: ' . print_r($params, true));
+            }
         }
 
         // Validate order column

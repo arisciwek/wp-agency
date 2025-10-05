@@ -223,10 +223,10 @@
                     }
                 },
                 columns: [
-                    { data: 'name', width: '18%' },
-                    { data: 'position', width: '18%' },
-                    { data: 'role', width: '18%' },
-                    { data: 'division_name', width: '18%' },
+                    { data: 'name', width: '16%' },
+                    { data: 'position', width: '16%' },
+                    { data: 'role', width: '22%' },
+                    { data: 'division_name', width: '16%' },
                     {
                         data: 'status',
                         width: '13%',
