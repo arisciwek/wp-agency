@@ -151,6 +151,12 @@ class NewCompanyController {
 
     /**
      * Get available inspectors for assignment
+     *
+     * Retrieves agency employees who can be assigned as inspectors for a specific branch.
+     * Inspectors must be in the same division as the branch and have either 'agency' (Disnaker)
+     * or 'pengawas' (Pengawas) role.
+     *
+     * @return void JSON response with list of available inspectors
      */
     public function getAvailableInspectors() {
         try {
@@ -174,7 +180,7 @@ class NewCompanyController {
             $employees_table = $wpdb->prefix . 'app_agency_employees';
             $divisions_table = $wpdb->prefix . 'app_divisions';
 
-            // Get inspectors who are in the same division as the branch AND have pengawas role
+            // Get inspectors who are in the same division as the branch AND have agency or pengawas role
             $query = $wpdb->prepare(
                 "SELECT DISTINCT e.user_id, e.name
                  FROM {$employees_table} e
@@ -186,10 +192,11 @@ class NewCompanyController {
                  AND e.status = 'active'
                  AND d.status = 'active'
                  AND um.meta_key = '{$wpdb->prefix}capabilities'
-                 AND um.meta_value LIKE %s
+                 AND (um.meta_value LIKE %s OR um.meta_value LIKE %s)
                  ORDER BY e.name ASC",
                 $agency_id,
                 $branch->division_id,
+                '%agency%',
                 '%pengawas%'
             );
 
@@ -200,12 +207,12 @@ class NewCompanyController {
             $inspectors = $wpdb->get_results($query);
 
             // Debug: Log the results
-            error_log("DEBUG NewCompanyController::getAvailableInspectors - Found " . count($inspectors) . " inspectors with pengawas role");
+            error_log("DEBUG NewCompanyController::getAvailableInspectors - Found " . count($inspectors) . " inspectors with agency or pengawas role");
             foreach ($inspectors as $inspector) {
                 error_log("DEBUG NewCompanyController::getAvailableInspectors - Inspector: ID={$inspector->user_id}, Name={$inspector->name}");
             }
 
-            // No need for additional PHP filtering since we filtered by pengawas role in SQL
+            // No need for additional PHP filtering since we filtered by roles in SQL
             $filtered_inspectors = [];
             foreach ($inspectors as $inspector) {
                 $filtered_inspectors[] = [
@@ -229,6 +236,9 @@ class NewCompanyController {
 
     /**
      * Check if user has inspector role or capability
+     *
+     * Inspector roles include 'agency' (Disnaker) and 'pengawas' (Pengawas).
+     * Users with these roles can be assigned as inspectors for branches.
      */
     private function hasInspectorRole($user): bool {
         // Check capabilities first
@@ -237,8 +247,8 @@ class NewCompanyController {
             return true;
         }
 
-        // Check roles - only 'pengawas' role is considered inspector
-        $inspector_roles = ['pengawas'];
+        // Check roles - 'agency' (Disnaker) and 'pengawas' roles are considered inspectors
+        $inspector_roles = ['agency', 'pengawas'];
         $user_roles = $user->roles;
 
         foreach ($inspector_roles as $role) {
