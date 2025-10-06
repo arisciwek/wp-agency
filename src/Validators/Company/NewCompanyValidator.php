@@ -203,12 +203,12 @@ class NewCompanyValidator {
         }
 
         // Check if inspector has proper capabilities
-        if (!user_can($inspector_id, 'inspect_companies') && 
+        if (!user_can($inspector_id, 'inspect_companies') &&
             !user_can($inspector_id, 'manage_options')) {
-            
-            // Check if user has inspector role - only 'pengawas' role is considered inspector
+
+            // Check if user has inspector role - 'agency' (Disnaker) and 'pengawas' roles are considered inspectors
             $roles = $inspector->roles;
-            $inspector_roles = ['pengawas'];
+            $inspector_roles = ['agency', 'pengawas'];
 
             $has_inspector_role = false;
             foreach ($inspector_roles as $role) {
@@ -217,7 +217,7 @@ class NewCompanyValidator {
                     break;
                 }
             }
-            
+
             if (!$has_inspector_role) {
                 return [
                     'valid' => false,
