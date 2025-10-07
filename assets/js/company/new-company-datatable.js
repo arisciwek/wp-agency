@@ -231,7 +231,8 @@
 
                     if (response.success && response.data.inspectors) {
                         response.data.inspectors.forEach(inspector => {
-                            $select.append(`<option value="${inspector.value}">${inspector.label}</option>`);
+                            const count = inspector.assignment_count || 0;
+                            $select.append(`<option value="${inspector.value}" data-count="${count}">${inspector.label} (${count} penugasan)</option>`);
                         });
                     } else {
                         $select.append('<option value="" disabled>Tidak ada pengawas tersedia</option>');
@@ -273,15 +274,17 @@
 
         onInspectorChange(e) {
             const inspectorId = $(e.target).val();
-            
+
             if (!inspectorId) {
                 $('#inspector-info').hide();
                 return;
             }
 
-            // You could load inspector's current assignments here
-            // For now, just show a placeholder
-            $('#inspector-assignments-count').text('Pengawas ini saat ini memiliki 0 penugasan.');
+            // Get assignment count from the selected option's data attribute
+            const $selectedOption = $(e.target).find('option:selected');
+            const count = $selectedOption.data('count') || 0;
+
+            $('#inspector-assignments-count').text(`Pengawas ini saat ini memiliki ${count} penugasan.`);
             $('#inspector-info').show();
         },
 

@@ -57,6 +57,8 @@ class NewCompanyModel {
         // Normalize orderDir for cache consistency
         $orderDir = strtolower($orderDir);
 
+        error_log("DEBUG NewCompanyModel::getDataTableData - Called with agency_id={$agency_id}, start={$start}, length={$length}, search='{$search}', orderColumn='{$orderColumn}', orderDir='{$orderDir}'");
+
         // Check cache first using DataTable cache method
         $cached_result = $this->cache->getDataTableCache(
             self::CACHE_KEY_LIST,
@@ -70,12 +72,14 @@ class NewCompanyModel {
         );
 
         if ($cached_result !== null) {
+            error_log("DEBUG NewCompanyModel::getDataTableData - CACHE HIT for agency_{$agency_id}, returning cached data");
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log("NewCompanyModel cache hit for DataTable - Key: " . self::CACHE_KEY_LIST . "_agency_{$agency_id}");
             }
             return $cached_result;
         }
 
+        error_log("DEBUG NewCompanyModel::getDataTableData - CACHE MISS for agency_{$agency_id}, executing query");
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log("NewCompanyModel cache miss for DataTable - Key: " . self::CACHE_KEY_LIST . "_agency_{$agency_id}");
         }
@@ -161,14 +165,16 @@ class NewCompanyModel {
 
         // Get total count for agency
         $total = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) 
+            "SELECT COUNT(*)
              FROM {$this->branches_table} b
              LEFT JOIN {$this->agencies_table} a ON b.agency_id = a.id
-             WHERE a.id = %d 
+             WHERE a.id = %d
              AND b.inspector_id IS NULL
              AND b.status = 'active'",
             $agency_id
         ));
+
+        error_log("DEBUG NewCompanyModel::getDataTableData - Query results: total={$total}, filtered={$filtered}, data_count=" . count($results));
 
         // Prepare result
         $result = [
@@ -239,6 +245,8 @@ class NewCompanyModel {
     public function assignInspector(int $branch_id, int $inspector_id): bool {
         global $wpdb;
 
+        error_log("DEBUG NewCompanyModel::assignInspector - Starting assignment: branch_id={$branch_id}, inspector_id={$inspector_id}");
+
         $result = $wpdb->update(
             $this->branches_table,
             [
@@ -250,10 +258,17 @@ class NewCompanyModel {
             ['%d']
         );
 
+        error_log("DEBUG NewCompanyModel::assignInspector - Update result: " . ($result !== false ? 'SUCCESS' : 'FAILED') . ", affected rows: {$result}");
+
         if ($result !== false) {
+            // Verify the update
+            $updated_branch = $this->getBranchById($branch_id);
+            error_log("DEBUG NewCompanyModel::assignInspector - After update, inspector_id: " . ($updated_branch ? $updated_branch->inspector_id : 'NULL'));
+
             // Clear related caches
             $branch = $this->getBranchById($branch_id);
             if ($branch && $branch->agency_id) {
+                error_log("DEBUG NewCompanyModel::assignInspector - Clearing cache for agency_id: {$branch->agency_id}");
                 $this->cache->delete(self::CACHE_KEY_BRANCH, $branch->agency_id);
                 $this->cache->invalidateDataTableCache(self::CACHE_KEY_LIST, [
                     'agency_id' => $branch->agency_id

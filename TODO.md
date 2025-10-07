@@ -1,5 +1,30 @@
 # TODO WP-Agency
 
+## Fix Inspector Assignment Count Display (TODO-2047)
+
+### Issue
+Setelah assign inspector berhasil, saat assign lagi dengan inspector yang sama, modal menampilkan "Pengawas ini saat ini memiliki 0 penugasan" padahal seharusnya menunjukkan jumlah penugasan sebenarnya.
+
+### Root Cause
+JavaScript onInspectorChange hanya set placeholder text tanpa load data aktual dari database.
+
+### Steps to Fix
+- [x] Modify getAvailableInspectors to include assignment count for each inspector
+- [x] Update JS to display assignment count in inspector select options
+- [x] Update onInspectorChange to show actual count from selected inspector
+- [x] Test that count displays correctly in modal
+
+### Files to Edit
+- `assets/js/company/new-company-datatable.js`
+- `src/Controllers/Company/NewCompanyController.php`
+- `src/Models/Company/NewCompanyModel.php`
+- `src/Validators/Company/NewCompanyValidator.php`
+
+### Followup
+- Test assign inspector dan verify count berkurang
+- Check database inspector_id terupdate
+- Verify cache cleared properly
+
 ## Ubah Teks Nama Agency dan New Company (TODO-2046)
 
 ### Issue

@@ -212,12 +212,16 @@ class NewCompanyController {
                 error_log("DEBUG NewCompanyController::getAvailableInspectors - Inspector: ID={$inspector->user_id}, Name={$inspector->name}");
             }
 
-            // No need for additional PHP filtering since we filtered by roles in SQL
+            // Get assignment count for each inspector
             $filtered_inspectors = [];
             foreach ($inspectors as $inspector) {
+                $assignment_count = $this->model->getInspectorAssignments($inspector->user_id);
+                $count = count($assignment_count);
+
                 $filtered_inspectors[] = [
                     'value' => $inspector->user_id,
-                    'label' => esc_html($inspector->name)
+                    'label' => esc_html($inspector->name),
+                    'assignment_count' => $count
                 ];
             }
 
@@ -270,6 +274,8 @@ class NewCompanyController {
             $branch_id = isset($_POST['branch_id']) ? intval($_POST['branch_id']) : 0;
             $inspector_id = isset($_POST['inspector_id']) ? intval($_POST['inspector_id']) : 0;
 
+            error_log("DEBUG NewCompanyController::assignInspector - Received: branch_id={$branch_id}, inspector_id={$inspector_id}");
+
             if (!$branch_id || !$inspector_id) {
                 throw new \Exception('Invalid parameters');
             }
@@ -279,6 +285,8 @@ class NewCompanyController {
             if (!$branch) {
                 throw new \Exception('Branch not found');
             }
+
+            error_log("DEBUG NewCompanyController::assignInspector - Branch found, agency_id: {$branch->agency_id}, current inspector_id: " . ($branch->inspector_id ?? 'NULL'));
 
             // Check permission
             if (!$this->validator->canAssignInspector($branch->agency_id)) {
@@ -291,12 +299,17 @@ class NewCompanyController {
                 throw new \Exception($validation['message']);
             }
 
+            error_log("DEBUG NewCompanyController::assignInspector - Validation passed, proceeding with assignment");
+
             // Assign inspector
             $result = $this->model->assignInspector($branch_id, $inspector_id);
 
             if (!$result) {
+                error_log("DEBUG NewCompanyController::assignInspector - Model assignInspector returned false");
                 throw new \Exception('Failed to assign inspector');
             }
+
+            error_log("DEBUG NewCompanyController::assignInspector - Assignment successful, clearing cache");
 
             // Clear cache
             $this->cache->invalidateDataTableCache('new_company_list', [
@@ -304,11 +317,14 @@ class NewCompanyController {
             ]);
             $this->cache->delete('branch_without_inspector', $branch->agency_id);
 
+            error_log("DEBUG NewCompanyController::assignInspector - Cache cleared, sending success response");
+
             wp_send_json_success([
                 'message' => __('Inspector assigned successfully', 'wp-agency')
             ]);
 
         } catch (\Exception $e) {
+            error_log("DEBUG NewCompanyController::assignInspector - Exception: " . $e->getMessage());
             wp_send_json_error([
                 'message' => $e->getMessage()
             ]);
