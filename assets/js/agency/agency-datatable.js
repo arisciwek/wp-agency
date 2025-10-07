@@ -63,9 +63,9 @@
                 <thead>
                     <tr>
                         <th>Kode</th>
-                        <th>Nama Agency</th>
+                        <th>Disnaker</th>
                         <th>Admin</th>
-                        <th>Cabang</th>
+                        <th>Unit Kerja</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -101,7 +101,7 @@
                     },
                     {
                         data: 'name',
-                        title: 'Nama Agency'
+                        title: 'Disnaker'
                     },
                     {
                         data: 'owner_name',
@@ -110,7 +110,7 @@
                     },
                     {
                         data: 'division_count',
-                        title: 'Cabang',
+                        title: 'Unit Kerja',
                         className: 'text-center',
                         searchable: false,
                         width: '40px'

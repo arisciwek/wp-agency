@@ -35,7 +35,7 @@ defined('ABSPATH') || exit;
     <a href="#" class="nav-tab" data-tab="membership-info">Membership</a>
     <a href="#" class="nav-tab" data-tab="division-list">Unit</a>
     <a href="#" class="nav-tab" data-tab="employee-list">Staff</a>
-    <a href="#" class="nav-tab" data-tab="new-company">New Company</a>
+    <a href="#" class="nav-tab" data-tab="new-company">Perusahaan Baru</a>
 </div>
 
 <?php
