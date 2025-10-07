@@ -25,6 +25,37 @@ JavaScript onInspectorChange hanya set placeholder text tanpa load data aktual d
 - Check database inspector_id terupdate
 - Verify cache cleared properly
 
+## Fix Company DataTable Not Updating After Inspector Assignment (PENDING)
+
+### Issue
+Setelah assign inspector berhasil di wp-agency, datatable company di wp-customer tidak langsung terupdate. Data baru muncul setelah 2 menit (waktu expiry cache).
+
+### Root Cause
+Cache datatable 'company_list' di wp-customer tidak di-clear setelah assignment berhasil. Cache expiry 120 detik menyebabkan data lama ditampilkan. Cache plugin yang diperlukan untuk flush cache belum terinstall.
+
+### Information Gathered
+- Cache key: 'datatable' dengan context 'company_list', komponen access_type, start, length, md5(search), orderColumn, orderDir
+- Expiry: 120 detik
+- JS datatable tidak ada cache, hanya server-side
+- Assignment terjadi di wp-agency, cache di wp-customer
+
+### Plan
+- Modify assignInspector di NewCompanyController.php untuk clear cache wp-customer setelah assignment sukses
+- Check jika class CustomerCacheManager ada, instantiate dan panggil clearAll()
+- Clear juga cache branch_membership untuk branch yang di-assign jika perlu
+
+### Files to Edit
+- `src/Controllers/Company/NewCompanyController.php`
+
+### Dependent Files
+- Tidak ada perubahan di wp-customer, hanya akses class jika tersedia
+
+### Followup
+- Install cache plugin yang mendukung wp_cache_flush_group
+- Test setelah assign, datatable company di wp-customer update langsung
+- Verify tidak error jika plugin wp-customer tidak aktif
+- Check cache ter-clear dengan benar
+
 ## Ubah Teks Nama Agency dan New Company (TODO-2046)
 
 ### Issue
