@@ -1,5 +1,20 @@
 # TODO WP-Agency
 
+## Change Division Name (TODO-2049) - COMPLETED
+
+### Description
+Changed division name generation from '%s Division %s' to 'UPT %s' using regency name.
+
+### Changes Made
+- [x] Updated generatePusatDivision to use sprintf('UPT %s', $regency_name)
+- [x] Updated generateCabangDivisions to use sprintf('UPT %s', $regency_name)
+- [x] Updated static $divisions array to 'UPT %s'
+- [x] Fixed language in docs/TODO-2049-change-division-name.md
+
+### Files Modified
+- `src/Database/Demo/DivisionDemoData.php`
+- `docs/TODO-2049-change-division-name.md`
+
 ## Fix Inspector Assignment Count Display (TODO-2047)
 
 ### Issue

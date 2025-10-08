@@ -84,9 +84,9 @@ class DivisionDemoData extends AbstractDemoData {
 
     // Format nama division
     private static $divisions = [
-        ['id' => 1, 'name' => '%s Kantor Pusat'],       // Kantor Pusat
-        ['id' => 2, 'name' => '%s Division %s'],         // Division Regional
-        ['id' => 3, 'name' => '%s Division %s']          // Division Area
+        ['id' => 1, 'name' => 'UPT %s'],       // Kantor Pusat
+        ['id' => 2, 'name' => 'UPT %s'],         // Division Regional
+        ['id' => 3, 'name' => 'UPT %s']          // Division Area
     ];
 
     public function __construct() {
@@ -316,8 +316,7 @@ class DivisionDemoData extends AbstractDemoData {
 
         $division_data = [
             'agency_id' => $agency->id,
-            'name' => sprintf('%s Division %s',
-                            $agency->name,
+            'name' => sprintf('UPT %s',
                             $regency_name),
             'type' => 'pusat',
             'nitku' => $this->generateNITKU(),
@@ -404,8 +403,7 @@ class DivisionDemoData extends AbstractDemoData {
 
             $division_data = [
                 'agency_id' => $agency->id,
-                'name' => sprintf('%s Division Cabang %s',
-                                $agency->name,
+                'name' => sprintf('UPT %s',
                                 $regency_name),
                 'type' => 'cabang',
                 'nitku' => $this->generateNITKU(),
