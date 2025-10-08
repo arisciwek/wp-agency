@@ -40,7 +40,7 @@ class NewCompanyModel {
 
     public function __construct() {
         global $wpdb;
-        $this->branches_table = $wpdb->prefix . 'app_agency_branches';
+        $this->branches_table = $wpdb->prefix . 'app_customer_branches';
         $this->customers_table = $wpdb->prefix . 'app_customers';
         $this->agencies_table = $wpdb->prefix . 'app_agencies';
         $this->divisions_table = $wpdb->prefix . 'app_divisions';

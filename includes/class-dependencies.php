@@ -203,7 +203,6 @@ public function enqueue_frontend_assets() {
 
             // Agency styles
             wp_enqueue_style('wp-agency-agency', WP_AGENCY_URL . 'assets/css/agency/agency-style.css', [], $this->version);
-            wp_enqueue_style('wp-agency-membership-levels-tab', WP_AGENCY_URL . 'assets/css/agency/agency-membership-tab-style.css', [], $this->version);
 
             wp_enqueue_style('wp-agency-agency-form', WP_AGENCY_URL . 'assets/css/agency/agency-form.css', [], $this->version);
 
@@ -411,14 +410,7 @@ public function enqueue_frontend_assets() {
             wp_enqueue_script('employee-toast', WP_AGENCY_URL . 'assets/js/employee/employee-toast.js', ['jquery'], $this->version, true);
             wp_enqueue_script('create-employee-form', WP_AGENCY_URL . 'assets/js/employee/create-employee-form.js', ['jquery', 'jquery-validate', 'employee-toast', 'employee-datatable'], $this->version, true);
             wp_enqueue_script('edit-employee-form', WP_AGENCY_URL . 'assets/js/employee/edit-employee-form.js', ['jquery', 'jquery-validate', 'employee-toast', 'employee-datatable'], $this->version, true);
-            wp_enqueue_script(
-                'wp-agency-membership',
-                WP_AGENCY_URL . 'assets/js/agency/agency-membership.js',
-                ['jquery', 'wp-agency', 'wp-agency-toast'],
-                WP_AGENCY_VERSION,
-                true
-            );
-            
+
             // New Company scripts
             wp_enqueue_script('new-company-datatable', WP_AGENCY_URL . 'assets/js/company/new-company-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);
 

@@ -451,41 +451,6 @@
             $(`#${tabId}`).addClass('active');
             
             // Initialize specific tab content if needed
-            /*
-            if (tabId === 'membership-info' && this.currentId) {
-                // Initialize membership data
-                if (window.AgencyMembership) {
-                    window.AgencyMembership.init();
-                }
-            }
-            */
-
-            if (tabId === 'membership-info' && this.currentId) {
-                console.log('Fetching membership data for agency:', this.currentId); // Add this debug line
-                // Get membership level data
-                $.ajax({
-                    url: wpAgencyData.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'get_agency_membership_level_data',
-                        agency_id: this.currentId,
-                        nonce: wpAgencyData.nonce
-                    },
-                    success: (response) => {
-                        if (response.success) {
-
-                            console.log('Membership info data:', response.data);
-
-                            if (window.AgencyMembership) {
-                                window.AgencyMembership.displayMembershipData(response.data);
-                            }
-                        }
-                    },
-                    error: (xhr, status, error) => {
-                        console.error('AJAX error:', error); // Add this debug line
-                    }
-                });
-            }
 
             // Initialize specific tab content if needed
             if (tabId === 'employee-list' && this.currentId) {
