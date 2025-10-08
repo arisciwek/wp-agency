@@ -138,9 +138,6 @@ class WPAgency {
         // New Company Controller
         new \WPAgency\Controllers\Company\NewCompanyController();
 
-        // Membership Controller
-        new \WPAgency\Controllers\Membership\AgencyMembershipController();
-
         // Register AJAX handlers
         add_action('wp_ajax_get_agency_stats', [$this->agency_controller, 'getStats']);
         add_action('wp_ajax_handle_agency_datatable', [$this->agency_controller, 'handleDataTableRequest']);

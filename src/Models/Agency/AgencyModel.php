@@ -37,7 +37,7 @@
      public function __construct() {
          global $wpdb;
          $this->table = $wpdb->prefix . 'app_agencies';
-         $this->division_table = $wpdb->prefix . 'app_divisions';
+         $this->division_table = $wpdb->prefix . 'app_agency_divisions';
          $this->employee_table = $wpdb->prefix . 'app_agency_employees';
          $this->cache = new AgencyCacheManager();
      }
@@ -260,33 +260,7 @@
         return $new_id;
     }
 
-    public function getMembershipData(int $agency_id): array {
-        // Check cache first
-        $cached_data = $this->cache->get('agency_membership', $agency_id);
-        if ($cached_data !== null) {
-            return $cached_data;
-        }
-        
-        // Original code to get membership data
-        $settings = get_option('wp_agency_membership_settings', []);
-        $agency = $this->find($agency_id);
-        $level = $agency->membership_level ?? $settings['default_level'] ?? 'regular';
-        
-        $data = [
-            'level' => $level,
-            'max_staff' => $settings["{$level}_max_staff"] ?? 2,
-            'capabilities' => [
-                'can_add_staff' => $settings["{$level}_can_add_staff"] ?? false,
-                'can_export' => $settings["{$level}_can_export"] ?? false,
-                'can_bulk_import' => $settings["{$level}_can_bulk_import"] ?? false,
-            ]
-        ];
-        
-        // Cache for 1 hour or more since membership rarely changes
-        $this->cache->set('agency_membership', $data, 1 * HOUR_IN_SECONDS, $agency_id);
-        
-        return $data;
-    }
+
 
     public function update(int $id, array $data): bool {
         global $wpdb;

@@ -40,7 +40,7 @@ class WP_Agency_Extension {
         $tabs['company-history'] = [
             'title' => __('History', 'wp-agency-ext'),
             'template' => 'company/partials/_company_history.php',
-            'priority' => 30  // After membership
+            'priority' => 30
         ];
         return $tabs;
     }

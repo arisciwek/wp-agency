@@ -161,23 +161,7 @@ public function enqueue_frontend_assets() {
                    );
                    break;
 
-               case 'membership-levels':
-                   wp_enqueue_style(
-                       'wp-agency-membership-levels-tab',
-                       WP_AGENCY_URL . 'assets/css/settings/agency-membership-levels-tab-style.css',
-                       ['wp-agency-settings'],
-                       $this->version
-                   );
-                   break;
 
-                case 'membership-features':
-                    wp_enqueue_style(
-                        'wp-agency-membership-features-tab',
-                        WP_AGENCY_URL . 'assets/css/settings/membership-features-tab-style.css',
-                        ['wp-agency-settings'],
-                        $this->version
-                    );
-                    break;
 
                case 'demo-data':
                    wp_enqueue_style(
@@ -288,58 +272,7 @@ public function enqueue_frontend_assets() {
                             'clearCacheNonce' => wp_create_nonce('wp_agency_clear_cache')
                         ]);
                     break;
-                case 'membership-features':
-                    wp_enqueue_script(
-                        'wp-agency-membership-features-tab',
-                        WP_AGENCY_URL . 'assets/js/settings/agency-membership-features-tab-script.js',
-                        ['jquery', 'wp-agency-settings'],
-                        $this->version,
-                        true
-                    );
-                    wp_localize_script(
-                        'wp-agency-membership-features-tab',
-                        'wpAgencySettings',
-                        [
-                            'ajaxUrl' => admin_url('admin-ajax.php'),
-                            'nonce' => wp_create_nonce('wp_agency_nonce'),
-                            'i18n' => [
-                                'addFeature' => __('Add New Feature', 'wp-agency'),
-                                'editFeature' => __('Edit Feature', 'wp-agency'),
-                                'deleteConfirm' => __('Are you sure you want to delete this feature?', 'wp-agency'),
-                                'loadError' => __('Failed to load feature data', 'wp-agency'),
-                                'saveError' => __('Failed to save feature', 'wp-agency'),
-                                'deleteError' => __('Failed to delete feature', 'wp-agency'),
-                                'saving' => __('Saving...', 'wp-agency'),
-                                'loading' => __('Loading...', 'wp-agency')
-                            ]
-                        ]
-                    );
-                    break;
-                case 'membership-levels':
-                    wp_enqueue_script(
-                        'wp-agency-membership',
-                        WP_AGENCY_URL . 'assets/js/settings/agency-membership-levels-tab-script.js',
-                        ['jquery', 'wp-agency-settings'],
-                        WP_AGENCY_VERSION,
-                        true
-                    );
 
-                    wp_localize_script('wp-agency-membership', 'wpAgencyData', [
-                        'ajaxUrl' => admin_url('admin-ajax.php'),
-                        'nonce' => wp_create_nonce('wp_agency_nonce'),
-                        'i18n' => [
-                            'confirmDelete' => __('Are you sure you want to delete this membership level?', 'wp-agency'),
-                            'saveSuccess' => __('Membership level saved successfully.', 'wp-agency'),
-                            'saveError' => __('Failed to save membership level.', 'wp-agency'),
-                            'deleteSuccess' => __('Membership level deleted successfully.', 'wp-agency'),
-                            'deleteError' => __('Failed to delete membership level.', 'wp-agency'),
-                            'loadError' => __('Failed to load membership level data.', 'wp-agency'),
-                            'required' => __('This field is required.', 'wp-agency'),
-                            'invalidNumber' => __('Please enter a valid number.', 'wp-agency')
-                        ]
-                    ]);
-
-                    break;
                 case 'demo-data':
                     wp_enqueue_script(
                         'wp-agency-demo-data-tab',

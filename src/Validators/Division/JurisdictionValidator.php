@@ -105,7 +105,7 @@ class JurisdictionValidator {
         $query = $wpdb->prepare("
             SELECT aj.jurisdiction_code, d.name as division_name, d.code as division_code
             FROM {$wpdb->prefix}app_agency_jurisdictions aj
-            JOIN {$wpdb->prefix}app_divisions d ON aj.division_id = d.id
+            JOIN {$wpdb->prefix}app_agency_divisions d ON aj.division_id = d.id
             WHERE aj.jurisdiction_code IN ($placeholders)
             AND d.agency_id = %d
             $exclude_condition

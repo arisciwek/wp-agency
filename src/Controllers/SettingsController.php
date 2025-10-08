@@ -24,9 +24,7 @@
 
 namespace WPAgency\Controllers;
 
-use WPAgency\Controllers\Membership\MembershipFeaturesController;
-use WPAgency\Models\Membership\MembershipLevelModel;
-use WPAgency\Models\Membership\MembershipFeatureModel;
+
 use WPAgency\Cache\AgencyCacheManager;
 
 class SettingsController {
@@ -41,75 +39,11 @@ class SettingsController {
         add_action('wp_ajax_agency_generate_demo_data', [$this, 'handle_generate_demo_data']);
         add_action('wp_ajax_agency_check_demo_data', [$this, 'handle_check_demo_data']);
     
-        /*
-        add_action('wp_ajax_get_membership_level', [$this, 'handle_get_membership_level']);
-        add_action('wp_ajax_save_membership_level', [$this, 'handle_save_membership_level']);
-        add_action('wp_ajax_delete_membership_level', [$this, 'handle_delete_membership_level']);
 
-        // Tambahkan handler untuk membership features
-        add_action('wp_ajax_get_membership_feature', [$this, 'handle_get_membership_feature']);
-        add_action('wp_ajax_save_membership_feature', [$this, 'handle_save_membership_feature']);
-        add_action('wp_ajax_delete_membership_feature', [$this, 'handle_delete_membership_feature']);
-
-        add_action('wp_ajax_get_membership_feature_group', [$this, 'handle_get_feature_group']);
-        add_action('wp_ajax_save_membership_feature_group', [$this, 'handle_save_feature_group']);
-        add_action('wp_ajax_delete_membership_feature_group', [$this, 'handle_delete_feature_group']);
-        */
 
     }
 
-    public function handle_get_membership_form_data() {
-        $membership_controller = new \WPAgency\Controllers\Membership\MembershipLevelController();
-        $membership_controller->handle_get_form_data();
-    }
 
-    // Tambahkan method penghubung untuk features group
-    public function handle_get_feature_group() {
-        $group_controller = new \WPAgency\Controllers\Membership\MembershipFeaturesController();
-        $group_controller->handle_get_feature();
-    }
-
-    public function handle_save_feature_group() {
-        $group_controller = new \WPAgency\Controllers\Membership\MembershipFeaturesController();
-        $group_controller->handle_save_feature();
-    }
-
-    public function handle_delete_feature_group() {
-        $group_controller = new \WPAgency\Controllers\Membership\MembershipFeaturesController();
-        $group_controller->handle_delete_feature();
-    }
-
-
-    // Tambahkan method penghubung untuk membership features
-    public function handle_get_membership_feature() {
-        $membership_controller = new \WPAgency\Controllers\Membership\MembershipFeaturesController();
-        $membership_controller->handle_get_feature();
-    }
-
-    public function handle_save_membership_feature() {
-        $membership_controller = new \WPAgency\Controllers\Membership\MembershipFeaturesController();
-        $membership_controller->handle_save_feature();
-    }
-
-    public function handle_delete_membership_feature() {
-        $membership_controller = new \WPAgency\Controllers\Membership\MembershipFeaturesController();
-        $membership_controller->handle_delete_feature();
-    }
-
-    public function handle_get_membership_level() {
-        $membership_controller = new \WPAgency\Controllers\Membership\MembershipLevelController();
-        $membership_controller->handle_get_level();
-    }
-
-    public function handle_save_membership_level() {
-        $membership_controller = new \WPAgency\Controllers\Membership\MembershipLevelController();
-        $membership_controller->handle_save_level();
-    }
-
-    public function handle_delete_membership_level() {
-        $membership_controller = new \WPAgency\Controllers\Membership\MembershipLevelController();
-        $membership_controller->handle_delete_level();
-    }
 
 
 
@@ -228,14 +162,7 @@ class SettingsController {
                 return new \WPAgency\Database\Demo\DivisionDemoData();
             case 'employee':
                 return new \WPAgency\Database\Demo\AgencyEmployeeDemoData();
-            case 'membership-groups':
-                return new \WPAgency\Database\Demo\MembershipGroupsDemoData();
-            case 'membership-features':
-                return new \WPAgency\Database\Demo\MembershipFeaturesDemoData();
-            case 'membership-level':
-                return new \WPAgency\Database\Demo\MembershipLevelsDemoData();
-            case 'memberships':  // Tambah case ini
-                return new \WPAgency\Database\Demo\MembershipDemoData();
+
             case 'jurisdiction':
                 return new \WPAgency\Database\Demo\JurisdictionDemoData();
             default:
@@ -303,62 +230,18 @@ class SettingsController {
         $this->loadTabView($current_tab);
     }
 
-    /**
-     * Mengambil feature groups dan features yang aktif dengan caching
-     */
-    private function getActiveGroupsAndFeatures() {
-        $featureModel = new MembershipFeatureModel();
-        return $featureModel->getActiveGroupsAndFeatures();
-    }
+
     
     private function loadTabView($tab) {
         $allowed_tabs = [
             'general' => 'tab-general.php',
             'permissions' => 'tab-permissions.php',
-            'membership-levels' => 'tab-membership-levels.php',
-            'membership-features' => 'tab-membership-features.php',
             'demo-data' => 'tab-demo-data.php'
         ];
         
         $tab = isset($allowed_tabs[$tab]) ? $tab : 'general';
 
-        if ($tab === 'membership-features') {
-            $membership_controller = new MembershipFeaturesController();
-            $view_data = [
-                'grouped_features' => $membership_controller->getAllFeatures(),
-                'field_groups' => $membership_controller->getFeatureGroups(),
-                'field_types' => ['checkbox', 'number', 'text'],
-                'field_subtypes' => ['integer', 'float', 'text']
-            ];
-        } else if ($tab === 'membership-levels') {
-            $membership_level_model = new MembershipLevelModel();
-            $membership_feature_model = new MembershipFeatureModel();
-            
-            // Ambil data level dengan capabilities
-            $levels = $membership_level_model->get_all_levels();
-            $grouped_features = $membership_feature_model->get_all_features_by_group();
-            
-            // Ambil group dan feature data dari cache/database
-            $groups_and_features = $this->getActiveGroupsAndFeatures();
-            
-            // Tambahkan group mapping
-            $group_mapping = $membership_feature_model->getGroupMapping();
-            
-            // Tambahkan default capabilities structure
-            $default_capabilities = [
-                'features' => [],
-                'limits' => [],
-                'notifications' => []
-            ];
 
-            $view_data = [
-                'levels' => $levels,
-                'grouped_features' => $grouped_features,
-                'groups_and_features' => $groups_and_features,
-                'group_mapping' => $group_mapping,              // Baru
-                'default_capabilities' => $default_capabilities // Baru
-            ];
-        }
             
         $tab_file = WP_AGENCY_PATH . 'src/Views/templates/settings/' . $allowed_tabs[$tab];
         
@@ -375,10 +258,7 @@ class SettingsController {
         }
     }
 
-    // Render functions for membership fields
-    public function render_membership_section() {
-        echo '<p>' . __('Konfigurasi level keanggotaan dan batasan untuk setiap level.', 'wp-agency') . '</p>';
-    }
+
 
     public function handle_check_demo_data() {
         try {
@@ -399,21 +279,14 @@ class SettingsController {
 
             switch($type) {
                 case 'division':
-                    $count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}app_divisions");
+                    $count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_divisions");
                     $has_data = ($count > 0);
                     break;
                 case 'agency':
                     $count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}app_agencies");
                     $has_data = ($count > 0);
                     break;
-                case 'membership-groups':
-                    $count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_membership_feature_groups");
-                    $has_data = ($count > 0);
-                    break;
-                case 'membership-features':
-                    $count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_membership_features");
-                    $has_data = ($count > 0);
-                    break;
+
                 case 'jurisdiction':
                     $count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_jurisdictions");
                     $has_data = ($count > 0);

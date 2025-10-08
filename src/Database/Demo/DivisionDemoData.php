@@ -27,7 +27,7 @@
  * - WP Database (wi_provinces, wi_regencies)
  * 
  * Database Design:
- * - app_divisions
+ * - app_agency_divisions
  *   * id             : Primary key
  *   * agency_id    : Foreign key ke agency
  *   * code           : Format Format kode: TTTT-RRXxRRXx-RR (13 karakter)
@@ -205,10 +205,10 @@ class DivisionDemoData extends AbstractDemoData {
         
         if ($this->shouldClearData()) {
             // Delete existing divisions
-            $this->wpdb->query("DELETE FROM {$this->wpdb->prefix}app_divisions WHERE id > 0");
+            $this->wpdb->query("DELETE FROM {$this->wpdb->prefix}app_agency_divisions WHERE id > 0");
             
             // Reset auto increment
-            $this->wpdb->query("ALTER TABLE {$this->wpdb->prefix}app_divisions AUTO_INCREMENT = 1");
+            $this->wpdb->query("ALTER TABLE {$this->wpdb->prefix}app_agency_divisions AUTO_INCREMENT = 1");
             
             $this->debug("Cleared existing division data");
         }
@@ -236,7 +236,7 @@ class DivisionDemoData extends AbstractDemoData {
 
                 // Check for existing pusat division
                 $existing_pusat = $this->wpdb->get_row($this->wpdb->prepare(
-                    "SELECT * FROM {$this->wpdb->prefix}app_divisions 
+                    "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions 
                      WHERE agency_id = %d AND type = 'pusat'",
                     $agency_id
                 ));
@@ -253,7 +253,7 @@ class DivisionDemoData extends AbstractDemoData {
 
                 // Check for existing cabang divisions
                 $existing_cabang_count = $this->wpdb->get_var($this->wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$this->wpdb->prefix}app_divisions 
+                    "SELECT COUNT(*) FROM {$this->wpdb->prefix}app_agency_divisions 
                      WHERE agency_id = %d AND type = 'cabang'",
                     $agency_id
                 ));
@@ -271,7 +271,7 @@ class DivisionDemoData extends AbstractDemoData {
             } else {
                 // Reset auto increment only if we added new data
                 $this->wpdb->query(
-                    "ALTER TABLE {$this->wpdb->prefix}app_divisions AUTO_INCREMENT = " . 
+                    "ALTER TABLE {$this->wpdb->prefix}app_agency_divisions AUTO_INCREMENT = " . 
                     (count($this->division_ids) + 1)
                 );
                 $this->debug("Division generation completed. Total new divisions processed: {$generated_count}");

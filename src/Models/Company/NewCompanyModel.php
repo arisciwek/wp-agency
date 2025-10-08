@@ -43,7 +43,7 @@ class NewCompanyModel {
         $this->branches_table = $wpdb->prefix . 'app_customer_branches';
         $this->customers_table = $wpdb->prefix . 'app_customers';
         $this->agencies_table = $wpdb->prefix . 'app_agencies';
-        $this->divisions_table = $wpdb->prefix . 'app_divisions';
+        $this->divisions_table = $wpdb->prefix . 'app_agency_divisions';
         $this->regencies_table = $wpdb->prefix . 'wi_regencies';
         $this->cache = new AgencyCacheManager();
     }

@@ -10,7 +10,7 @@
  *
  * Path: /wp-agency/src/Views/templates/division/templates/division-right-panel.php
  *
- * Description: Template for the right panel displaying division details, membership, and employees.
+ * Description: Template for the right panel displaying division details and employees.
  *
  * Changelog:
  * 1.0.0 - 2024-12-XX
@@ -32,7 +32,6 @@ defined('ABSPATH') || exit;
 
 <div class="nav-tab-wrapper">
     <a href="#" class="nav-tab nav-tab-agency-details nav-tab-active" data-tab="agency-details">Data Perusahaan</a>
-    <a href="#" class="nav-tab" data-tab="membership-info">Membership</a>
     <a href="#" class="nav-tab" data-tab="employee-list">Staff</a>
 </div>
 
@@ -42,7 +41,6 @@ defined('ABSPATH') || exit;
 
 foreach ([
     'agency/partials/_agency_details.php',
-    'agency/partials/_agency_membership.php',
     'employee/partials/_employee_list.php'
 ] as $template) {
     include_once WP_AGENCY_PATH . 'src/Views/templates/' . $template;

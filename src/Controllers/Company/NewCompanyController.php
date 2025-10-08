@@ -178,7 +178,7 @@ class NewCompanyController {
             // Get inspectors from agency employees filtered by division and role
             global $wpdb;
             $employees_table = $wpdb->prefix . 'app_agency_employees';
-            $divisions_table = $wpdb->prefix . 'app_divisions';
+            $divisions_table = $wpdb->prefix . 'app_agency_divisions';
 
             // Get inspectors who are in the same division as the branch AND have agency or pengawas role
             $query = $wpdb->prepare(

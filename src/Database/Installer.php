@@ -16,12 +16,9 @@
  *
  * Struktur tabel:
  * - app_agencies       : Data agency
- * - app_divisions     : Data division per agency
- * - app_agency_membership_feature_groups : Grup fitur membership
- * - app_agency_membership_features       : Fitur-fitur membership
- * - app_agency_membership_levels         : Level membership
- * - app_agency_memberships               : Data membership aktif
- * - app_agency_employees                 : Data karyawan agency
+ * - app_agency_divisions     : Data division per agency
+ * - app_agency_jurisdictions : Data jurisdiksi
+ * - app_agency_employees     : Data karyawan agency
  *
  * Changelog:
  * 1.1.0 - 2025-02-27
@@ -31,7 +28,6 @@
  * - Tambahan verifikasi tabel setelah instalasi
  * 
  * 1.0.1 - 2025-02-14
- * - Penambahan tabel fitur membership
  * - Peningkatan penanganan error
  * 
  * 1.0.0 - 2025-01-07
@@ -47,23 +43,15 @@ class Installer {
     // Complete list of tables to install, in dependency order
     private static $tables = [
         'app_agencies',
-        'app_divisions',
+        'app_agency_divisions',
         'app_agency_jurisdictions',
-        'app_agency_membership_feature_groups',
-        'app_agency_membership_features',
-        'app_agency_membership_levels',
-        'app_agency_memberships',
         'app_agency_employees'
     ];
 
     // Table class mappings for easier maintenance
     private static $table_classes = [
         'app_agencies' => Tables\AgencysDB::class,
-        'app_agency_membership_feature_groups' => Tables\AgencyMembershipFeaturesDB::class,
-        'app_agency_membership_features' => Tables\AgencyMembershipFeaturesDB::class,
-        'app_agency_membership_levels' => Tables\AgencyMembershipLevelsDB::class,
-        'app_agency_memberships' => Tables\AgencyMembershipsDB::class,
-        'app_divisions' => Tables\DivisionsDB::class,
+        'app_agency_divisions' => Tables\DivisionsDB::class,
         'app_agency_jurisdictions' => Tables\JurisdictionDB::class,
         'app_agency_employees' => Tables\AgencyEmployeesDB::class
     ];
@@ -113,16 +101,6 @@ class Installer {
 
             // Tambahkan foreign key constraints setelah semua tabel dibuat
             self::debug("Adding foreign key constraints...");
-
-            // Tambahkan foreign keys untuk AgencyMembershipFeatures
-            if (method_exists(Tables\AgencyMembershipFeaturesDB::class, 'add_foreign_keys')) {
-                Tables\AgencyMembershipFeaturesDB::add_foreign_keys();
-            }
-
-            // Tambahkan foreign keys untuk AgencyMemberships
-            if (method_exists(Tables\AgencyMembershipsDB::class, 'add_foreign_keys')) {
-                Tables\AgencyMembershipsDB::add_foreign_keys();
-            }
 
             // Tambahkan foreign keys untuk Agency Jurisdictions
             if (method_exists(Tables\JurisdictionDB::class, 'add_foreign_keys')) {

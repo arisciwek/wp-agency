@@ -390,7 +390,7 @@ class AgencyEmployeeValidator {
    private function isDivisionAdmin($user_id, $division_id): bool {
        global $wpdb;
        return (bool)$wpdb->get_var($wpdb->prepare(
-           "SELECT COUNT(*) FROM {$wpdb->prefix}app_divisions 
+           "SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_divisions 
             WHERE id = %d AND user_id = %d",
            $division_id, $user_id
        ));

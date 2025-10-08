@@ -863,27 +863,11 @@ public function createPdfButton() {
                 throw new \Exception('Agency not found');
             }
 
-            // Cek cache untuk data membership
-            $cached_membership = $this->cache->get('agency_membership', $id);
-            
-            if ($cached_membership !== null) {
-                $this->debug_log("Data membership diambil dari cache");
-                $membership = $cached_membership;
-            } else {
-                // Jika tidak ada dalam cache, ambil dari database/model
-                $this->debug_log("Data membership diambil dari model");
-                $membership = $this->model->getMembershipData($id);
-                
-                // Simpan ke cache jika data tersedia
-                if ($membership) {
-                    $this->cache->set('agency_membership', $membership, $this->cache::getCacheExpiry(), $id);
-                }
-            }
+
 
             // Prepare response data
             $response_data = [
                 'agency' => $agency,
-                'membership' => $membership,
                 'access_type' => $access['access_type']
             ];
 
@@ -1143,7 +1127,7 @@ public function createPdfButton() {
                 JOIN {$wpdb->prefix}wi_provinces p ON p.id = r.province_id
                 JOIN {$wpdb->prefix}app_agencies a ON a.provinsi_code = p.code
                 WHERE a.id = %d AND EXISTS (
-                    SELECT 1 FROM {$wpdb->prefix}app_divisions d WHERE d.regency_code = r.code
+                    SELECT 1 FROM {$wpdb->prefix}app_agency_divisions d WHERE d.regency_code = r.code
                 )
                 GROUP BY r.id, r.code, r.name
             ", $agency_id);

@@ -84,9 +84,9 @@ class JurisdictionModel {
                 // Check if jurisdiction_code is already assigned to another division in the same agency
                 $regency_exists = $wpdb->get_var($wpdb->prepare(
                     "SELECT aj.id FROM {$wpdb->prefix}app_agency_jurisdictions aj
-                     JOIN {$wpdb->prefix}app_divisions d ON aj.division_id = d.id
+                     JOIN {$wpdb->prefix}app_agency_divisions d ON aj.division_id = d.id
                      WHERE aj.jurisdiction_code = %s AND d.agency_id = (
-                         SELECT agency_id FROM {$wpdb->prefix}app_divisions WHERE id = %d
+                         SELECT agency_id FROM {$wpdb->prefix}app_agency_divisions WHERE id = %d
                      )",
                     $regency_code, $division_id
                 ));
@@ -210,7 +210,7 @@ class JurisdictionModel {
             FROM {$wpdb->prefix}wi_regencies r
             JOIN {$wpdb->prefix}wi_provinces p ON p.id = r.province_id AND p.code = %s
             LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_code = r.code
-            LEFT JOIN {$wpdb->prefix}app_divisions d ON aj.division_id = d.id AND d.agency_id = %d";
+            LEFT JOIN {$wpdb->prefix}app_agency_divisions d ON aj.division_id = d.id AND d.agency_id = %d";
         $params = [$filter_province, $agency_id];
 
         if ($exclude_division_id) {

@@ -27,11 +27,6 @@ defined('ABSPATH') || exit;
                 'title' => __('Data Perusahaan', 'wp-agency'),
                 'template' => 'company/partials/_company_details.php',
                 'priority' => 10
-            ],
-            'membership-info' => [
-                'title' => __('Membership', 'wp-agency'),
-                'template' => 'company/partials/_company_membership.php',
-                'priority' => 20
             ]
         ]);
 

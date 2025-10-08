@@ -61,15 +61,10 @@ class WP_Agency_Deactivator {
             // Delete tables in correct order (child tables first)
             $tables = [
                 // First level - no dependencies
-                'app_agency_memberships',  // Drop this first as it references agencies, divisions, and levels
                 'app_agency_employees',    // Drop this next as it references agencies and divisions
                 'app_agency_jurisdictions', // Drop this before divisions as it references divisions
                 'app_jurisdictions',        // Old table name, drop if exists
-                'app_divisions',             // Drop this after jurisdictions as it only references agencies
-                // Second level - referenced by others
-                'app_agency_membership_levels',  // Can now be dropped as memberships is gone
-                'app_agency_membership_features',  // Drop features before groups as it references groups
-                'app_agency_membership_feature_groups',  // Drop groups last in this level
+                'app_agency_divisions',             // Drop this after jurisdictions as it only references agencies
                 'app_agencies'             // Drop this last as it's referenced by all
             ];
 
@@ -81,9 +76,6 @@ class WP_Agency_Deactivator {
 
             // Delete demo users (after tables are gone)
             self::delete_demo_users();
-
-            // Hapus semua opsi terkait membership
-            self::cleanupMembershipOptions();
 
             // Clear cache using AgencyCacheManager
             try {
@@ -200,13 +192,9 @@ class WP_Agency_Deactivator {
                 // Handle both old and new jurisdiction table names
                 "ALTER TABLE {$wpdb->prefix}app_agency_jurisdictions DROP FOREIGN KEY {$wpdb->prefix}app_agency_jurisdictions_ibfk_1",
                 "ALTER TABLE {$wpdb->prefix}app_jurisdictions DROP FOREIGN KEY {$wpdb->prefix}app_jurisdictions_ibfk_1",
-                "ALTER TABLE {$wpdb->prefix}app_agency_memberships DROP FOREIGN KEY fk_membership_agency",
-                "ALTER TABLE {$wpdb->prefix}app_agency_memberships DROP FOREIGN KEY fk_membership_division",
-                "ALTER TABLE {$wpdb->prefix}app_agency_memberships DROP FOREIGN KEY fk_agency_membership_level",
                 "ALTER TABLE {$wpdb->prefix}app_agency_employees DROP FOREIGN KEY {$wpdb->prefix}app_agency_employees_ibfk_1",
                 "ALTER TABLE {$wpdb->prefix}app_agency_employees DROP FOREIGN KEY {$wpdb->prefix}app_agency_employees_ibfk_2",
-                "ALTER TABLE {$wpdb->prefix}app_divisions DROP FOREIGN KEY {$wpdb->prefix}app_divisions_ibfk_1",
-                "ALTER TABLE {$wpdb->prefix}app_agency_membership_features DROP FOREIGN KEY fk_agency_feature_group_id",
+                "ALTER TABLE {$wpdb->prefix}app_agency_divisions DROP FOREIGN KEY {$wpdb->prefix}app_agency_divisions_ibfk_1",
             ];
 
             foreach ($constraint_queries as $query) {
@@ -220,13 +208,5 @@ class WP_Agency_Deactivator {
         }
     }
 
-    private static function cleanupMembershipOptions() {
-        try {
-            delete_option('wp_agency_membership_settings');
-            delete_transient('wp_agency_membership_cache');
-            self::debug("Membership settings and transients cleared");
-        } catch (\Exception $e) {
-            self::debug("Error cleaning up membership options: " . $e->getMessage());
-        }
-    }
+
 }

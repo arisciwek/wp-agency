@@ -36,8 +36,6 @@ $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'genera
 $tabs = array(
     'general' => __('Pengaturan Umum', 'wp-agency'),
     'permissions' => __('Hak Akses', 'wp-agency'),
-    'membership-levels' => __('Membership Levels', 'wp-agency'),
-    'membership-features' => __('Membership Features', 'wp-agency'),
     'demo-data' => __('Demo Data', 'wp-agency')
 );
 

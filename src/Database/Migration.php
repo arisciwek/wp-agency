@@ -15,7 +15,7 @@
  *
  * Tables affected:
  * - app_agencies: provinsi_id -> provinsi_code, regency_id -> regency_code
- * - app_divisions: provinsi_id -> provinsi_code, regency_id -> regency_code
+ * - app_agency_divisions: provinsi_id -> provinsi_code, regency_id -> regency_code
  * - app_agency_jurisdictions: regency_id -> jurisdiction_code
  *
  * Migration steps:
@@ -50,7 +50,7 @@ class Migration {
             // Step 1: Migrate app_agencies table
             self::migrateAgenciesTable();
 
-            // Step 2: Migrate app_divisions table
+            // Step 2: Migrate app_agency_divisions table
             self::migrateDivisionsTable();
 
             // Step 3: Migrate app_agency_jurisdictions table
@@ -115,11 +115,11 @@ class Migration {
     }
 
     /**
-     * Migrate app_divisions table
+     * Migrate app_agency_divisions table
      */
     private static function migrateDivisionsTable() {
         global $wpdb;
-        $table = $wpdb->prefix . 'app_divisions';
+        $table = $wpdb->prefix . 'app_agency_divisions';
 
         self::debug("Migrating divisions table...");
 
@@ -170,28 +170,36 @@ class Migration {
 
         self::debug("Migrating jurisdictions table...");
 
-        // Check if migration already done
+        // Check if migration already done (table already has jurisdiction_code)
         $columns = $wpdb->get_results("DESCRIBE {$table}");
-        $has_regency_code = false;
+        $has_jurisdiction_code = false;
 
         foreach ($columns as $column) {
-            if ($column->Field === 'regency_code') $has_regency_code = true;
+            if ($column->Field === 'jurisdiction_code') $has_jurisdiction_code = true;
         }
 
-        if ($has_regency_code) {
+        if ($has_jurisdiction_code) {
             self::debug("Jurisdictions table already migrated");
             return;
         }
 
-        // Add new code column
-        $wpdb->query("ALTER TABLE {$table} ADD COLUMN regency_code_temp VARCHAR(10) NULL AFTER regency_id");
-        $wpdb->query("UPDATE {$table} SET regency_code_temp = (SELECT code FROM {$wpdb->prefix}wi_regencies WHERE id = regency_id) WHERE regency_id IS NOT NULL");
+        // If table still has old regency_id column, migrate it
+        $has_regency_id = false;
+        foreach ($columns as $column) {
+            if ($column->Field === 'regency_id') $has_regency_id = true;
+        }
 
-        // Drop old column and rename new one
-        $wpdb->query("ALTER TABLE {$table} DROP COLUMN regency_id, CHANGE regency_code_temp regency_code VARCHAR(10) NOT NULL");
+        if ($has_regency_id) {
+            // Add new code column
+            $wpdb->query("ALTER TABLE {$table} ADD COLUMN regency_code_temp VARCHAR(10) NULL AFTER regency_id");
+            $wpdb->query("UPDATE {$table} SET regency_code_temp = (SELECT code FROM {$wpdb->prefix}wi_regencies WHERE id = regency_id) WHERE regency_id IS NOT NULL");
 
-        // Update foreign key constraint
-        $wpdb->query("ALTER TABLE {$table} DROP FOREIGN KEY `{$wpdb->prefix}app_agency_jurisdictions_ibfk_1`");
+            // Drop old column and rename new one
+            $wpdb->query("ALTER TABLE {$table} DROP COLUMN regency_id, CHANGE regency_code_temp jurisdiction_code VARCHAR(10) NOT NULL");
+
+            // Update foreign key constraint
+            $wpdb->query("ALTER TABLE {$table} DROP FOREIGN KEY `{$wpdb->prefix}app_agency_jurisdictions_ibfk_1`");
+        }
 
         self::debug("Jurisdictions table migration completed");
     }

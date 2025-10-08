@@ -643,7 +643,7 @@ class DivisionController {
                 if ($province_id) {
                     // Get agency_id for the division
                     $agency_id = $division->agency_id ?? $wpdb->get_var($wpdb->prepare(
-                        "SELECT agency_id FROM {$wpdb->prefix}app_divisions WHERE id = %d",
+                        "SELECT agency_id FROM {$wpdb->prefix}app_agency_divisions WHERE id = %d",
                         $id
                     ));
 
@@ -1109,7 +1109,7 @@ class DivisionController {
                 SELECT DISTINCT p.id, p.code, p.name
                 FROM {$wpdb->prefix}wi_provinces p
                 INNER JOIN {$wpdb->prefix}wi_regencies r ON r.province_id = p.id
-                LEFT JOIN {$wpdb->prefix}app_divisions d ON d.regency_code = r.code
+                LEFT JOIN {$wpdb->prefix}app_agency_divisions d ON d.regency_code = r.code
                 WHERE d.id IS NULL
                 ORDER BY p.name ASC
             ");
@@ -1165,7 +1165,7 @@ class DivisionController {
                   AND r.code NOT IN (
                     SELECT j.jurisdiction_code
                     FROM {$wpdb->prefix}app_agency_jurisdictions j
-                    JOIN {$wpdb->prefix}app_divisions d ON j.division_id = d.id
+                    JOIN {$wpdb->prefix}app_agency_divisions d ON j.division_id = d.id
                     WHERE d.provinsi_code = %s
                   )
                 ORDER BY r.name ASC
@@ -1220,7 +1220,7 @@ class DivisionController {
                 FROM {$wpdb->prefix}wi_provinces p
                 LEFT JOIN {$wpdb->prefix}wi_regencies r ON r.province_id = p.id
                 LEFT JOIN {$wpdb->prefix}app_agencies a ON a.provinsi_code = p.code
-                LEFT JOIN {$wpdb->prefix}app_divisions d ON d.regency_code = r.code
+                LEFT JOIN {$wpdb->prefix}app_agency_divisions d ON d.regency_code = r.code
                 WHERE d.id IS NULL AND r.province_id IS NOT NULL
                 ORDER BY p.name ASC
             ");

@@ -399,10 +399,6 @@ trait AgencyDemoDataHelperTrait {
         
         // Only clear specific table data
         switch($type) {
-            case 'membership_levels':
-            case 'membership_features':
-            case 'membership_groups':
-                return true;
             case 'agency':
             case 'division':
             case 'employee':
@@ -420,20 +416,7 @@ trait AgencyDemoDataHelperTrait {
             $this->wpdb->query("START TRANSACTION");
 
             switch($type) {
-                case 'membership_levels':
-                    $this->wpdb->query("DELETE FROM {$this->wpdb->prefix}app_agency_membership_levels WHERE id > 0");
-                    $this->wpdb->query("ALTER TABLE {$this->wpdb->prefix}app_agency_membership_levels AUTO_INCREMENT = 1");
-                    break;
-                    
-                case 'membership_features':
-                    $this->wpdb->query("DELETE FROM {$this->wpdb->prefix}app_agency_membership_features WHERE id > 0");
-                    $this->wpdb->query("ALTER TABLE {$this->wpdb->prefix}app_agency_membership_features AUTO_INCREMENT = 1");
-                    break;
-                    
-                case 'membership_groups':
-                    $this->wpdb->query("DELETE FROM {$this->wpdb->prefix}app_agency_membership_feature_groups WHERE id > 0");
-                    $this->wpdb->query("ALTER TABLE {$this->wpdb->prefix}app_agency_membership_feature_groups AUTO_INCREMENT = 1");
-                    break;
+                // No agency cases to handle
             }
 
             $this->wpdb->query("COMMIT");

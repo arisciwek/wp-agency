@@ -430,8 +430,6 @@ class AgencyCacheManager {
                 'agency',
                 'agency_list',
                 'agency_total_count',
-                'agency_membership',
-                'membership',
                 'division',
                 'division_list',
                 'employee',

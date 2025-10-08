@@ -63,46 +63,6 @@ if (!current_user_can('manage_options')) {
         </p>
 
         <div class="demo-data-grid">
-            <!-- Feature Groups -->
-            <div class="demo-data-card">
-                <h4><?php _e('Membership Feature Groups', 'wp-agency'); ?></h4>
-                <p><?php _e('Generate feature group definitions for membership capabilities.', 'wp-agency'); ?></p>
-                <button type="button" 
-                        class="button button-primary agency-generate-demo-data" 
-                        data-type="membership-groups"
-                        data-nonce="<?php echo wp_create_nonce('generate_demo_membership-groups'); ?>">
-                    <?php _e('Generate Feature Groups', 'wp-agency'); ?>
-                </button>
-            </div>
-
-            <!-- Membership Features -->
-            <div class="demo-data-card">
-                <h4><?php _e('Membership Features', 'wp-agency'); ?></h4>
-                <p><?php _e('Generate membership feature definitions for capabilities and limits.', 'wp-agency'); ?></p>
-                <button type="button" 
-                        class="button button-primary agency-generate-demo-data" 
-                        data-type="membership-features"
-                        data-requires="membership-groups"
-                        data-check-nonce="<?php echo wp_create_nonce('check_demo_membership-groups'); ?>"
-                        data-nonce="<?php echo wp_create_nonce('generate_demo_membership-features'); ?>">
-                    <?php _e('Generate Membership Features', 'wp-agency'); ?>
-                </button>
-            </div>
-            
-            <!-- Membership Levels -->
-            <div class="demo-data-card">
-                <h4><?php _e('Membership Levels', 'wp-agency'); ?></h4>
-                <p><?php _e('Generate default membership levels configuration.', 'wp-agency'); ?></p>
-                <button type="button" 
-                        class="button button-primary agency-generate-demo-data" 
-                        data-type="membership-level"
-                        data-requires="membership-features"
-                        data-check-nonce="<?php echo wp_create_nonce('check_demo_membership-features'); ?>"
-                        data-nonce="<?php echo wp_create_nonce('generate_demo_membership-level'); ?>">
-                    <?php _e('Generate Membership Levels', 'wp-agency'); ?>
-                </button>
-            </div>
-
             <!-- Agencys -->
             <div class="demo-data-card">
                 <h4><?php _e('Agencys', 'wp-agency'); ?></h4>

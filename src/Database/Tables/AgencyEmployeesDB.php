@@ -90,12 +90,28 @@ class AgencyEmployeesDB {
         global $wpdb;
         $table_name = $wpdb->prefix . 'app_agency_employees';
         $agencies_table = $wpdb->prefix . 'app_agencies';
+        $constraint_name = $wpdb->prefix . 'app_agency_employees_ibfk_1';
 
-        // Tambahkan foreign key constraint dengan query langsung
-        $wpdb->query("ALTER TABLE {$table_name} 
-            ADD CONSTRAINT `{$wpdb->prefix}app_agency_employees_ibfk_1` 
-            FOREIGN KEY (agency_id) 
-            REFERENCES `{$agencies_table}` (id) 
+        // Check if constraint already exists
+        $constraint_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+             WHERE CONSTRAINT_SCHEMA = DATABASE()
+             AND TABLE_NAME = %s
+             AND CONSTRAINT_NAME = %s",
+            $table_name,
+            $constraint_name
+        ));
+
+        // If constraint exists, drop it first
+        if ($constraint_exists > 0) {
+            $wpdb->query("ALTER TABLE {$table_name} DROP FOREIGN KEY `{$constraint_name}`");
+        }
+
+        // Add foreign key constraint
+        $wpdb->query("ALTER TABLE {$table_name}
+            ADD CONSTRAINT `{$constraint_name}`
+            FOREIGN KEY (agency_id)
+            REFERENCES `{$agencies_table}` (id)
             ON DELETE CASCADE");
     }
 }

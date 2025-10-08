@@ -290,7 +290,7 @@ class SelectListHooks {
                     SELECT DISTINCT p.id, p.code, p.name
                     FROM {$wpdb->prefix}wi_provinces p
                     INNER JOIN {$wpdb->prefix}wi_regencies r ON r.province_id = p.id
-                    LEFT JOIN {$wpdb->prefix}app_divisions d ON d.regency_code = r.code
+                    LEFT JOIN {$wpdb->prefix}app_agency_divisions d ON d.regency_code = r.code
                     WHERE d.id IS NULL
                     ORDER BY p.name ASC
                 ";

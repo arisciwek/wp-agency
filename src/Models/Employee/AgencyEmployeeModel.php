@@ -39,7 +39,7 @@ class AgencyEmployeeModel {
         global $wpdb;
         $this->table = $wpdb->prefix . 'app_agency_employees';
         $this->agency_table = $wpdb->prefix . 'app_agencies';
-        $this->division_table = $wpdb->prefix . 'app_divisions';
+        $this->division_table = $wpdb->prefix . 'app_agency_divisions';
         $this->cache = new AgencyCacheManager();
     }
 

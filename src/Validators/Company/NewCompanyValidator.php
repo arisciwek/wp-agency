@@ -81,7 +81,7 @@ class NewCompanyValidator {
         }
 
         // Check if user is division admin in this agency
-        $divisions_table = $wpdb->prefix . 'app_divisions';
+        $divisions_table = $wpdb->prefix . 'app_agency_divisions';
         
         $is_division_admin = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$divisions_table} 
@@ -325,7 +325,7 @@ class NewCompanyValidator {
         }
 
         // Check division admin
-        $divisions_table = $wpdb->prefix . 'app_divisions';
+        $divisions_table = $wpdb->prefix . 'app_agency_divisions';
         
         $is_division_admin = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$divisions_table} 
@@ -393,7 +393,7 @@ class NewCompanyValidator {
         }
 
         // Check division admin
-        $divisions_table = $wpdb->prefix . 'app_divisions';
+        $divisions_table = $wpdb->prefix . 'app_agency_divisions';
         $is_division_admin = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$divisions_table} 
              WHERE user_id = %d AND agency_id = %d AND status = 'active'",

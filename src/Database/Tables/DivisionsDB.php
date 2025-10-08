@@ -45,7 +45,7 @@ defined('ABSPATH') || exit;
 class DivisionsDB {
     public static function get_schema() {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'app_divisions';
+        $table_name = $wpdb->prefix . 'app_agency_divisions';
         $charset_collate = $wpdb->get_charset_collate();
 
         return "CREATE TABLE {$table_name} (

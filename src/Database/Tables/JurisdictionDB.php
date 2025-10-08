@@ -16,7 +16,7 @@
  *
  * Fields:
  * - id             : Primary key
- * - division_id    : Foreign key ke app_divisions
+ * - division_id    : Foreign key ke app_agency_divisions
  * - jurisdiction_code   : Kode regency ke wi_regencies
  * - is_primary     : Boolean, true jika regency ini adalah yang utama (tidak dapat dipindah)
  * - created_by     : User ID pembuat
@@ -24,7 +24,7 @@
  * - updated_at     : Timestamp update terakhir
  *
  * Foreign Keys:
- * - division_id    : REFERENCES app_divisions(id) ON DELETE CASCADE
+ * - division_id    : REFERENCES app_agency_divisions(id) ON DELETE CASCADE
  * - jurisdiction_code   : References wi_regencies(code) (no FK constraint, lookup by code)
  *
  * Constraints:
@@ -62,7 +62,7 @@ class JurisdictionDB {
             KEY created_by_index (created_by),
             CONSTRAINT `{$wpdb->prefix}app_agency_jurisdictions_ibfk_1`
                 FOREIGN KEY (division_id)
-                REFERENCES `{$wpdb->prefix}app_divisions` (id)
+                REFERENCES `{$wpdb->prefix}app_agency_divisions` (id)
                 ON DELETE CASCADE
         ) $charset_collate;";
     }

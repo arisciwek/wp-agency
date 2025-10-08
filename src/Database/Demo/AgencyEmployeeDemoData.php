@@ -54,7 +54,7 @@ class AgencyEmployeeDemoData extends AbstractDemoData {
             }
 
             $division_count = $this->wpdb->get_var(
-                "SELECT COUNT(*) FROM {$this->wpdb->prefix}app_divisions"
+                "SELECT COUNT(*) FROM {$this->wpdb->prefix}app_agency_divisions"
             );
             
             if ($division_count == 0) {
@@ -115,7 +115,7 @@ class AgencyEmployeeDemoData extends AbstractDemoData {
 
 		    // Ambil division pusat untuk assign owner
 		    $pusat_division = $this->wpdb->get_row($this->wpdb->prepare(
-		        "SELECT * FROM {$this->wpdb->prefix}app_divisions 
+		        "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions 
 		         WHERE agency_id = %d AND type = 'pusat'",
 		        $agency->id
 		    ));
@@ -139,7 +139,7 @@ class AgencyEmployeeDemoData extends AbstractDemoData {
         // 2. Division admins (ID 112-131)
         for ($id = DivisionUsersData::USER_ID_START; $id <= DivisionUsersData::USER_ID_END; $id++) {
             $division = $this->wpdb->get_row($this->wpdb->prepare(
-                "SELECT * FROM {$this->wpdb->prefix}app_divisions WHERE user_id = %d",
+                "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions WHERE user_id = %d",
                 $id
             ));
 

@@ -23,7 +23,7 @@
  * Database Design:
  * - app_jurisdictions
  *   * id             : Primary key
- *   * division_id    : Foreign key ke app_divisions
+ *   * division_id    : Foreign key ke app_agency_divisions
  *   * jurisdiction_code   : Code ke wi_regencies
  *   * is_primary     : 1 jika regency utama (tidak dapat dipindah)
  *   * created_by     : User ID pembuat
@@ -73,7 +73,7 @@ class JurisdictionDemoData extends AbstractDemoData {
         try {
             // 1. Validasi tabel divisions ada
             $divisions_exist = $this->wpdb->get_var(
-                "SHOW TABLES LIKE '{$this->wpdb->prefix}app_divisions'"
+                "SHOW TABLES LIKE '{$this->wpdb->prefix}app_agency_divisions'"
             );
             if (!$divisions_exist) {
                 throw new \Exception('Divisions table not found');
@@ -104,7 +104,7 @@ class JurisdictionDemoData extends AbstractDemoData {
             foreach ($this->jurisdiction_data as $division_id => $data) {
                 // Cek division exists
                 $division = $this->wpdb->get_row($this->wpdb->prepare(
-                    "SELECT * FROM {$this->wpdb->prefix}app_divisions WHERE id = %d",
+                    "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions WHERE id = %d",
                     $division_id
                 ));
                 if (!$division) {
@@ -157,7 +157,7 @@ class JurisdictionDemoData extends AbstractDemoData {
             foreach ($this->jurisdiction_data as $division_id => $data) {
                 // Get division to determine primary regency
                 $division = $this->wpdb->get_row($this->wpdb->prepare(
-                    "SELECT * FROM {$this->wpdb->prefix}app_divisions WHERE id = %d",
+                    "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions WHERE id = %d",
                     $division_id
                 ));
 

@@ -82,7 +82,6 @@ class WP_Agency_Activator {
 
             // 5. Continue with rest of activation (demo data, version, etc)
             self::addVersion();
-            self::setupMembershipDefaults();
 
             // Add rewrite rules
             add_rewrite_rule(
@@ -100,36 +99,7 @@ class WP_Agency_Activator {
         }
     }
 
-    // Tambahkan metode baru ini
-    private static function setupMembershipDefaults() {
-        try {
-            // Periksa apakah settings sudah ada
-            if (!get_option('wp_agency_membership_settings')) {
-                $default_settings = [
-                    'regular_max_staff' => 2,
-                    'regular_can_add_staff' => true,
-                    'regular_can_export' => false,
-                    'regular_can_bulk_import' => false,
-                    
-                    'priority_max_staff' => 5,
-                    'priority_can_add_staff' => true,
-                    'priority_can_export' => true,
-                    'priority_can_bulk_import' => false,
-                    
-                    'utama_max_staff' => -1,
-                    'utama_can_add_staff' => true,
-                    'utama_can_export' => true,
-                    'utama_can_bulk_import' => true,
-                    
-                    'default_level' => 'regular'
-                ];
 
-                add_option('wp_agency_membership_settings', $default_settings);
-            }
-        } catch (\Exception $e) {
-            self::logError('Error setting up membership defaults: ' . $e->getMessage());
-        }
-    }
 
     private static function addVersion() {
         add_option('wp_agency_version', WP_AGENCY_VERSION);

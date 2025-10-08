@@ -16,13 +16,11 @@
  * Dependencies:
  * - WordPress REST API
  * - WPAgency\Models\Agency\AgencyModel
- * - WPAgency\Models\Membership\MembershipLevelModel
  *
  * Changelog:
  * 1.0.0 - 2024-02-16
  * - Initial version
  * - Added CRUD endpoints for agencies
- * - Added membership level endpoints
  * - Added CORS support
  */
 
@@ -106,14 +104,7 @@ class APIController {
             ]
         ]);
 
-        // Membership level endpoints
-        register_rest_route(self::API_NAMESPACE, '/membership-levels', [
-            [
-                'methods' => \WP_REST_Server::READABLE,
-                'callback' => [$this, 'get_membership_levels'],
-                'permission_callback' => [$this, 'check_membership_permission']
-            ]
-        ]);
+
     }
 
     /**
@@ -163,9 +154,7 @@ class APIController {
         return current_user_can('delete_agency');
     }
 
-    public function check_membership_permission() {
-        return is_user_logged_in();
-    }
+
 
     /**
      * Endpoint handlers
@@ -305,21 +294,5 @@ class APIController {
         }
     }
 
-    public function get_membership_levels() {
-        try {
-            $model = new \WPAgency\Models\Membership\MembershipLevelModel();
-            $levels = $model->get_all_levels();
 
-            return new \WP_REST_Response([
-                'success' => true,
-                'data' => $levels
-            ], 200);
-
-        } catch (\Exception $e) {
-            return new \WP_REST_Response([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    }
 }

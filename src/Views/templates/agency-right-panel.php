@@ -10,7 +10,7 @@
  *
  * Path: /wp-agency/src/Views/templates/agency-right-panel.php
  *
- * Description: Template for the right panel displaying agency details, membership, divisions, and employees.
+ * Description: Template for the right panel displaying agency details, divisions, and employees.
  *
  * Changelog:
  * 1.0.0 - 2024-12-XX
