@@ -1,5 +1,18 @@
 # # TODO List for WP Agency Plugin
 
+## TODO-2058: Generate Division User Names from Unique Collection
+- [x] Create unique name_collection for DivisionUsersData (24 unique names)
+- [x] Update DivisionUsersData with names generated from collection
+- [x] Fix user IDs to be sequential from 140-169
+- [x] Update role to 'agency_admin_unit' (with prefix)
+- [x] Add getNameCollection() and isValidName() helper methods
+- [x] Create documentation file TODO-2058-division-name-collection.md
+- [x] Update TODO.md with task reference
+
+See: [docs/TODO-2058-division-name-collection.md](docs/TODO-2058-division-name-collection.md)
+
+---
+
 ## TODO-2057: Generate Names from Unique Collection
 - [x] Create unique name_collection for AgencyUsersData
 - [x] Update AgencyUsersData with names generated from collection
