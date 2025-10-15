@@ -162,17 +162,13 @@ class AgencyEmployeeDemoData extends AbstractDemoData {
 
     private function generateNewEmployees(): void {
         foreach (self::$employee_users as $user_data) {
-            // Generate WordPress user first
-            // Note: roles is now an array ['agency', 'agency_xxx']
-            // But WPUserGenerator needs the primary role (first one after 'agency')
-            $roles = $user_data['roles'] ?? ['agency'];
-            $primary_role = count($roles) > 1 ? $roles[1] : $roles[0];
-
+            // Generate WordPress user with multiple roles
+            // WPUserGenerator now supports 'roles' array parameter (from TODO-2060)
             $user_id = $this->wpUserGenerator->generateUser([
                 'id' => $user_data['id'],
                 'username' => $user_data['username'],
                 'display_name' => $user_data['display_name'],
-                'role' => $primary_role
+                'roles' => $user_data['roles']  // Use roles array from AgencyEmployeeUsersData
             ]);
 
             if (!$user_id) {

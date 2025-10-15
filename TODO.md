@@ -1,5 +1,17 @@
 # # TODO List for WP Agency Plugin
 
+## TODO-2062: Add Multiple Roles to Agency Employee Users
+- [x] Fix AgencyEmployeeDemoData to use full roles array from AgencyEmployeeUsersData
+- [x] Remove primary role extraction logic
+- [x] Update user generation to pass 'roles' parameter instead of single 'role'
+- [x] Verify all 60 employee users receive their specific roles (various role combinations)
+- [x] Create documentation file TODO-2062-add-multiple-roles-agency-employee-users.md
+- [x] Update TODO.md with task reference
+
+See: [docs/TODO-2062-add-multiple-roles-agency-employee-users.md](docs/TODO-2062-add-multiple-roles-agency-employee-users.md)
+
+---
+
 ## TODO-2061: Add Multiple Roles to Agency Users
 - [x] Fix AgencyDemoData to use roles array from AgencyUsersData
 - [x] Update user generation to pass 'roles' parameter instead of hardcoded 'role'
