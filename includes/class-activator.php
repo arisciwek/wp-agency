@@ -35,6 +35,9 @@
 use WPAgency\Models\Settings\PermissionModel;
 use WPAgency\Database\Installer;
 
+// Load RoleManager
+require_once WP_AGENCY_PATH . 'includes/class-role-manager.php';
+
 class WP_Agency_Activator {
     private static function logError($message) {
         if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -44,6 +47,9 @@ class WP_Agency_Activator {
 
     public static function activate() {
         try {
+            // Load textdomain first
+            load_textdomain('wp-agency', WP_AGENCY_PATH . 'languages/wp-agency-id_ID.mo');
+
             // 1. Run database installation first
             $installer = new Installer();
             if (!$installer->run()) {
@@ -58,11 +64,9 @@ class WP_Agency_Activator {
             }
 
             // 3. Create roles if they don't exist
-            $all_roles = self::getRoles();
-            // Exclude 'administrator' as it's a WordPress default role
-            $roles_to_create = array_diff_key($all_roles, ['administrator' => '']);
+            $all_roles = WP_Agency_Role_Manager::getRoles();
 
-            foreach ($roles_to_create as $role_slug => $role_name) {
+            foreach ($all_roles as $role_slug => $role_name) {
                 if (!get_role($role_slug)) {
                     add_role(
                         $role_slug,
@@ -80,7 +84,7 @@ class WP_Agency_Activator {
                 self::logError('Error adding capabilities: ' . $e->getMessage());
             }
 
-            // 5. Continue with rest of activation (demo data, version, etc)
+            // 5. Continue with rest of activation (version, etc)
             self::addVersion();
 
             // Add rewrite rules
@@ -107,20 +111,12 @@ class WP_Agency_Activator {
 
     /**
      * Get all available roles with their display names
-     * Single source of truth for roles in the plugin
+     * DEPRECATED: Use WP_Agency_Role_Manager::getRoles() instead
+     *
+     * @deprecated 1.0.2 Use WP_Agency_Role_Manager::getRoles()
+     * @return array Array of role_slug => role_name pairs
      */
     public static function getRoles(): array {
-        return [
-            'administrator' => __('Administrator', 'wp-agency'),
-            'agency' => __('Disnaker', 'wp-agency'),
-            'admin_dinas' => __('Admin Dinas', 'wp-agency'),
-            'admin_unit' => __('Admin Unit', 'wp-agency'),
-            'pengawas' => __('Pengawas', 'wp-agency'),
-            'pengawas_spesialis' => __('Pengawas Spesialis', 'wp-agency'),
-            'kepala_unit' => __('Kepala Unit', 'wp-agency'),
-            'kepala_seksi' => __('Kepala Seksi', 'wp-agency'),
-            'kepala_bidang' => __('Kepala Bidang', 'wp-agency'),
-            'kepala_dinas' => __('Kepala Dinas', 'wp-agency')
-        ];
+        return WP_Agency_Role_Manager::getRoles();
     }
 }

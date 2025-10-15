@@ -17,6 +17,9 @@
 
 use WPAgency\Cache\AgencyCacheManager;
 
+// Load RoleManager
+require_once WP_AGENCY_PATH . 'includes/class-role-manager.php';
+
 class WP_Agency_Deactivator {
     private static function debug($message) {
         if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -102,6 +105,7 @@ class WP_Agency_Deactivator {
             $permission_model = new \WPAgency\Models\Settings\PermissionModel();
             $capabilities = array_keys($permission_model->getAllCapabilities());
 
+            // Remove capabilities from all roles
             foreach (get_editable_roles() as $role_name => $role_info) {
                 $role = get_role($role_name);
                 if (!$role) continue;
@@ -111,21 +115,14 @@ class WP_Agency_Deactivator {
                 }
             }
 
-            $roles_to_remove = [
-                'agency',
-                'admin_dinas',
-                'admin_unit',
-                'pengawas',
-                'pengawas_spesialis',
-                'kepala_unit',
-                'kepala_seksi',
-                'kepala_bidang',
-                'kepala_dinas'
-            ];
+            // Remove plugin-managed roles using RoleManager
+            $roles_to_remove = WP_Agency_Role_Manager::getRoleSlugs();
 
             foreach ($roles_to_remove as $role_slug) {
                 remove_role($role_slug);
+                self::debug("Removed role: {$role_slug}");
             }
+
             self::debug("Capabilities and roles removed successfully");
         } catch (\Exception $e) {
             self::debug("Error removing capabilities: " . $e->getMessage());

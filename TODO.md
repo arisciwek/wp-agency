@@ -1,5 +1,15 @@
 # # TODO List for WP Agency Plugin
 
+## TODO-2056: Role Management dan Delete Roles saat Plugin Deactivation
+- [x] Create class-role-manager.php for centralized role management
+- [x] Update class-activator.php to use RoleManager
+- [x] Update class-deactivator.php to use RoleManager and remove roles on deactivate
+- [x] Create documentation file TODO-2056-role-management.md
+- [x] Update TODO.md with task reference
+
+See: [docs/TODO-2056-role-management.md](docs/TODO-2056-role-management.md)
+
+---
 
 ## TODO-2055: Add Read Capability to Agency Role
 - [x] Add 'read' capability to agency role in PermissionModel.php
