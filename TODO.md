@@ -1,5 +1,17 @@
 # # TODO List for WP Agency Plugin
 
+## TODO-2057: Generate Names from Unique Collection
+- [x] Create unique name_collection for AgencyUsersData
+- [x] Update AgencyUsersData with names generated from collection
+- [x] Add getNameCollection() and isValidName() helper methods
+- [x] Update roles with 'agency_' prefix
+- [x] Create documentation file TODO-2057-unique-name-collection.md
+- [x] Update TODO.md with task reference
+
+See: [docs/TODO-2057-unique-name-collection.md](docs/TODO-2057-unique-name-collection.md)
+
+---
+
 ## TODO-2056: Role Management dan Delete Roles saat Plugin Deactivation
 - [x] Create class-role-manager.php for centralized role management
 - [x] Update class-activator.php to use RoleManager
