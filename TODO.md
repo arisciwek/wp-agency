@@ -1,5 +1,18 @@
 # # TODO List for WP Agency Plugin
 
+## TODO-2059: Generate Agency Employee User Names from Unique Collection
+- [x] Create unique name_collection for AgencyEmployeeUsersData (60 unique names)
+- [x] Update AgencyEmployeeUsersData with complete data for ALL 10 agencies
+- [x] Update user IDs from 170-229 (60 users total)
+- [x] Change structure: role → roles (array), remove departments field
+- [x] Add getNameCollection() and isValidName() helper methods
+- [x] Create documentation file TODO-2059-agency-employee-name-collection.md
+- [x] Update TODO.md with task reference
+
+See: [docs/TODO-2059-agency-employee-name-collection.md](docs/TODO-2059-agency-employee-name-collection.md)
+
+---
+
 ## TODO-2058: Generate Division User Names from Unique Collection
 - [x] Create unique name_collection for DivisionUsersData (24 unique names)
 - [x] Update DivisionUsersData with names generated from collection
@@ -75,3 +88,4 @@ See: [docs/TODO-2055-add-read-capability.md](docs/TODO-2055-add-read-capability.
 - [ ] Test panel navigation
 - [ ] Test AJAX calls
 - [ ] Verify permissions
+

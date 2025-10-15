@@ -163,11 +163,16 @@ class AgencyEmployeeDemoData extends AbstractDemoData {
     private function generateNewEmployees(): void {
         foreach (self::$employee_users as $user_data) {
             // Generate WordPress user first
+            // Note: roles is now an array ['agency', 'agency_xxx']
+            // But WPUserGenerator needs the primary role (first one after 'agency')
+            $roles = $user_data['roles'] ?? ['agency'];
+            $primary_role = count($roles) > 1 ? $roles[1] : $roles[0];
+
             $user_id = $this->wpUserGenerator->generateUser([
                 'id' => $user_data['id'],
                 'username' => $user_data['username'],
                 'display_name' => $user_data['display_name'],
-                'role' => $user_data['role']
+                'role' => $primary_role
             ]);
 
             if (!$user_id) {
@@ -175,12 +180,12 @@ class AgencyEmployeeDemoData extends AbstractDemoData {
                 continue;
             }
 
-            // Create employee record with department assignments
+            // Create employee record
+            // Department assignments removed from new structure
             $this->createEmployeeRecord(
                 $user_data['agency_id'],
                 $user_data['division_id'],
-                $user_id,
-                $user_data['departments']
+                $user_id
             );
         }
     }
@@ -189,7 +194,7 @@ private function createEmployeeRecord(
     int $agency_id,
     int $division_id,
     int $user_id,
-    array $departments
+    array $departments = null  // Made optional for backward compatibility
 ): void {
     try {
         $wp_user = get_userdata($user_id);
@@ -212,13 +217,22 @@ private function createEmployeeRecord(
             $wp_user = get_userdata($user_id);
         }
 
+        // Build keterangan based on user type
         $keterangan = [];
-        if ($user_id >= AgencyUsersData::USER_ID_START && $user_id <= AgencyUsersData::USER_ID_END) $keterangan[] = 'Admin Pusat';
-        if ($user_id >= DivisionUsersData::USER_ID_START && $user_id <= DivisionUsersData::USER_ID_END) $keterangan[] = 'Admin Division';
-        if ($departments['finance']) $keterangan[] = 'Finance'; 
-        if ($departments['operation']) $keterangan[] = 'Operation';
-        if ($departments['legal']) $keterangan[] = 'Legal';
-        if ($departments['purchase']) $keterangan[] = 'Purchase';
+        if ($user_id >= AgencyUsersData::USER_ID_START && $user_id <= AgencyUsersData::USER_ID_END) {
+            $keterangan[] = 'Admin Pusat';
+        }
+        if ($user_id >= DivisionUsersData::USER_ID_START && $user_id <= DivisionUsersData::USER_ID_END) {
+            $keterangan[] = 'Admin Division';
+        }
+
+        // Add department info only if departments array is provided (for backward compatibility)
+        if ($departments !== null) {
+            if ($departments['finance'] ?? false) $keterangan[] = 'Finance';
+            if ($departments['operation'] ?? false) $keterangan[] = 'Operation';
+            if ($departments['legal'] ?? false) $keterangan[] = 'Legal';
+            if ($departments['purchase'] ?? false) $keterangan[] = 'Purchase';
+        }
 
         // Check if email already exists in employees table
         $existing_employee = $this->wpdb->get_var($this->wpdb->prepare(
@@ -250,7 +264,7 @@ private function createEmployeeRecord(
 
             // Ubah dari insert langsung ke model menjadi menggunakan controller
             $employee_id = $this->employeeController->createDemoEmployee($employee_data);
-        
+
             if ($employee_id === false) {
                 throw new \Exception($this->wpdb->last_error);
             }
