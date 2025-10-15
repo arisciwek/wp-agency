@@ -1,5 +1,16 @@
 # # TODO List for WP Agency Plugin
 
+## TODO-2060: Add Default Role to Division Users
+- [x] Fix syntax error in DivisionUsersData.php (missing closing brackets)
+- [x] Update all 30 division users to use role array structure
+- [x] Verify role format: ['agency', 'agency_admin_unit']
+- [x] Create documentation file TODO-2060-add-default-role-division-users.md
+- [x] Update TODO.md with task reference
+
+See: [docs/TODO-2060-add-default-role-division-users.md](docs/TODO-2060-add-default-role-division-users.md)
+
+---
+
 ## TODO-2059: Generate Agency Employee User Names from Unique Collection
 - [x] Create unique name_collection for AgencyEmployeeUsersData (60 unique names)
 - [x] Update AgencyEmployeeUsersData with complete data for ALL 10 agencies

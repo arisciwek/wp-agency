@@ -299,12 +299,12 @@ class DivisionDemoData extends AbstractDemoData {
         // Ambil data user dari division_users
         $user_data = $this->division_users[$agency->id]['pusat'];
 
-        // Generate WP User
+        // Generate WP User with roles from DivisionUsersData
         $wp_user_id = $userGenerator->generateUser([
             'id' => $user_data['id'],
             'username' => $user_data['username'],
             'display_name' => $user_data['display_name'],
-            'role' => 'agency'  // atau role khusus untuk division admin
+            'roles' => $user_data['role']  // Use roles array from data
         ]);
 
         if (!$wp_user_id) {
@@ -365,13 +365,13 @@ class DivisionDemoData extends AbstractDemoData {
                 continue;
             }
 
-            // Generate WordPress user untuk cabang
+            // Generate WordPress user untuk cabang with roles from DivisionUsersData
             $user_data = $this->division_users[$agency->id][$cabang_key];
             $wp_user_id = $userGenerator->generateUser([
                 'id' => $user_data['id'],
                 'username' => $user_data['username'],
                 'display_name' => $user_data['display_name'],
-                'role' => 'agency'  // atau role khusus untuk division admin
+                'roles' => $user_data['role']  // Use roles array from data
             ]);
 
             if (!$wp_user_id) {

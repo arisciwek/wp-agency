@@ -66,7 +66,7 @@ class WP_Agency_Deactivator {
                 // First level - no dependencies
                 'app_agency_employees',    // Drop this next as it references agencies and divisions
                 'app_agency_jurisdictions', // Drop this before divisions as it references divisions
-                'app_jurisdictions',        // Old table name, drop if exists
+                'app_agency_jurisdictions',        // Old table name, drop if exists
                 'app_agency_divisions',             // Drop this after jurisdictions as it only references agencies
                 'app_agencies'             // Drop this last as it's referenced by all
             ];

@@ -65,14 +65,20 @@ class WPUserGenerator {
                 wp_update_user($updates);
                 $this->debug("Updated user data for ID: {$data['id']}");
             }
+
+            // Update roles if provided as array
+            if (isset($data['roles']) && is_array($data['roles'])) {
+                $this->updateUserRoles($existing_user_id, $data['roles']);
+            }
+
             return $existing_user_id;
         }
 
         // 2. Use username from data or generate new one
-        $username = isset($data['username']) 
-            ? $data['username'] 
+        $username = isset($data['username'])
+            ? $data['username']
             : $this->generateUniqueUsername($data['display_name']);
-        
+
         // 3. Insert new user into database
         $result = $wpdb->insert(
             $wpdb->users,
@@ -115,13 +121,32 @@ class WPUserGenerator {
             ]
         );
 
+        // Handle roles - support both single role (string) and multiple roles (array)
+        $roles = [];
+        if (isset($data['roles']) && is_array($data['roles'])) {
+            // Multiple roles provided as array
+            $roles = $data['roles'];
+        } elseif (isset($data['role'])) {
+            // Single role provided as string (backward compatibility)
+            $roles = [$data['role']];
+        } else {
+            // Default role if none provided
+            $roles = ['agency'];
+        }
+
+        // Build capabilities array with all roles
+        $capabilities = [];
+        foreach ($roles as $role) {
+            $capabilities[$role] = true;
+        }
+
         // Add role capability
         $wpdb->insert(
             $wpdb->usermeta,
             [
                 'user_id' => $user_id,
                 'meta_key' => $wpdb->prefix . 'capabilities',
-                'meta_value' => serialize(array($data['role'] => true))
+                'meta_value' => serialize($capabilities)
             ],
             [
                 '%d',
@@ -145,9 +170,38 @@ class WPUserGenerator {
             ]
         );
 
-        $this->debug("Created user: {$data['display_name']} with ID: {$user_id}");
-        
+        $roles_string = implode(', ', $roles);
+        $this->debug("Created user: {$data['display_name']} with ID: {$user_id} and roles: {$roles_string}");
+
         return $user_id;
+    }
+
+    /**
+     * Update user roles (for existing users)
+     */
+    private function updateUserRoles(int $user_id, array $roles): void {
+        global $wpdb;
+
+        // Build capabilities array with all roles
+        $capabilities = [];
+        foreach ($roles as $role) {
+            $capabilities[$role] = true;
+        }
+
+        // Update capabilities in usermeta
+        $wpdb->update(
+            $wpdb->usermeta,
+            ['meta_value' => serialize($capabilities)],
+            [
+                'user_id' => $user_id,
+                'meta_key' => $wpdb->prefix . 'capabilities'
+            ],
+            ['%s'],
+            ['%d', '%s']
+        );
+
+        $roles_string = implode(', ', $roles);
+        $this->debug("Updated roles for user {$user_id}: {$roles_string}");
     }
 
     private function generateUniqueUsername($display_name) {
