@@ -1,3 +1,15 @@
+# # TODO List for WP Agency Plugin
+
+
+## TODO-2055: Add Read Capability to Agency Role
+- [x] Add 'read' capability to agency role in PermissionModel.php
+- [x] Create documentation file TODO-2055-add-read-capability.md
+- [x] Update TODO.md with task reference
+
+See: [docs/TODO-2055-add-read-capability.md](docs/TODO-2055-add-read-capability.md)
+
+---
+
 # TODO-2021 Implementation Steps
 
 ## 1. Create Templates

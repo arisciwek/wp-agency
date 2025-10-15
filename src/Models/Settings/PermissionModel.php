@@ -133,6 +133,9 @@ class PermissionModel {
         // Set agency role capabilities
         $agency = get_role('agency');
         if ($agency) {
+            // Add 'read' capability - required for wp-admin access
+            $agency->add_cap('read');
+
             $default_capabiities = [
                 // Agency capabilities
                 'view_agency_list' => true,
