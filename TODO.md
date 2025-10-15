@@ -1,5 +1,16 @@
 # # TODO List for WP Agency Plugin
 
+## TODO-2061: Add Multiple Roles to Agency Users
+- [x] Fix AgencyDemoData to use roles array from AgencyUsersData
+- [x] Update user generation to pass 'roles' parameter instead of hardcoded 'role'
+- [x] Verify all 10 agency users receive both 'agency' and 'agency_admin_dinas' roles
+- [x] Create documentation file TODO-2061-add-multiple-roles-agency-users.md
+- [x] Update TODO.md with task reference
+
+See: [docs/TODO-2061-add-multiple-roles-agency-users.md](docs/TODO-2061-add-multiple-roles-agency-users.md)
+
+---
+
 ## TODO-2060: Add Default Role to Division Users
 - [x] Fix syntax error in DivisionUsersData.php (missing closing brackets)
 - [x] Update all 30 division users to use role array structure

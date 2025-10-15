@@ -159,7 +159,7 @@ class AgencyDemoData extends AbstractDemoData {
                     'id' => $user_data['id'],
                     'username' => $user_data['username'],
                     'display_name' => $user_data['display_name'],
-                    'role' => 'agency'
+                    'roles' => $user_data['roles']  // Use roles array from AgencyUsersData
                 ]);
                 
                 $user_exists = $this->wpdb->get_var($this->wpdb->prepare("SELECT ID FROM {$this->wpdb->users} WHERE ID = %d", $user_id));
