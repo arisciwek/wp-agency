@@ -318,22 +318,14 @@ class NewCompanyController {
             $this->cache->delete('branch_without_inspector', $branch->agency_id);
 
             // Clear wp-customer datatable cache if plugin is active
-            $cacheFile = WP_PLUGIN_DIR . '/wp-customer/src/Cache/CustomerCacheManager.php';
-            if (file_exists($cacheFile)) {
-                require_once $cacheFile;
-                if (class_exists('\WPCustomer\Cache\CustomerCacheManager')) {
-                    try {
-                        $customerCache = new \WPCustomer\Cache\CustomerCacheManager();
-                        $customerCache->clearAll();
-                        error_log("DEBUG NewCompanyController::assignInspector - Cleared all wp-customer caches");
-                    } catch (\Exception $e) {
-                        error_log("DEBUG NewCompanyController::assignInspector - Failed to clear wp-customer cache: " . $e->getMessage());
-                    }
-                } else {
-                    error_log("DEBUG NewCompanyController::assignInspector - CustomerCacheManager class not found after require");
+            if (class_exists('\WPCustomer\Cache\CustomerCacheManager')) {
+                try {
+                    $customerCache = new \WPCustomer\Cache\CustomerCacheManager();
+                    $customerCache->invalidateDataTableCache('company_list');
+                    error_log("DEBUG - Cleared wp-customer company datatable cache");
+                } catch (\Exception $e) {
+                    error_log("DEBUG - Failed to clear wp-customer cache: " . $e->getMessage());
                 }
-            } else {
-                error_log("DEBUG NewCompanyController::assignInspector - CustomerCacheManager file not found");
             }
 
             error_log("DEBUG NewCompanyController::assignInspector - Cache cleared, sending success response");
