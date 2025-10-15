@@ -142,7 +142,38 @@ class WPAgency {
         add_action('wp_ajax_get_agency_stats', [$this->agency_controller, 'getStats']);
         add_action('wp_ajax_handle_agency_datatable', [$this->agency_controller, 'handleDataTableRequest']);
         add_action('wp_ajax_get_agency', [$this->agency_controller, 'show']);
+
+        // Check setiap request apakah WP Customer sudah available
+        add_action('init', function() {
+            // Skip jika sudah diinit via custom hook
+            static $initialized = false;
+            if ($initialized) {
+                return;
+            }
+            
+            // Check if WP Customer available
+            if (!class_exists('WPCustomer\\Validators\\Company\\CompanyValidator')) {
+                return; // WP Customer belum loaded atau tidak ada
+            }
+            
+            // Check if filters class exists
+            if (!class_exists('WPAgency\\Filters\\CompanyFilters')) {
+                return;
+            }
+            
+            // Initialize
+            new \WPAgency\Filters\CompanyFilters();
+            $initialized = true;
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('WP Agency: Company filters initialized via init fallback');
+            }
+        }, 999); // Priority 999 untuk memastikan plugin lain sudah loaded
+        
     }
+
+
+
 
     /**
      * Run the plugin
