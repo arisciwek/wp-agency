@@ -1,4 +1,4 @@
-## WP Agency Plugin v1.0.6
+## WP Agency Plugin v1.0.10
 
 ### Removed
 - **Agency Membership Tab**: Removed the agency membership tab from the agency dashboard as membership functionality is not applicable at agency level. Deleted related partial file, CSS, and JS files.

@@ -52,7 +52,20 @@ class PermissionModel {
         'add_employee' => 'Tambah Karyawan',
         'edit_all_employees' => 'Edit Karyawan',
         'edit_own_employee' => 'Edit Karyawan Sendiri',
-        'delete_employee' => 'Hapus Karyawan'
+        'delete_employee' => 'Hapus Karyawan',
+
+        // Customer capabilities
+        'view_customer_list' => 'Lihat Daftar Customer',
+        'view_customer_detail' => 'Lihat Detail Customer',
+
+        // Customer Branch capabilities
+        'view_branch_list' => 'Lihat Daftar Cabang',
+        'view_branch_detail' => 'Lihat Detail Cabang',
+
+        // Customer Employee capabilities
+        'view_employee_list' => 'Lihat Daftar Karyawan',
+        'view_employee_detail' => 'Lihat Detail Karyawan',     
+
     ];
 
     // Define base capabilities untuk setiap role beserta nilai default-nya
@@ -157,7 +170,17 @@ class PermissionModel {
                 'view_employee_list' => true,
                 'view_own_employee' => true,
                 'edit_own_employee' => true,
-                'delete_employee' => false
+                'delete_employee' => false,
+
+                // Customer capabilities
+                'view_customer_list' => true,
+
+                // Customer Branch capabilities
+                'view_branch_list' => true,
+
+                // Customer Employee capabilities
+                'view_employee_list' => true,                
+
             ];
 
             foreach ($default_capabiities as $cap => $enabled) {

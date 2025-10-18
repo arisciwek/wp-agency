@@ -81,10 +81,12 @@ class WPAgency {
      */
     private function includeDependencies() {
         require_once WP_AGENCY_PATH . 'includes/class-loader.php';
+        require_once WP_AGENCY_PATH . 'includes/class-role-manager.php';
         require_once WP_AGENCY_PATH . 'includes/class-activator.php';
         require_once WP_AGENCY_PATH . 'includes/class-deactivator.php';
         require_once WP_AGENCY_PATH . 'includes/class-dependencies.php';
         require_once WP_AGENCY_PATH . 'includes/class-init-hooks.php';
+        require_once WP_AGENCY_PATH . 'includes/class-app-core-integration.php';
 
         $this->loader = new WP_Agency_Loader();
 
@@ -117,6 +119,9 @@ class WPAgency {
         // Initialize other hooks
         $init_hooks = new WP_Agency_Init_Hooks();
         $init_hooks->init();
+
+        // Initialize WP App Core integration
+        $this->loader->add_action('init', 'WP_Agency_App_Core_Integration', 'init');
     }
 
     /**

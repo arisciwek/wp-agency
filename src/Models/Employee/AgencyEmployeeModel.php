@@ -615,7 +615,7 @@ class AgencyEmployeeModel {
         if (!$employee) {
             return;
         }
-        
+
         // Invalidasi cache terkait employee ini
         $this->cache->delete('agency_employee', $id);
         $this->cache->delete('agency_employee_count', (string)$employee->agency_id);
@@ -624,6 +624,119 @@ class AgencyEmployeeModel {
         $this->cache->invalidateDataTableCache('agency_employee_list', [
             'agency_id' => $employee->agency_id
         ]);
+    }
+
+    /**
+     * Get comprehensive user information for admin bar integration
+     *
+     * This method retrieves complete user data including:
+     * - Employee information
+     * - Division details (code, name, type)
+     * - Agency details (code, name)
+     * - Jurisdiction codes (multiple, comma-separated)
+     * - User email and capabilities
+     *
+     * @param int $user_id WordPress user ID
+     * @return array|null Array of user info or null if not found
+     */
+    public function getUserInfo(int $user_id): ?array {
+        global $wpdb;
+
+        // Try to get from cache first
+        $cache_key = 'agency_user_info';
+        $cached_data = $this->cache->get($cache_key, $user_id);
+
+        if ($cached_data !== null) {
+            return $cached_data;
+        }
+
+        // Single comprehensive query to get ALL user data
+        // This query JOINs employees, divisions, jurisdictions, agencies, users, and usermeta
+        $user_data = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM (
+                SELECT
+                    e.*,
+                    MAX(d.code) AS division_code,
+                    MAX(d.name) AS division_name,
+                    MAX(d.type) AS division_type,
+                    GROUP_CONCAT(j.jurisdiction_code SEPARATOR ',') AS jurisdiction_codes,
+                    MAX(j.is_primary) AS is_primary_jurisdiction,
+                    MAX(a.code) AS agency_code,
+                    MAX(a.name) AS agency_name,
+                    u.user_email,
+                    MAX(um.meta_value) AS capabilities
+                FROM
+                    {$wpdb->prefix}app_agency_employees e
+                INNER JOIN
+                    {$wpdb->prefix}app_agency_divisions d ON e.division_id = d.id
+                INNER JOIN
+                    {$wpdb->prefix}app_agency_jurisdictions j ON d.id = j.division_id
+                INNER JOIN
+                    {$wpdb->prefix}app_agencies a ON e.agency_id = a.id
+                INNER JOIN
+                    {$wpdb->users} u ON e.user_id = u.ID
+                INNER JOIN
+                    {$wpdb->usermeta} um ON u.ID = um.user_id AND um.meta_key = '{$wpdb->prefix}capabilities'
+                WHERE
+                    e.user_id = %d
+                    AND e.status = 'active'
+                    AND d.status = 'active'
+                GROUP BY
+                    e.id, e.user_id, u.user_email
+            ) AS subquery
+            GROUP BY
+                subquery.id
+            LIMIT 1",
+            $user_id
+        ));
+
+        if (!$user_data || !$user_data->division_name) {
+            // Cache null result for short time to prevent repeated queries
+            $this->cache->set($cache_key, null, 5 * MINUTE_IN_SECONDS, $user_id);
+            return null;
+        }
+
+        // Build result array
+        $result = [
+            'entity_name' => $user_data->agency_name,
+            'entity_code' => $user_data->agency_code,
+            'division_id' => $user_data->division_id,
+            'division_code' => $user_data->division_code,
+            'division_name' => $user_data->division_name,
+            'division_type' => $user_data->division_type,
+            'jurisdiction_codes' => $user_data->jurisdiction_codes,
+            'is_primary_jurisdiction' => $user_data->is_primary_jurisdiction,
+            'position' => $user_data->position,
+            'user_email' => $user_data->user_email,
+            'capabilities' => $user_data->capabilities,
+            'relation_type' => 'agency_employee',
+            'icon' => '🏛️'
+        ];
+
+        // Add role names dynamically from capabilities (Review-01)
+        // Use AdminBarModel for generic capability parsing
+        $admin_bar_model = new \WPAppCore\Models\AdminBarModel();
+
+        $result['role_names'] = $admin_bar_model->getRoleNamesFromCapabilities(
+            $user_data->capabilities,
+            call_user_func(['WP_Agency_Role_Manager', 'getRoleSlugs']),
+            ['WP_Agency_Role_Manager', 'getRoleName']
+        );
+
+        // Add permission names list (Review-04 & Review-05)
+        // IMPORTANT: Use WP_User->allcaps to get ACTUAL permissions (including inherited from roles)
+        // Not from wp_usermeta which only contains role assignments!
+        $permission_model = new \WPAgency\Models\Settings\PermissionModel();
+        $result['permission_names'] = $admin_bar_model->getPermissionNamesFromUserId(
+            $user_id,
+            call_user_func(['WP_Agency_Role_Manager', 'getRoleSlugs']),
+            $permission_model->getAllCapabilities()
+        );
+
+        // Cache the result for 5 minutes
+        $this->cache->set($cache_key, $result, 5 * MINUTE_IN_SECONDS, $user_id);
+
+        return $result;
     }
 
 }
