@@ -86,7 +86,6 @@ class WPAgency {
         require_once WP_AGENCY_PATH . 'includes/class-deactivator.php';
         require_once WP_AGENCY_PATH . 'includes/class-dependencies.php';
         require_once WP_AGENCY_PATH . 'includes/class-init-hooks.php';
-        require_once WP_AGENCY_PATH . 'includes/class-app-core-integration.php';
 
         $this->loader = new WP_Agency_Loader();
 
@@ -120,8 +119,13 @@ class WPAgency {
         $init_hooks = new WP_Agency_Init_Hooks();
         $init_hooks->init();
 
-        // Initialize WP App Core integration
-        $this->loader->add_action('init', 'WP_Agency_App_Core_Integration', 'init');
+        // NEW: Simplified WP App Core integration (v2.0)
+        // wp-app-core handles ALL WordPress queries (user, role, permission)
+        // wp-agency ONLY provides entity data from its tables
+        add_filter('wp_app_core_user_entity_data', [$this, 'provide_entity_data'], 10, 3);
+
+        // Custom role names for wp-agency roles
+        add_filter('wp_app_core_role_display_name', [$this, 'get_role_display_name'], 10, 2);
     }
 
     /**
@@ -174,11 +178,59 @@ class WPAgency {
                 error_log('WP Agency: Company filters initialized via init fallback');
             }
         }, 999); // Priority 999 untuk memastikan plugin lain sudah loaded
-        
+
     }
 
+    /**
+     * Provide entity data for wp-app-core admin bar (v2.0 simplified integration)
+     *
+     * wp-app-core queries WordPress user, roles, and permissions
+     * wp-agency only provides agency/division entity data
+     *
+     * @param array|null $entity_data Existing entity data (from other plugins)
+     * @param int $user_id WordPress user ID
+     * @param WP_User $user WordPress user object
+     * @return array|null Entity data or null if not found
+     */
+    public function provide_entity_data($entity_data, $user_id, $user) {
+        // Skip if another plugin already provided data
+        if ($entity_data) {
+            return $entity_data;
+        }
 
+        // Query agency entity data from Model
+        $employee_model = new \WPAgency\Models\Employee\AgencyEmployeeModel();
+        $user_info = $employee_model->getUserInfo($user_id);
 
+        if (!$user_info) {
+            return null;
+        }
+
+        // Return ONLY entity data (agency/division info)
+        // wp-app-core will merge this with WordPress user/role/permission data
+        return [
+            'entity_name' => $user_info['entity_name'] ?? '',
+            'entity_code' => $user_info['entity_code'] ?? '',
+            'division_name' => $user_info['division_name'] ?? '',
+            //'division_type' => $user_info['division_type'] ?? '',
+            //'division_code' => $user_info['division_code'] ?? '',
+            //'jurisdiction_codes' => $user_info['jurisdiction_codes'] ?? '',
+            'position' => $user_info['position'] ?? '',
+            'icon' => '🏛️',
+            'relation_type' => $user_info['relation_type'] ?? 'agency'
+        ];
+    }
+
+    /**
+     * Get custom role display name for wp-agency roles
+     *
+     * @param string $name Current display name
+     * @param string $slug Role slug
+     * @return string Role display name
+     */
+    public function get_role_display_name($name, $slug) {
+        return WP_Agency_Role_Manager::getRoleName($slug) ?? $name;
+    }
 
     /**
      * Run the plugin

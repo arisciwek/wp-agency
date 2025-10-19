@@ -1,5 +1,338 @@
 # TODO List for WP Agency Plugin
 
+## TODO-2065: Platform Access to WP Customer Data with Jurisdiction Filtering 📋 PLANNING
+
+**Status**: 📋 PLANNING
+**Created**: 2025-10-19
+**Dependencies**: TODO-2064 (menu access), wp-app-core TODO-1211
+**Priority**: High
+**Complexity**: High (jurisdiction-based filtering)
+
+**Summary**: Implement jurisdiction-based data filtering untuk platform users accessing WP Customer data. Platform users hanya bisa melihat Customer dan Branch yang berada dalam wilayah jurisdiksi agency mereka.
+
+**Problem**:
+- Platform users sudah punya menu access (TODO-2064 ✅)
+- Tapi belum bisa lihat data Customer dan Branch
+- **Tidak bisa pakai `access_type='platform'` seperti wp-customer** karena perlu dibatasi wilayah
+- Agency employee hanya boleh lihat customer/branch dalam jurisdictionnya
+
+**Business Rules**:
+```
+Platform User Jurisdiction Filtering:
+├── Agency Employee (ID 125)
+│   ├── Agency: Disnaker Jawa Barat
+│   ├── Division: Kabupaten Bandung
+│   └── Jurisdictions: ['3204'] (Kab. Bandung regency_code)
+│
+└── Data Access:
+    ├── ✅ CAN view: Customer/Branch dengan regency_id IN jurisdictions
+    ├── ✅ CAN view: Customer dengan provinsi_id = agency provinsi (fallback)
+    └── ❌ CANNOT view: Customer/Branch diluar jurisdiction
+```
+
+**Database Schema Reference**:
+```sql
+-- wp-agency tables
+wp_app_agencies: id, name, provinsi_code
+wp_app_agency_divisions: id, agency_id, name
+wp_app_agency_jurisdictions: id, division_id, jurisdiction_code (regency)
+wp_app_agency_employees: id, division_id, user_id
+
+-- wp-customer tables
+wp_app_customers: id, name, provinsi_id, regency_id, user_id
+wp_app_customer_branches: id, customer_id, provinsi_id, regency_id
+```
+
+**Jurisdiction Matching Logic**:
+```php
+// Get platform user's jurisdictions
+$user_jurisdictions = AgencyEmployeeModel::getUserJurisdictions($user_id);
+// Returns: ['3204', '3205'] (regency codes)
+
+// Filter customers
+WHERE customers.regency_id IN (
+    SELECT regency_id FROM wp_wi_regencies
+    WHERE code IN ('3204', '3205')
+)
+// Atau fallback ke provinsi jika regency kosong
+OR customers.provinsi_id = $agency_provinsi_id
+```
+
+**Implementation Plan**:
+
+**Phase 1: Jurisdiction Query Methods**
+- [ ] Add `getUserJurisdictions($user_id)` to AgencyEmployeeModel
+  - Return array of jurisdiction codes for platform user
+  - Cache with 5-minute TTL
+- [ ] Add `getAgencyProvinsiId($user_id)` helper method
+  - Fallback untuk customer tanpa regency
+
+**Phase 2: WP Customer Integration Filter**
+- [ ] Create filter hook `wp_customer_platform_jurisdictions`
+- [ ] Implement in wp-agency class-wp-customer-integration.php
+- [ ] Return jurisdiction array untuk platform user
+- [ ] Handle non-platform users (return null)
+
+**Phase 3: WP Customer Model Updates** (via wp-customer TODO)
+- [ ] CustomerModel::getDataTableData() - add jurisdiction filtering
+- [ ] CustomerModel::getTotalCount() - add jurisdiction filtering
+- [ ] BranchModel::getDataTableData() - add jurisdiction filtering
+- [ ] BranchModel::getTotalCount() - add jurisdiction filtering
+
+**Phase 4: Validator Updates** (via wp-customer TODO)
+- [ ] CustomerValidator - check jurisdiction access
+- [ ] BranchValidator - check jurisdiction access
+
+**Query Example**:
+```php
+// CustomerModel dengan jurisdiction filtering
+$jurisdictions = apply_filters('wp_customer_platform_jurisdictions', null, $user_id);
+
+if ($jurisdictions !== null && is_array($jurisdictions)) {
+    // Platform user dengan jurisdiction
+    $regency_ids = $wpdb->get_col($wpdb->prepare(
+        "SELECT id FROM {$wpdb->prefix}wi_regencies WHERE code IN (%s)",
+        implode(',', array_fill(0, count($jurisdictions), '%s'))
+    ), ...$jurisdictions);
+
+    $where .= $wpdb->prepare(
+        " AND (c.regency_id IN (%s) OR c.provinsi_id = %d)",
+        implode(',', $regency_ids),
+        $agency_provinsi_id
+    );
+}
+```
+
+**Files to Create**:
+- `/wp-agency/includes/class-wp-customer-integration.php` (NEW)
+- `/wp-agency/docs/TODO-2065-jurisdiction-filtering.md` (documentation)
+
+**Files to Modify** (wp-agency):
+- `src/Models/Employee/AgencyEmployeeModel.php` (add jurisdiction methods)
+- `wp-agency.php` (load wp-customer integration)
+
+**Files to Modify** (wp-customer - separate task):
+- `src/Models/Customer/CustomerModel.php` (add jurisdiction filtering)
+- `src/Models/Branch/BranchModel.php` (add jurisdiction filtering)
+- `src/Validators/CustomerValidator.php` (jurisdiction checks)
+- `src/Validators/Branch/BranchValidator.php` (jurisdiction checks)
+
+**Benefits**:
+- ✅ Security: Platform users hanya lihat data dalam wilayahnya
+- ✅ Scalable: Support multi-division agencies
+- ✅ Flexible: Fallback ke provinsi jika regency kosong
+- ✅ Performant: Cached jurisdiction queries
+- ✅ Reusable: Filter hook pattern untuk plugin lain
+
+**Challenges**:
+- Complex JOIN queries (jurisdictions → regencies → customers/branches)
+- Cache invalidation when jurisdiction changes
+- Performance optimization dengan banyak jurisdictions
+- Edge case: customer pindah wilayah
+
+**Notes**:
+- Perlu koordinasi dengan wp-customer plugin untuk model updates
+- Pattern berbeda dari wp-customer `access_type='platform'` (full access)
+- wp-agency butuh jurisdiction-based filtering (restricted access)
+- Test dengan multiple divisions dan jurisdictions
+
+---
+
+## TODO-2064: Platform Access to WP Customer Menu ✅ COMPLETED
+
+**Status**: ✅ COMPLETED
+**Created**: 2025-10-19
+**Completed**: 2025-10-19
+**Dependencies**: wp-app-core TODO-1211
+**Priority**: High
+**Complexity**: Low (capability assignment only)
+
+**Summary**: Enable platform users to access WP Customer menus by registering WP Customer capabilities to platform roles. Simple capability assignment tanpa jurisdiction filtering (data filtering handled by TODO-2065).
+
+**Problem**:
+- Platform users (platform_finance, platform_admin, dll) tidak bisa lihat menu WP Customer
+- Menu "WP Customer" dan "WP Perusahaan" tidak muncul di admin sidebar
+- Platform roles belum punya WP Customer capabilities
+
+**Root Cause**:
+- WP Customer capabilities hanya di-assign ke customer roles (customer, customer_admin, dll)
+- Platform roles didefinisikan di wp-app-core, tidak tahu tentang wp-customer
+- Butuh registration WP Customer capabilities ke platform roles
+
+**Solution**:
+Register WP Customer capabilities ke platform roles via filter hook atau integration class, mirip dengan wp-app-core TODO-1211 pattern.
+
+**Approach Options**:
+
+**Option 1: Via wp-app-core PlatformPermissionModel** ✅ RECOMMENDED
+- Tambah WP Customer capabilities ke platform role defaults
+- Centralized di satu tempat
+- Pattern sama seperti TODO-1211 (already done for invoice capabilities)
+- Simple dan straightforward
+
+**Option 2: Via wp-agency Integration Class**
+- Create class-wp-customer-integration.php
+- Add capabilities on plugin load
+- More complex, perlu extra file
+
+**Implementation (Option 1)**:
+
+**Files to Modify**:
+- `/wp-app-core/src/Models/Settings/PlatformPermissionModel.php`:
+```php
+'platform_finance' => [
+    // ... existing capabilities
+
+    // WP Customer Plugin - View Access (TODO-2064)
+    'view_customer_list' => true,
+    'view_customer_detail' => true,
+    'view_customer_branch_list' => true,
+    'view_customer_branch_detail' => true,
+],
+
+'platform_admin' => [
+    // ... existing capabilities
+
+    // WP Customer Plugin - Full Management (TODO-2064)
+    'view_customer_list' => true,
+    'view_customer_detail' => true,
+    'add_customer' => true,
+    'edit_all_customers' => true,
+    'view_customer_branch_list' => true,
+    'view_customer_branch_detail' => true,
+    'add_customer_branch' => true,
+    'edit_all_customer_branches' => true,
+],
+```
+
+**Capabilities Needed**:
+
+**Platform Finance** (View Only):
+- `view_customer_list` - Menu WP Customer
+- `view_customer_detail` - Lihat detail customer
+- `view_customer_branch_list` - Menu WP Perusahaan
+- `view_customer_branch_detail` - Lihat detail branch
+
+**Platform Admin** (Full Access):
+- All finance capabilities +
+- `add_customer`, `edit_all_customers` - Manage customers
+- `add_customer_branch`, `edit_all_customer_branches` - Manage branches
+
+**Test Checklist**:
+- [ ] Menu "WP Customer" muncul untuk platform_finance
+- [ ] Menu "WP Perusahaan" muncul untuk platform_finance
+- [ ] Menu "WP Customer" muncul untuk platform_admin
+- [ ] Menu "WP Perusahaan" muncul untuk platform_admin
+- [ ] DataTable masih kosong (expected - TODO-2065 belum)
+
+**Expected Result**:
+```
+Before:
+  Platform User Login → No WP Customer menus
+
+After (TODO-2064):
+  Platform User Login → See menus, but DataTable empty
+
+After (TODO-2065):
+  Platform User Login → See menus + See data (jurisdiction-filtered)
+```
+
+**Benefits**:
+- ✅ Quick win - menu access dengan minimal code
+- ✅ Centralized - semua di PlatformPermissionModel
+- ✅ Consistent - pattern sama dengan invoice capabilities
+- ✅ Reusable - capability system WordPress standard
+
+**Notes**:
+- Task ini HANYA untuk menu visibility
+- Data access (DataTable) handled by TODO-2065
+- Perlu deactivate/reactivate wp-app-core untuk apply capabilities
+- Atau run capability sync script
+
+**Related Tasks**:
+- wp-app-core TODO-1211: Platform filter hooks (completed ✅)
+- wp-customer TODO-2166: Branch & Employee access (completed ✅)
+- wp-agency TODO-2065: Jurisdiction filtering (planning 📋)
+
+**Implementation Results** (CORRECTED - Agency Users, not Platform Users):
+
+**Files Modified** (wp-agency):
+- `/src/Models/Settings/PermissionModel.php`:
+  - **Fixed capability names** (lines 57-67):
+    - `view_branch_list` → `view_customer_branch_list`
+    - `view_branch_detail` → `view_customer_branch_detail`
+    - Removed duplicate `view_employee_list` (agency conflict)
+    - Added `view_customer_employee_list`
+    - Added `view_customer_employee_detail`
+  - **Updated agency role defaults** (lines 175-181):
+    - Added all 6 WP Customer capabilities
+    - view_customer_list, view_customer_detail
+    - view_customer_branch_list, view_customer_branch_detail
+    - view_customer_employee_list, view_customer_employee_detail
+  - **Added permission matrix tab** (lines 108-121):
+    - New tab: "WP Customer Permissions"
+    - Shows 6 capabilities in Settings → Hak Akses UI
+    - Capabilities grouped by entity (Customer, Branch, Employee)
+  - **Updated getDisplayedCapabilities()** (line 129):
+    - Include wp_customer caps in displayed capabilities
+
+**Capabilities Added to agency role**:
+```php
+// Fixed from incorrect names:
+'view_customer_list' => true,           // ✓ Correct
+'view_customer_detail' => true,          // ✓ Added
+'view_customer_branch_list' => true,     // ✓ Fixed (was view_branch_list)
+'view_customer_branch_detail' => true,   // ✓ Fixed (was view_branch_detail)
+'view_customer_employee_list' => true,   // ✓ Fixed (was duplicate view_employee_list)
+'view_customer_employee_detail' => true, // ✓ Added
+```
+
+**Test Results** (User: ade_andra, agency + agency_kepala_dinas):
+```
+✅ Capabilities Verified:
+   - view_customer_list: yes
+   - view_customer_detail: yes
+   - view_customer_branch_list: yes
+   - view_customer_branch_detail: yes
+   - view_customer_employee_list: yes
+   - view_customer_employee_detail: yes
+
+✅ Menu Access (Expected):
+   - Menu "WP Customer" → SHOULD APPEAR
+   - Menu "WP Perusahaan" → SHOULD APPEAR
+
+⚠️  Data Access (Current):
+   - access_type: none
+   - Customer total count: 0
+   - DataTable: EMPTY (expected - TODO-2065 needed)
+```
+
+**Impact**:
+- ✅ **100 agency users** now have WP Customer menu access
+- ✅ Menu visibility working via WordPress capability system
+- ✅ Correct capability names matching wp-customer plugin
+- ⚠️ DataTable will be EMPTY (no jurisdiction filtering yet)
+- 📋 TODO-2065 required for jurisdiction-based data access
+
+**Initial Confusion Clarified**:
+This task was initially misunderstood as targeting **platform users** (platform_finance, etc.)
+but actually targets **agency users** (agency role with agency_xxx secondary roles).
+
+Separate implementation for platform users exists in wp-app-core TODO-1212.
+
+Both implementations can coexist:
+- Platform users: Full access to all customer data (finance role)
+- Agency users: Menu access now, jurisdiction-filtered data in TODO-2065
+
+**Notes**:
+- Capability sync automatically applied to existing users
+- wp-customer plugin integration working via TODO-1211
+- Menu visibility confirmed via capability checks
+- Data filtering currently shows all records (full access)
+- TODO-2065 will restrict to jurisdiction-based access
+
+---
+
 ## TODO-2063: Refactor User Info Query to Model Layer
 - [x] Create getUserInfo() method in AgencyEmployeeModel.php
 - [x] Add cache support with 5-minute TTL

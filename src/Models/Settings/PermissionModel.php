@@ -54,17 +54,17 @@ class PermissionModel {
         'edit_own_employee' => 'Edit Karyawan Sendiri',
         'delete_employee' => 'Hapus Karyawan',
 
-        // Customer capabilities
+        // WP Customer Plugin - Customer (wp-agency TODO-2064)
         'view_customer_list' => 'Lihat Daftar Customer',
         'view_customer_detail' => 'Lihat Detail Customer',
 
-        // Customer Branch capabilities
-        'view_branch_list' => 'Lihat Daftar Cabang',
-        'view_branch_detail' => 'Lihat Detail Cabang',
+        // WP Customer Plugin - Branch (wp-agency TODO-2064)
+        'view_customer_branch_list' => 'Lihat Daftar Cabang Customer',
+        'view_customer_branch_detail' => 'Lihat Detail Cabang Customer',
 
-        // Customer Employee capabilities
-        'view_employee_list' => 'Lihat Daftar Karyawan',
-        'view_employee_detail' => 'Lihat Detail Karyawan',     
+        // WP Customer Plugin - Employee (wp-agency TODO-2064)
+        'view_customer_employee_list' => 'Lihat Daftar Karyawan Customer',
+        'view_customer_employee_detail' => 'Lihat Detail Karyawan Customer',     
 
     ];
 
@@ -104,6 +104,20 @@ class PermissionModel {
                 'edit_own_employee',
                 'delete_employee'
             ]
+        ],
+        'wp_customer' => [
+            'title' => 'WP Customer Permissions',
+            'caps' => [
+                // Customer
+                'view_customer_list',
+                'view_customer_detail',
+                // Branch
+                'view_customer_branch_list',
+                'view_customer_branch_detail',
+                // Employee
+                'view_customer_employee_list',
+                'view_customer_employee_detail'
+            ]
         ]
     ];
 
@@ -111,7 +125,8 @@ class PermissionModel {
        return array_merge(
             $this->displayed_capabilities_in_tabs['agency']['caps'],
             $this->displayed_capabilities_in_tabs['division']['caps'],
-            $this->displayed_capabilities_in_tabs['employee']['caps']
+            $this->displayed_capabilities_in_tabs['employee']['caps'],
+            $this->displayed_capabilities_in_tabs['wp_customer']['caps']
         );
     } 
 
@@ -172,14 +187,13 @@ class PermissionModel {
                 'edit_own_employee' => true,
                 'delete_employee' => false,
 
-                // Customer capabilities
+                // WP Customer Plugin - View Access (wp-agency TODO-2064)
                 'view_customer_list' => true,
-
-                // Customer Branch capabilities
-                'view_branch_list' => true,
-
-                // Customer Employee capabilities
-                'view_employee_list' => true,                
+                'view_customer_detail' => true,
+                'view_customer_branch_list' => true,
+                'view_customer_branch_detail' => true,
+                'view_customer_employee_list' => true,
+                'view_customer_employee_detail' => true,                
 
             ];
 
