@@ -87,6 +87,9 @@ class WPAgency {
         require_once WP_AGENCY_PATH . 'includes/class-dependencies.php';
         require_once WP_AGENCY_PATH . 'includes/class-init-hooks.php';
 
+        // Load WP Customer integration (TODO-2065)
+        require_once WP_AGENCY_PATH . 'includes/class-wp-customer-integration.php';
+
         $this->loader = new WP_Agency_Loader();
 
         // Initialize Settings Controller
