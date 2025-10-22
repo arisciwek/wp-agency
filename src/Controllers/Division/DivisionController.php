@@ -1055,46 +1055,6 @@ class DivisionController {
             ]);
         }
     }
-    
-    /**
-     * Khusus untuk membuat demo data division
-     */
-    public function createDemoDivision(array $data): ?int {
-        try {
-            // Debug log
-            $this->debug_log('Creating demo division: ' . print_r($data, true));
-
-            // Buat division via model
-            $division_id = $this->model->create($data);
-
-            if (!$division_id) {
-                throw new \Exception('Gagal membuat demo division');
-            }
-            // Dapatkan role/capability user saat ini
-            $access = $this->validator->validateAccess(0);
-
-            // Clear semua cache yang terkait
-            $this->cache->delete('division', $division_id);
-            $this->cache->delete('division_total_count', $access['access_type']);
-            $this->cache->delete('agency_division', $data['agency_id']);
-            $this->cache->delete('agency_division_list', $data['agency_id']);
-
-            // Invalidate DataTable cache
-            $this->cache->invalidateDataTableCache('division_list', [
-                'agency_id' => $data['agency_id']
-            ]);
-
-            // Cache terkait agency juga perlu diperbarui
-            $this->cache->invalidateAgencyCache($data['agency_id']);
-            $this->model->invalidateEmployeeStatusCache($division_id);
-
-            return $division_id;
-
-        } catch (\Exception $e) {
-            $this->debug_log('Error creating demo division: ' . $e->getMessage());
-            throw $e;
-        }
-    }
 
     /**
      * Get available provinces for division creation

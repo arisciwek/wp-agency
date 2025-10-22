@@ -180,11 +180,19 @@ class AutoEntityCreator {
                 return;
             }
 
-            // STEP 3: Check if employee already exists for this user and division
-            $existing_employee = $this->employeeModel->findByUserAndDivision($user_id, $division_id);
-            if ($existing_employee) {
-                error_log("[AutoEntityCreator] Employee already exists for user {$user_id} in division {$division_id}");
-                return;
+            // STEP 3: Check if employee already exists for this user
+            // Check by email to match database UNIQUE constraint
+            $user_temp = get_userdata($user_id);
+            if ($user_temp) {
+                global $wpdb;
+                $existing_by_email = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM {$wpdb->prefix}app_agency_employees WHERE email = %s",
+                    $user_temp->user_email
+                ));
+                if ($existing_by_email) {
+                    error_log("[AutoEntityCreator] Employee already exists with email {$user_temp->user_email} (ID: {$existing_by_email}), skipping creation");
+                    return;
+                }
             }
 
             // STEP 4: Get user info

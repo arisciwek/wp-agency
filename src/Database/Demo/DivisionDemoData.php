@@ -198,19 +198,83 @@ class DivisionDemoData extends AbstractDemoData {
         }
 
     protected function generate(): void {
+        // Increase max execution time for batch operations
+        ini_set('max_execution_time', '300'); // 300 seconds = 5 minutes
+
         if (!$this->isDevelopmentMode()) {
             $this->debug('Cannot generate data - not in development mode');
             throw new \Exception('Development mode is not enabled. Please enable it in settings first.');
         }
-        
+
+        // Initialize WPUserGenerator for cleanup
+        $userGenerator = new WPUserGenerator();
+
+        // Clean up existing demo divisions if shouldClearData is enabled
         if ($this->shouldClearData()) {
-            // Delete existing divisions
-            $this->wpdb->query("DELETE FROM {$this->wpdb->prefix}app_agency_divisions WHERE id > 0");
-            
-            // Reset auto increment
-            $this->wpdb->query("ALTER TABLE {$this->wpdb->prefix}app_agency_divisions AUTO_INCREMENT = 1");
-            
-            $this->debug("Cleared existing division data");
+            $this->debug("[DivisionDemoData] === Cleanup mode enabled - Deleting existing demo divisions ===");
+
+            // STEP 1: Delete orphaned inactive employees (from deleted divisions)
+            $orphaned_employees = $this->wpdb->get_results(
+                "SELECT e.id FROM {$this->wpdb->prefix}app_agency_employees e
+                 LEFT JOIN {$this->wpdb->prefix}app_agency_divisions d ON e.division_id = d.id
+                 WHERE d.id IS NULL AND e.status = 'inactive'"
+            );
+            if (!empty($orphaned_employees)) {
+                $orphan_ids = array_column($orphaned_employees, 'id');
+                $placeholders = implode(',', array_fill(0, count($orphan_ids), '%d'));
+                $deleted_orphans = $this->wpdb->query(
+                    $this->wpdb->prepare(
+                        "DELETE FROM {$this->wpdb->prefix}app_agency_employees WHERE id IN ($placeholders)",
+                        ...$orphan_ids
+                    )
+                );
+                $this->debug("[DivisionDemoData] Deleted {$deleted_orphans} orphaned inactive employees");
+            }
+
+            // STEP 2: Enable hard delete temporarily untuk demo cleanup
+            $original_settings = get_option('wp_agency_general_options', []);
+            $cleanup_settings = array_merge($original_settings, ['enable_hard_delete' => true]);
+            update_option('wp_agency_general_options', $cleanup_settings);
+            $this->debug("[DivisionDemoData] Enabled hard delete mode for cleanup");
+
+            // Delete cabang divisions via Model (triggers HOOK for cascade cleanup)
+            $cabang_divisions = $this->wpdb->get_results(
+                "SELECT id FROM {$this->wpdb->prefix}app_agency_divisions WHERE type = 'cabang'",
+                ARRAY_A
+            );
+
+            $deleted_divisions = 0;
+            $divisionModel = new \WPAgency\Models\Division\DivisionModel();
+            foreach ($cabang_divisions as $division) {
+                if ($divisionModel->delete($division['id'])) {
+                    $deleted_divisions++;
+                }
+            }
+            $this->debug("[DivisionDemoData] Deleted {$deleted_divisions} cabang divisions (HOOK handles employees)");
+
+            // Restore original settings
+            update_option('wp_agency_general_options', $original_settings);
+            $this->debug("[DivisionDemoData] Restored original delete mode");
+
+            // Collect all division admin user IDs from DivisionUsersData
+            $user_ids_to_delete = [];
+
+            // Division users (pusat + cabang for each agency)
+            foreach ($this->division_users as $agency_id => $divisions) {
+                // Skip pusat deletion - only delete cabang users
+                if (isset($divisions['cabang1'])) {
+                    $user_ids_to_delete[] = $divisions['cabang1']['id'];
+                }
+                if (isset($divisions['cabang2'])) {
+                    $user_ids_to_delete[] = $divisions['cabang2']['id'];
+                }
+            }
+
+            $this->debug("[DivisionDemoData] User IDs to clean: " . json_encode($user_ids_to_delete));
+
+            $deleted_users = $userGenerator->deleteUsers($user_ids_to_delete);
+            $this->debug("[DivisionDemoData] Cleaned up {$deleted_users} existing demo users");
+            $this->debug("Cleaned up {$deleted_users} users and {$deleted_divisions} divisions before generation");
         }
 
         // TAMBAHKAN DI SINI
@@ -222,38 +286,40 @@ class DivisionDemoData extends AbstractDemoData {
 
         try {
             // Get all active agencies
+            $agency_index = 1; // Start from 1 to match DivisionUsersData index (1-10)
             foreach ($this->agency_ids as $agency_id) {
                 $agency = $this->agencyModel->find($agency_id);
                 if (!$agency) {
                     $this->debug("Agency not found: {$agency_id}");
+                    $agency_index++;
                     continue;
                 }
 
-                if (!isset($this->division_users[$agency_id])) {
-                    $this->debug("No division admin users found for agency {$agency_id}, skipping...");
+                if (!isset($this->division_users[$agency_index])) {
+                    $this->debug("No division admin users found for agency index {$agency_index} (ID: {$agency_id}), skipping...");
+                    $agency_index++;
                     continue;
                 }
 
-                // Check for existing pusat division
-                $existing_pusat = $this->wpdb->get_row($this->wpdb->prepare(
-                    "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions 
+                // Skip pusat division generation - now auto-created via wp_agency_agency_created HOOK
+                // Pusat division is created by AutoEntityCreator when agency is created
+                $this->debug("Pusat division for agency {$agency_id} should be auto-created via HOOK");
+
+                // IMPORTANT: Verify pusat division exists before creating cabang
+                $pusat_exists = $this->wpdb->get_var($this->wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$this->wpdb->prefix}app_agency_divisions
                      WHERE agency_id = %d AND type = 'pusat'",
                     $agency_id
                 ));
 
-                if ($existing_pusat) {
-                    $this->debug("Pusat division exists for agency {$agency_id}, skipping...");
-                } else {
-                    // Get pusat admin user ID
-                    $pusat_user = $this->division_users[$agency_id]['pusat'];
-                    $this->debug("Using pusat admin user ID: {$pusat_user['id']} for agency {$agency_id}");
-                    $this->generatePusatDivision($agency, $pusat_user['id']);
-                    $generated_count++;
+                if (!$pusat_exists) {
+                    $this->debug("WARNING: Pusat division NOT found for agency {$agency_id}! Hook may have failed. Skipping cabang generation.");
+                    continue;
                 }
 
                 // Check for existing cabang divisions
                 $existing_cabang_count = $this->wpdb->get_var($this->wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$this->wpdb->prefix}app_agency_divisions 
+                    "SELECT COUNT(*) FROM {$this->wpdb->prefix}app_agency_divisions
                      WHERE agency_id = %d AND type = 'cabang'",
                     $agency_id
                 ));
@@ -261,9 +327,11 @@ class DivisionDemoData extends AbstractDemoData {
                 if ($existing_cabang_count > 0) {
                     $this->debug("Cabang divisions exist for agency {$agency_id}, skipping...");
                 } else {
-                    $this->generateCabangDivisions($agency);
+                    $this->generateCabangDivisions($agency, $agency_index);
                     $generated_count++;
                 }
+
+                $agency_index++; // Increment for next agency
             }
 
             if ($generated_count === 0) {
@@ -284,69 +352,13 @@ class DivisionDemoData extends AbstractDemoData {
     }
 
     /**
-     * Generate kantor pusat
-     */
-
-    private function generatePusatDivision($agency, $division_user_id): void {
-        // Validate location data
-        if (!$this->validateLocation($this->getProvinceIdByCode($agency->provinsi_code), $this->getRegencyIdByCode($agency->regency_code))) {
-            throw new \Exception("Invalid location for agency: {$agency->id}");
-        }
-
-        // Generate WordPress user dulu
-        $userGenerator = new WPUserGenerator();
-
-        // Ambil data user dari division_users
-        $user_data = $this->division_users[$agency->id]['pusat'];
-
-        // Generate WP User with roles from DivisionUsersData
-        $wp_user_id = $userGenerator->generateUser([
-            'id' => $user_data['id'],
-            'username' => $user_data['username'],
-            'display_name' => $user_data['display_name'],
-            'roles' => $user_data['role']  // Use roles array from data
-        ]);
-
-        if (!$wp_user_id) {
-            throw new \Exception("Failed to create WordPress user for division admin: {$user_data['display_name']}");
-        }
-
-        $regency_name = $this->getRegencyName($this->getRegencyIdByCode($agency->regency_code));
-        $location = $this->generateValidLocation();
-
-        $division_data = [
-            'agency_id' => $agency->id,
-            'name' => sprintf('UPT %s',
-                            $regency_name),
-            'type' => 'pusat',
-            'nitku' => $this->generateNITKU(),
-            'postal_code' => $this->generatePostalCode(),
-            'latitude' => $location['latitude'],
-            'longitude' => $location['longitude'],
-            'address' => $this->generateAddress($regency_name),
-            'phone' => $this->generatePhone(),
-            'email' => $this->generateEmail($agency->name, 'pusat'),
-            'provinsi_code' => $agency->provinsi_code,
-            'regency_code' => $agency->regency_code,
-            'user_id' => $division_user_id,                  // Division admin user
-            'created_by' => $agency->user_id,            // Agency owner user
-            'status' => 'active'
-        ];
-    
-        $division_id = $this->divisionController->createDemoDivision($division_data);
-
-        if (!$division_id) {
-            throw new \Exception("Failed to create pusat division for agency: {$agency->id}");
-        }
-
-        $this->division_ids[] = $division_id;
-        $this->debug("Created pusat division for agency {$agency->name}");
-    }
-
-    /**
      * Generate cabang divisions
+     * Uses runtime flow simulation for full validation
+     *
+     * @param object $agency Agency object
+     * @param int $agency_index Agency index (1-10) for DivisionUsersData lookup
      */
-    private function generateCabangDivisions($agency): void {
+    private function generateCabangDivisions($agency, int $agency_index): void {
         // Generate 1-2 cabang per agency
         //$cabang_count = rand(1, 2);
 
@@ -360,13 +372,13 @@ class DivisionDemoData extends AbstractDemoData {
         for ($i = 0; $i < $cabang_count; $i++) {
             // Get cabang admin user ID
             $cabang_key = 'cabang' . ($i + 1);
-            if (!isset($this->division_users[$agency->id][$cabang_key])) {
-                $this->debug("No admin user found for {$cabang_key} of agency {$agency->id}, skipping...");
+            if (!isset($this->division_users[$agency_index][$cabang_key])) {
+                $this->debug("No admin user found for {$cabang_key} of agency index {$agency_index} (ID: {$agency->id}), skipping...");
                 continue;
             }
 
             // Generate WordPress user untuk cabang with roles from DivisionUsersData
-            $user_data = $this->division_users[$agency->id][$cabang_key];
+            $user_data = $this->division_users[$agency_index][$cabang_key];
             $wp_user_id = $userGenerator->generateUser([
                 'id' => $user_data['id'],
                 'username' => $user_data['username'],
@@ -402,9 +414,7 @@ class DivisionDemoData extends AbstractDemoData {
             $location = $this->generateValidLocation();
 
             $division_data = [
-                'agency_id' => $agency->id,
-                'name' => sprintf('UPT %s',
-                                $regency_name),
+                'name' => sprintf('UPT %s', $regency_name),
                 'type' => 'cabang',
                 'nitku' => $this->generateNITKU(),
                 'postal_code' => $this->generatePostalCode(),
@@ -415,12 +425,16 @@ class DivisionDemoData extends AbstractDemoData {
                 'email' => $this->generateEmail($agency->name, $cabang_key),
                 'provinsi_code' => $agency->provinsi_code,
                 'regency_code' => $regency_code,
-                'user_id' => $wp_user_id,  // Gunakan WP user yang baru dibuat
-                'created_by' => $agency->user_id,        // Agency owner user
-                'status' => 'active'
             ];
 
-            $division_id = $this->divisionController->createDemoDivision($division_data);
+            // Create division via runtime flow (validates + uses production code + triggers hooks)
+            $division_id = $this->createDivisionViaRuntimeFlow(
+                $agency->id,
+                $division_data,
+                ['user_id' => $wp_user_id],  // Pass existing user_id
+                $agency->user_id  // created_by
+            );
+
             if (!$division_id) {
                 throw new \Exception("Failed to create cabang division for agency: {$agency->id}");
             }
@@ -428,6 +442,101 @@ class DivisionDemoData extends AbstractDemoData {
             $this->division_ids[] = $division_id;
             $this->debug("Created cabang division for agency {$agency->name} in {$regency_name}");
         }
+    }
+
+    /**
+     * Create division via runtime flow simulation
+     * Replicates EXACT logic from DivisionController::store() without AJAX/nonce
+     *
+     * @param int $agency_id Agency ID
+     * @param array $division_data Division fields (name, type, nitku, etc)
+     * @param array $admin_data Admin user fields (user_id if already created)
+     * @param int $created_by User ID who creates the division
+     * @return int Division ID
+     * @throws \Exception If validation fails or creation fails
+     */
+    private function createDivisionViaRuntimeFlow(
+        int $agency_id,
+        array $division_data,
+        array $admin_data,
+        int $created_by
+    ): int {
+        // Initialize validator and model (same as Controller)
+        $validator = new \WPAgency\Validators\Division\DivisionValidator();
+        $model = new \WPAgency\Models\Division\DivisionModel();
+
+        // Step 1: Check agency_id (line 809-812 from store())
+        if (!$agency_id) {
+            throw new \Exception('ID Agency tidak valid');
+        }
+
+        // Step 2: Check permission (line 817-820 from store())
+        if (!$validator->canCreateDivision($agency_id)) {
+            throw new \Exception('Anda tidak memiliki izin untuk menambah cabang');
+        }
+
+        // Step 3: Sanitize input (line 823-836 from store())
+        $data = [
+            'agency_id' => $agency_id,
+            'name' => sanitize_text_field($division_data['name'] ?? ''),
+            'type' => sanitize_text_field($division_data['type'] ?? ''),
+            'nitku' => sanitize_text_field($division_data['nitku'] ?? ''),
+            'postal_code' => sanitize_text_field($division_data['postal_code'] ?? ''),
+            'latitude' => (float)($division_data['latitude'] ?? 0),
+            'longitude' => (float)($division_data['longitude'] ?? 0),
+            'address' => sanitize_text_field($division_data['address'] ?? ''),
+            'phone' => sanitize_text_field($division_data['phone'] ?? ''),
+            'email' => sanitize_email($division_data['email'] ?? ''),
+            'provinsi_code' => $division_data['provinsi_code'] ?? '',
+            'regency_code' => $division_data['regency_code'] ?? '',
+            'created_by' => $created_by,
+            'status' => 'active'
+        ];
+
+        // Step 4: Validate division type (line 869-874 from store())
+        $type_validation = $validator->validateDivisionTypeCreate($data['type'], $agency_id);
+        if (!$type_validation['valid']) {
+            throw new \Exception($type_validation['message']);
+        }
+
+        // Step 5: Handle user (line 876-889 from store())
+        if (!empty($admin_data['user_id'])) {
+            // User already created (demo data dengan WPUserGenerator)
+            $data['user_id'] = $admin_data['user_id'];
+            $this->debug("Using existing user ID {$data['user_id']} for division");
+        } elseif (!empty($admin_data['email'])) {
+            // Create new user (runtime flow untuk production simulation)
+            // This will be handled by HOOK (wp_agency_division_created)
+            $data['admin_username'] = sanitize_user($admin_data['username']);
+            $data['admin_email'] = sanitize_email($admin_data['email']);
+            $data['admin_firstname'] = sanitize_text_field($admin_data['firstname'] ?? '');
+            $data['admin_lastname'] = sanitize_text_field($admin_data['lastname'] ?? '');
+
+            // Use agency user temporarily (hook will update to new user)
+            $agency = $this->agencyModel->find($agency_id);
+            $data['user_id'] = $agency->user_id;
+        }
+
+        // Step 6: Save division (line 892-895 from store())
+        $this->debug("Attempting to create division with data: " . print_r($data, true));
+
+        $division_id = $model->create($data);
+
+        $this->debug("Model->create() returned: " . ($division_id ? $division_id : 'FALSE/0'));
+
+        if (!$division_id) {
+            // Get last database error
+            global $wpdb;
+            $last_error = $wpdb->last_error ? $wpdb->last_error : 'No database error';
+            $this->debug("Division creation FAILED. DB Error: " . $last_error);
+            throw new \Exception('Gagal menambah cabang. DB Error: ' . $last_error);
+        }
+
+        // Cache invalidation handled by Model
+
+        $this->debug("Created division via runtime flow (ID: {$division_id}) for agency {$agency_id}");
+
+        return $division_id;
     }
 
     /**

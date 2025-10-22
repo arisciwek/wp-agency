@@ -1,5 +1,55 @@
 # TODO List for WP Agency Plugin
 
+## TODO-2069: Division Generator Runtime Flow Migration 🔄 IN PROGRESS
+
+**Status**: 🔄 IN PROGRESS
+**Created**: 2025-01-22
+**Dependencies**: TODO-2067 (Agency Runtime Flow), TODO-2068 (Division User Auto-Creation), wp-customer TODO-2167 (Branch Runtime Flow)
+**Priority**: HIGH
+**Complexity**: Medium (refactoring demo generator to use production code)
+
+**Summary**: Migrate Division demo data generation from bulk generation to runtime flow pattern following wp-customer Branch pattern. Remove demo code from production files and use full validation + hooks.
+
+**Problem**:
+- Production code pollution (`createDemoDivision()` in DivisionController) ❌
+- Bulk insert bypasses validation & hooks ❌
+- Inconsistent with Agency & Branch patterns ❌
+- Manual employee creation (no hook) ❌
+
+**Solution (Runtime Flow)**:
+- ✅ Remove ALL demo code from production files
+- ⏳ Create user via WPUserGenerator (static ID)
+- ⏳ Use DivisionController->create() via runtime flow
+- ⏳ Hook auto-creates employee (wp_agency_division_created)
+- ⏳ Cleanup via Model delete (cascade)
+
+**Implementation Plan**:
+```
+DivisionDemoData::generate()
+  → Step 1: WPUserGenerator->generateUser() (static ID)
+  → Step 2: createDivisionViaRuntimeFlow()
+    → Step 3: Validate via DivisionValidator
+    → Step 4: Create via DivisionModel->create()
+      → Step 5: Hook wp_agency_division_created fires
+        → Step 6: AutoEntityCreator->handleDivisionCreated()
+          → Step 7: Employee auto-created
+```
+
+**Files to Modify**:
+- `/src/Controllers/Division/DivisionController.php` (remove createDemoDivision)
+- `/src/Database/Demo/DivisionDemoData.php` (add runtime flow method)
+
+**Pattern Consistency**:
+- ✅ Agency: User first → Controller → Hook creates division+employee
+- ⏳ **Division**: User first → Controller → Hook creates employee
+- ✅ Branch (wp-customer): User first → Controller → Hook creates employee
+
+**Progress**: Step 1/9 - Created TODO file
+
+**Reference**: `/TODO/TODO-2069-division-runtime-flow.md`
+
+---
+
 ## TODO-2067: Agency Generator Runtime Flow Migration 🚧 IN PROGRESS
 
 **Status**: 🚧 IN PROGRESS
