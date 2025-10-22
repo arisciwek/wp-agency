@@ -308,13 +308,8 @@ class AgencyValidator {
             );
         }
 
-        // 5. Cek apakah agency memiliki employee
-        global $wpdb;
-        $employee_count = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_employees WHERE agency_id = %d",
-            $id
-        ));
-
+        // 5. Cek apakah agency memiliki employee aktif (soft delete aware)
+        $employee_count = $this->model->getEmployeeCount($id);
         if ($employee_count > 0) {
             $errors[] = sprintf(
                 __('Agency tidak dapat dihapus karena masih memiliki %d karyawan', 'wp-agency'),

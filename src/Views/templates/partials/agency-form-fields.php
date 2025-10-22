@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Views/Templates/Partials
- * @version     1.0.0
+ * @version     1.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Views/templates/partials/agency-form-fields.php
@@ -28,6 +28,12 @@
  * ]);
  *
  * Changelog:
+ * 1.1.0 - 2025-01-22 (Task-2065 Follow-up)
+ * - Added Nama Admin field for admin-create mode
+ * - Added Email Admin field for admin-create mode
+ * - Now consistent with wp-customer pattern
+ * - Admin can input username and email when creating agency
+ *
  * 1.0.0 - 2025-01-22 (Task-2065 Form Sync)
  * - Initial version
  * - Shared component untuk register.php, create-agency-form.php, dan edit-agency-form.php
@@ -112,6 +118,40 @@ $is_edit = ($mode === 'edit');
         <?php else: ?>
             <h4><?php _e('Informasi Dasar', 'wp-agency'); ?></h4>
         <?php endif; ?>
+
+            <?php if ($is_admin_create): ?>
+            <!-- Nama Admin (Admin Create Only) -->
+            <div class="<?php echo esc_attr($wrapper_classes); ?>">
+                <label for="agency-username" class="required-field">
+                    <?php _e('Nama Admin', 'wp-agency'); ?>
+                </label>
+                <input type="text"
+                       id="agency-username"
+                       name="username"
+                       class="<?php echo esc_attr($field_classes); ?>"
+                       maxlength="60"
+                       pattern="[a-zA-Z0-9\s]+"
+                       required>
+                <span class="field-description">
+                    <?php _e('Nama untuk login (huruf, angka, spasi)', 'wp-agency'); ?>
+                </span>
+            </div>
+
+            <!-- Email Admin (Admin Create Only) -->
+            <div class="<?php echo esc_attr($wrapper_classes); ?>">
+                <label for="agency-email" class="required-field">
+                    <?php _e('Email Admin', 'wp-agency'); ?>
+                </label>
+                <input type="email"
+                       id="agency-email"
+                       name="email"
+                       class="<?php echo esc_attr($field_classes); ?>"
+                       required>
+                <span class="field-description">
+                    <?php _e('Email untuk login admin agency', 'wp-agency'); ?>
+                </span>
+            </div>
+            <?php endif; ?>
 
             <!-- Nama Disnaker/Agency -->
             <div class="<?php echo esc_attr($wrapper_classes); ?>">

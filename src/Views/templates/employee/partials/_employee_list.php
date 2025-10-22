@@ -27,15 +27,26 @@ defined('ABSPATH') || exit;
 
 <div id="employee-list" class="tab-content">
     <div class="wp-agency-employee-header">
-        <div class="employee-header-title">
-            <h3><?php _e('Daftar Karyawan', 'wp-agency'); ?></h3>
+        <div class="employee-header-left">
+            <div class="employee-header-title">
+                <h3><?php _e('Daftar Karyawan', 'wp-agency'); ?></h3>
+            </div>
+            <?php if (current_user_can('delete_employee')): ?>
+            <!-- Status Filter - Only visible for users with delete_employee permission -->
+            <div class="employee-header-filter">
+                <label for="employee-status-filter"><?php _e('Status:', 'wp-agency'); ?></label>
+                <select id="employee-status-filter" class="employee-status-filter">
+                    <option value="active"><?php _e('Aktif', 'wp-agency'); ?></option>
+                    <option value="inactive"><?php _e('Tidak Aktif', 'wp-agency'); ?></option>
+                    <option value="all"><?php _e('Semua', 'wp-agency'); ?></option>
+                </select>
+            </div>
+            <?php endif; ?>
         </div>
+
         <div class="employee-header-actions">
-
             <div id="tombol-tambah-karyawan"></div>
-
         </div>
-
     </div>
 
     <div class="wp-agency-employee-content">

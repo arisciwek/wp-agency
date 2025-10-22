@@ -28,14 +28,26 @@ defined('ABSPATH') || exit;
 <div id="division-list" class="tab-content">
 
     <div class="wp-agency-division-header">
-        <div class="division-header-title">
-            <h3><?php _e('Daftar Division', 'wp-agency'); ?></h3>
+        <div class="division-header-left">
+            <div class="division-header-title">
+                <h3><?php _e('Daftar Division', 'wp-agency'); ?></h3>
+            </div>
+            <?php if (current_user_can('delete_division')): ?>
+            <!-- Status Filter - Only visible for users with delete_division permission -->
+            <div class="division-header-filter">
+                <label for="division-status-filter"><?php _e('Status:', 'wp-agency'); ?></label>
+                <select id="division-status-filter" class="division-status-filter">
+                    <option value="active"><?php _e('Aktif', 'wp-agency'); ?></option>
+                    <option value="inactive"><?php _e('Tidak Aktif', 'wp-agency'); ?></option>
+                    <option value="all"><?php _e('Semua', 'wp-agency'); ?></option>
+                </select>
+            </div>
+            <?php endif; ?>
         </div>
 
-            <div class="division-header-actions">
-                <div id="tombol-tambah-division"></div>
-            </div>
-
+        <div class="division-header-actions">
+            <div id="tombol-tambah-division"></div>
+        </div>
     </div>
 
     <div class="wp-agency-division-content">
@@ -71,6 +83,7 @@ defined('ABSPATH') || exit;
                         <th><?php _e('Nama', 'wp-agency'); ?></th>
                         <th><?php _e('Admin', 'wp-agency'); ?></th>
                         <th><?php _e('Tipe', 'wp-agency'); ?></th>
+                        <th><?php _e('Status', 'wp-agency'); ?></th>
                         <th><?php _e('Yuridiksi', 'wp-agency'); ?></th>
                         <th class="text-center no-sort">
                             <?php _e('Aksi', 'wp-agency'); ?>
@@ -86,6 +99,7 @@ defined('ABSPATH') || exit;
                         <th><?php _e('Nama', 'wp-agency'); ?></th>
                         <th><?php _e('Admin', 'wp-agency'); ?></th>
                         <th><?php _e('Tipe', 'wp-agency'); ?></th>
+                        <th><?php _e('Status', 'wp-agency'); ?></th>
                         <th><?php _e('Yuridiksi', 'wp-agency'); ?></th>
                         <th><?php _e('Aksi', 'wp-agency'); ?></th>
                     </tr>

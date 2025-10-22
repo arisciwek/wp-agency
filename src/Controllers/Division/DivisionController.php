@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Controllers/Division
- * @version     1.1.0
+ * @version     2.0.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Controllers/Division/DivisionController.php
@@ -15,6 +15,13 @@
  *              dan response formatting untuk DataTables.
  *
  * Changelog:
+ * 2.0.0 - 2025-01-22 (Task-2068 Division User Auto-Creation)
+ * - BREAKING: Removed user creation logic from Controller
+ * - User creation now handled by HOOK (AutoEntityCreator)
+ * - Controller only passes admin_* fields to Model
+ * - Consistent with agency creation pattern (hook-based)
+ * - Removed user rollback logic (no longer needed)
+ *
  * 1.1.0 - 2025-01-22 (Task-2066 Multiple Roles)
  * - Updated role assignment for division admin users
  * - Now assigns 2 roles: 'agency' (base) + 'agency_admin_unit' (division admin)
@@ -380,11 +387,17 @@ class DivisionController {
             $start = isset($_POST['start']) ? intval($_POST['start']) : 0;
             $length = isset($_POST['length']) ? intval($_POST['length']) : 10;
             $search = isset($_POST['search']['value']) ? sanitize_text_field($_POST['search']['value']) : '';
+            $status_filter = isset($_POST['status_filter']) ? sanitize_text_field($_POST['status_filter']) : 'active';
+
+            // Force active filter if user doesn't have delete_division permission
+            if (!current_user_can('delete_division')) {
+                $status_filter = 'active';
+            }
 
             $orderColumn = isset($_POST['order'][0]['column']) ? intval($_POST['order'][0]['column']) : 0;
             $orderDir = isset($_POST['order'][0]['dir']) ? sanitize_text_field($_POST['order'][0]['dir']) : 'asc';
 
-            $columns = ['code', 'name', 'admin_name', 'type', 'jurisdictions', 'actions'];
+            $columns = ['code', 'name', 'admin_name', 'type', 'status', 'jurisdictions', 'actions'];
             $orderBy = isset($columns[$orderColumn]) ? $columns[$orderColumn] : 'code';
             if ($orderBy === 'actions') {
                 $orderBy = 'code';
@@ -400,7 +413,8 @@ class DivisionController {
                 $length,
                 $search,
                 $orderBy,
-                $orderDir
+                $orderDir,
+                $status_filter
             );
 
             if (!$result) {
@@ -436,6 +450,7 @@ class DivisionController {
                     'name' => esc_html($division->name),
                     'admin_name' => esc_html($admin_name),
                     'type' => esc_html($division->type),
+                    'status' => esc_html($division->status ?? 'active'),
                     'jurisdictions' => esc_html($division->jurisdictions ?? '-'),
                     'actions' => $this->generateActionButtons($division)
                 ];
@@ -858,40 +873,24 @@ class DivisionController {
             // Debug logging: Log type validation result
             $this->debug_log('DEBUG STORE: Type validation passed for type: ' . $data['type']);
 
-            // Buat user untuk admin division jika data admin diisi
+            // Pass admin data to hook (user creation handled by AutoEntityCreator)
             if (!empty($_POST['admin_email'])) {
-                $user_data = [
-                    'user_login' => sanitize_user($_POST['admin_username']),
-                    'user_email' => sanitize_email($_POST['admin_email']),
-                    'first_name' => sanitize_text_field($_POST['admin_firstname']),
-                    'last_name' => sanitize_text_field($_POST['admin_lastname'] ?? ''),
-                    'user_pass' => wp_generate_password(),
-                    'role' => 'agency'  // Base role for all plugin users
-                ];
+                // Pass admin fields to Model → Hook will create user
+                $data['admin_username'] = sanitize_user($_POST['admin_username']);
+                $data['admin_email'] = sanitize_email($_POST['admin_email']);
+                $data['admin_firstname'] = sanitize_text_field($_POST['admin_firstname'] ?? '');
+                $data['admin_lastname'] = sanitize_text_field($_POST['admin_lastname'] ?? '');
 
-                $user_id = wp_insert_user($user_data);
-                if (is_wp_error($user_id)) {
-                    throw new \Exception($user_id->get_error_message());
-                }
+                // Use agency user temporarily (hook will update to new user)
+                $agency = $this->agencyModel->find($agency_id);
+                $data['user_id'] = $agency->user_id;
 
-                // Add agency_admin_unit role (dual-role pattern)
-                $user = get_user_by('ID', $user_id);
-                if ($user) {
-                    $user->add_role('agency_admin_unit');
-                }
-
-                $data['user_id'] = $user_id;
-
-                // Kirim email aktivasi
-                wp_new_user_notification($user_id, null, 'user');
+                $this->debug_log('DEBUG STORE: Admin data provided, will be created by hook');
             }
 
-            // Simpan division
+            // Simpan division (hook will create user + employee)
             $division_id = $this->model->create($data);
             if (!$division_id) {
-                if (!empty($user_id)) {
-                    wp_delete_user($user_id); // Rollback user creation jika gagal
-                }
                 throw new \Exception('Gagal menambah cabang');
             }
 
@@ -907,11 +906,9 @@ class DivisionController {
                 if (!$jurisdiction_validation['valid']) {
                     // Debug logging: Log validation failure
                     $this->debug_log('DEBUG STORE: Jurisdiction validation failed: ' . $jurisdiction_validation['message']);
-                    // If validation fails, delete the division and rollback
+                    // If validation fails, delete the division
                     $this->model->delete($division_id);
-                    if (!empty($user_id)) {
-                        wp_delete_user($user_id);
-                    }
+                    // Note: User created by hook will be handled by hook's error handling
                     throw new \Exception($jurisdiction_validation['message']);
                 }
 
@@ -925,11 +922,9 @@ class DivisionController {
                 if (!$this->jurisdictionModel->saveJurisdictions($division_id, $jurisdiction_codes, $primary_jurisdictions)) {
                     // Debug logging: Log save failure
                     $this->debug_log('DEBUG STORE: Failed to save jurisdictions');
-                    // If jurisdiction save fails, delete the division and rollback
+                    // If jurisdiction save fails, delete the division
                     $this->model->delete($division_id);
-                    if (!empty($user_id)) {
-                        wp_delete_user($user_id);
-                    }
+                    // Note: User created by hook will be handled by hook's error handling
                     throw new \Exception('Gagal menyimpan wilayah kerja cabang');
                 }
             } else {

@@ -1,5 +1,57 @@
 # TODO List for WP Agency Plugin
 
+## TODO-2067: Agency Generator Runtime Flow Migration 🚧 IN PROGRESS
+
+**Status**: 🚧 IN PROGRESS
+**Created**: 2025-01-22
+**Dependencies**: Task-2066 (HOOK system), wp-customer TODO-2168, TODO-2167
+**Priority**: HIGH
+**Complexity**: Medium-High (refactoring demo generator to use production code)
+
+**Summary**: Migrate demo data generation from bulk generation approach to runtime flow pattern following wp-customer. Transform demo generator from simple data creation tool into automated testing tool for production code.
+
+**Problem**:
+- Production code pollution (demo methods in Controller/Model)
+- Validation bypass (no AgencyValidator usage)
+- HOOK system untested (auto-create not triggered)
+- Manual user creation (direct DB INSERT vs wp_insert_user)
+
+**Solution (Phase 1: Agency Only)**:
+- ✅ Delete demo methods from production code
+- ⏳ Update WPUserGenerator to use wp_insert_user()
+- ⏳ Create runtime flow method in AgencyDemoData
+- ⏳ Test full HOOK chain (agency → division → employee)
+- ⏳ Implement HOOK-based cleanup
+
+**Implementation Plan**:
+```
+AgencyDemoData::generate()
+  → 1. Create user via wp_insert_user()
+  → 2. Update ID to static value (FOREIGN_KEY_CHECKS=0)
+  → 3. Validate via AgencyValidator::validateForm()
+  → 4. Create via AgencyModel::create()
+    → HOOK: wp_agency_agency_created
+      → Division pusat auto-created
+        → HOOK: wp_agency_division_created
+          → Employee auto-created
+```
+
+**Files to Modify**:
+- `/src/Controllers/AgencyController.php` (DELETE createDemoAgency method)
+- `/src/Database/Demo/WPUserGenerator.php` (use wp_insert_user)
+- `/src/Database/Demo/AgencyDemoData.php` (runtime flow methods)
+
+**Success Criteria**:
+- ✅ Zero demo code in production namespace
+- ✅ Full validation via AgencyValidator
+- ✅ User creation via wp_insert_user() with static ID
+- ✅ HOOK cascade fully tested
+- ✅ Cleanup via Model with cascade delete
+
+**Reference**: `/TODO/TODO-2067-agency-generator-runtime-flow.md`
+
+---
+
 ## TODO-2066: Auto Entity Creation & Lifecycle Hooks ✅ COMPLETED
 
 **Status**: ✅ COMPLETED

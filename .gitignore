@@ -36,7 +36,7 @@ wp-config.php
 Dev Files
 /.devels/
 /claude-chats/
-
+/TEST/
 # htaccess
 /.htaccess
 

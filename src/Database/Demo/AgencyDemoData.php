@@ -4,23 +4,53 @@
  *
  * @package     WP_Agency
  * @subpackage  Database/Demo
- * @version     1.0.0
+ * @version     2.2.0
  * @author      arisciwek
  *
- * Path: /wp-agency/src/Database/Demo/Data/AgencyDemoData.php
- * 
+ * Path: /wp-agency/src/Database/Demo/AgencyDemoData.php
+ *
  * Description: Generate agency demo data dengan:
  *              - Data perusahaan dengan format yang valid
  *              - Integrasi dengan WordPress user
  *              - Data wilayah dari Provinces/Regencies
  *              - Validasi dan tracking data unik
+ *              - Division pusat inherit user dari agency (same user)
+ *
+ * Changelog:
+ * 2.2.0 - 2025-10-22 (FIX: Division Pusat Inherits Agency User)
+ * - REVERTED: Division pusat now INHERITS user from agency (same user)
+ * - Removed createDivisionPusatForDemo() method (no longer needed)
+ * - Division pusat created automatically via HOOK (AutoEntityCreator)
+ * - Agency user (130-139) = Division pusat user (same) ✓
+ * - Employee auto-created via division hook with same user ✓
+ * - Total demo users: 10 (1 user per agency for all entities)
+ * - Pattern matches production: 1 user → 1 agency + 1 division + 1 employee
+ *
+ * 2.1.0 - 2025-01-22 (FIX: Division Pusat with DivisionUsersData) - REVERTED
+ * - Division pusat used separate user from DivisionUsersData (ID 140-169)
+ * - This was INCORRECT for runtime flow pattern
+ *
+ * 2.0.0 - 2025-01-22 (Task-2067 Runtime Flow)
+ * - BREAKING: Completely rewritten to use runtime flow pattern
+ * - Removed dependency on AgencyController (production pollution)
+ * - Now uses AgencyValidator + AgencyModel directly
+ * - Uses createAgencyViaRuntimeFlow() method
+ * - Full validation via AgencyValidator::validateForm()
+ * - Hooks properly fired (wp_agency_agency_created)
+ * - Division pusat auto-created via hook
+ * - Employee auto-created via hook
+ * - HOOK-based cleanup with cascade delete
+ * - Follows wp-customer pattern exactly
+ * - Demo generation now serves as automated testing tool
  */
 
 namespace WPAgency\Database\Demo;
 
 use WPAgency\Database\Demo\Data\AgencyUsersData;
 use WPAgency\Database\Demo\Data\DivisionUsersData;
-use WPAgency\Controllers\AgencyController;
+use WPAgency\Validators\AgencyValidator;
+use WPAgency\Models\Agency\AgencyModel;
+use WPAgency\Models\Division\DivisionModel;
 
 defined('ABSPATH') || exit;
 
@@ -32,7 +62,10 @@ class AgencyDemoData extends AbstractDemoData {
     private static $used_emails = [];
     public $used_names = [];
     protected $agency_users = [];
-    private $agencyController;
+    protected $division_users = [];
+    protected $agencyValidator;
+    protected $agencyModel;
+    protected $divisionModel;
 
     // Data statis agency - disesuaikan dengan provinsi yang memiliki data regencies
     private static $agencies = [
@@ -54,7 +87,12 @@ class AgencyDemoData extends AbstractDemoData {
     public function __construct() {
         parent::__construct();
         $this->agency_users = AgencyUsersData::$data;
-        $this->agencyController = new AgencyController();
+        $this->division_users = DivisionUsersData::$data;
+
+        // Initialize production dependencies (Task-2067)
+        $this->agencyValidator = new AgencyValidator();
+        $this->agencyModel = new AgencyModel();
+        $this->divisionModel = new DivisionModel();
     }
 
     /**
@@ -105,78 +143,162 @@ class AgencyDemoData extends AbstractDemoData {
         }
     }
 
+    /**
+     * Create agency via runtime flow (simulating real production flow)
+     *
+     * This method replicates the exact flow that happens in production:
+     * 1. Validate data via AgencyValidator::validateForm()
+     * 2. Create agency via AgencyModel::create()
+     * 3. Fire wp_agency_agency_created HOOK (auto-creates division pusat + employee)
+     * 4. Cache invalidation (handled by Model)
+     *
+     * NO special demo methods, NO validation bypass, NO production pollution
+     *
+     * @param array $agency_data Agency data
+     * @return int|null Agency ID or null on failure
+     * @throws \Exception On validation or creation error
+     */
+    private function createAgencyViaRuntimeFlow(array $agency_data): ?int {
+        // 1. Validate data using production validator
+        $validation_errors = $this->agencyValidator->validateForm($agency_data);
+
+        if (!empty($validation_errors)) {
+            $error_msg = 'Validation failed: ' . implode(', ', $validation_errors);
+            $this->debug($error_msg);
+            throw new \Exception($error_msg);
+        }
+
+        // 2. Create agency using production Model::create()
+        // This triggers wp_agency_agency_created HOOK automatically
+        $agency_id = $this->agencyModel->create($agency_data);
+
+        if (!$agency_id) {
+            throw new \Exception('Failed to create agency via Model');
+        }
+
+        $this->debug("✓ Agency created: ID={$agency_id}, Name={$agency_data['name']}");
+
+        // 3. Cache invalidation handled automatically by Model
+        // 4. HOOK fired automatically by Model
+        //    → AutoEntityCreator::handleAgencyCreated()
+        //      → Creates division pusat
+        //        → HOOK: wp_agency_division_created
+        //          → Creates employee
+
+        return $agency_id;
+    }
+
     protected function generate(): void {
         if (!$this->isDevelopmentMode()) {
             $this->debug('Cannot generate data - not in development mode');
             return;
         }
 
-        // Inisialisasi WPUserGenerator dan simpan reference ke static data
+        // PHASE 1: Cleanup existing demo data (if shouldClearData)
+        if ($this->shouldClearData()) {
+            $this->cleanupDemoData();
+        }
+
+        // PHASE 2: Generate agencies via runtime flow
+        $this->generateAgenciesViaRuntimeFlow();
+    }
+
+    /**
+     * Cleanup demo data using HOOK-based cascade delete
+     */
+    private function cleanupDemoData(): void {
+        $this->debug('Starting cleanup of existing demo data...');
+
+        // 1. Enable hard delete temporarily (for complete cleanup)
+        $original_settings = get_option('wp_agency_general_options', []);
+        $cleanup_settings = array_merge($original_settings, [
+            'enable_hard_delete' => true
+        ]);
+        update_option('wp_agency_general_options', $cleanup_settings);
+
+        // 2. Get all demo agencies (reg_type = 'generate')
+        $demo_agencies = $this->wpdb->get_col(
+            "SELECT id FROM {$this->wpdb->prefix}app_agencies
+             WHERE reg_type = 'generate'
+             ORDER BY id ASC"
+        );
+
+        if (!empty($demo_agencies)) {
+            $this->debug('Found ' . count($demo_agencies) . ' demo agencies to delete');
+
+            // 3. Delete via Model (triggers HOOK cascade)
+            foreach ($demo_agencies as $agency_id) {
+                try {
+                    $this->agencyModel->delete($agency_id);
+                    // → Triggers wp_agency_agency_deleted hook
+                    //   → Cascade deletes divisions
+                    //     → Cascade deletes employees
+
+                    $this->debug("✓ Deleted agency ID={$agency_id} (with cascade)");
+                } catch (\Exception $e) {
+                    $this->debug("✗ Failed to delete agency ID={$agency_id}: " . $e->getMessage());
+                }
+            }
+        }
+
+        // 4. Clean demo users
+        $user_ids = array_column($this->agency_users, 'id');
         $userGenerator = new WPUserGenerator();
+        $userGenerator->deleteUsers($user_ids);
+        $this->debug('✓ Cleaned ' . count($user_ids) . ' demo users');
 
-        foreach (self::$agencies as $agency) {
+        // 5. Restore original settings
+        update_option('wp_agency_general_options', $original_settings);
+
+        // 6. CRITICAL: Clear ALL cache to avoid validation errors
+        if (function_exists('wp_cache_flush')) {
+            wp_cache_flush();
+            $this->debug('✓ Flushed WP cache');
+        }
+
+        // Clear agency cache specifically
+        global $wpdb;
+        $wpdb->query("DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE '%agency%cache%'");
+        $wpdb->query("DELETE FROM {$wpdb->prefix}options WHERE option_name LIKE '%name_exists%'");
+        $this->debug('✓ Cleared agency validation cache');
+
+        $this->debug('✓ Cleanup completed');
+    }
+
+    /**
+     * Generate agencies via runtime flow
+     */
+    private function generateAgenciesViaRuntimeFlow(): void {
+        $this->debug('Starting agency generation via runtime flow...');
+
+        $userGenerator = new WPUserGenerator();
+        $generated_count = 0;
+        $failed_count = 0;
+
+        foreach (self::$agencies as $index => $agency) {
             try {
-                // 1. Cek existing agency
-                $existing_agency = $this->wpdb->get_row(
-                    $this->wpdb->prepare(
-                        "SELECT c.* FROM {$this->wpdb->prefix}app_agencies c 
-                         INNER JOIN {$this->wpdb->users} u ON c.user_id = u.ID 
-                         WHERE c.id = %d",
-                        $agency['id']
-                    )
-                );
-
-                if ($existing_agency) {
-                    if ($this->shouldClearData()) {
-                        // Delete existing agency if shouldClearData is true
-                        $this->wpdb->delete(
-                            $this->wpdb->prefix . 'app_agencies',
-                            ['id' => $agency['id']],
-                            ['%d']
-                        );
-                        $this->debug("Deleted existing agency with ID: {$agency['id']}");
-                    } else {
-                        $this->debug("Agency exists with ID: {$agency['id']}, skipping...");
-                        continue;
-                    }
-                }
-
-                // 2. Cek dan buat WP User jika belum ada
-                $wp_user_id = 101 + $agency['id'];  // ID user untuk agency
-                $user_index = $agency['id'] - 1;  // Indeks di AgencyUsersData array (0-based)
-                
-                // Ambil data user dari static array
-                $user_data = $this->agency_users[$user_index] ?? null;
+                // 1. Get user data for this agency
+                $user_data = $this->agency_users[$index] ?? null;
                 if (!$user_data) {
-                    error_log("Debug: User data not found for wp_user_id: {$wp_user_id}, skipping agency: {$agency['name']}");
+                    throw new \Exception("User data not found for agency index {$index}");
                 }
-                $existing_user = get_user_by('ID', $user_data['id']);
-                $user_exists_db = $this->wpdb->get_var($this->wpdb->prepare("SELECT ID FROM {$this->wpdb->users} WHERE ID = %d", $user_data['id']));
-                if ($user_exists_db) {
-                    error_log("Debug: user data from DB = " . print_r($this->wpdb->get_row($this->wpdb->prepare("SELECT * FROM {$this->wpdb->users} WHERE ID = %d", $user_data['id'])), true));
-                }
+
+                // 2. Create WP User via wp_insert_user() (with static ID)
                 $user_id = $userGenerator->generateUser([
                     'id' => $user_data['id'],
                     'username' => $user_data['username'],
                     'display_name' => $user_data['display_name'],
-                    'roles' => $user_data['roles']  // Use roles array from AgencyUsersData
+                    'roles' => $user_data['roles']
                 ]);
-                
-                $user_exists = $this->wpdb->get_var($this->wpdb->prepare("SELECT ID FROM {$this->wpdb->users} WHERE ID = %d", $user_id));
-                
-                if (!$user_id) {
-                    throw new \Exception("Failed to create WordPress user for agency: {$agency['name']}");
-                }
 
-                // Store user_id untuk referensi
-                self::$user_ids[$agency['id']] = $wp_user_id;
+                $this->debug("✓ User created: ID={$user_id}, Username={$user_data['username']}");
 
-                // 3. Generate agency data baru
-                // Map agency name to province
+                // 3. Get location codes
                 $province_name = $this->mapAgencyNameToProvince($agency['name']);
                 if ($province_name) {
+                    $provinsi_id = $this->getProvinceIdByName($province_name);
                     $provinsi_code = $this->getProvinceCodeByName($province_name);
-                    $regency_code = $this->getRandomRegencyCode($this->getProvinceIdByName($province_name));
+                    $regency_code = $this->getRandomRegencyCode($provinsi_id);
                 } else {
                     // Fallback to random
                     $provinsi_id = $this->getRandomProvinceId();
@@ -185,62 +307,46 @@ class AgencyDemoData extends AbstractDemoData {
                 }
 
                 // Validate location relationship
-                if (!$this->validateLocation($this->getProvinceIdByCode($provinsi_code), $this->getRegencyIdByCode($regency_code))) {
-                    throw new \Exception("Invalid province-regency relationship: Province {$provinsi_code}, Regency {$regency_code}");
+                if (!$this->validateLocation($provinsi_id, $this->getRegencyIdByCode($regency_code))) {
+                    throw new \Exception("Invalid province-regency relationship");
                 }
 
-                if ($this->shouldClearData()) {
-                    // Delete existing agency if user WP not  exists
-                    $this->wpdb->delete(
-                        $this->wpdb->prefix . 'app_agencies',
-                        ['id' => $agency['id']],
-                        ['%d']
-                    );
-                    
-                    $this->debug("Deleted existing agency with ID: {$agency['id']}");
-                }
-
-                // Prepare agency data according to schema
+                // 4. Prepare agency data (NO fixed ID, let Model auto-generate)
                 $agency_data = [
-                    'id' => $agency['id'],
-                    'code' => $this->agencyModel->generateAgencyCode(),
                     'name' => $agency['name'],
                     'status' => 'active',
-                    'provinsi_code' => $provinsi_code ?: null,
-                    'regency_code' => $regency_code ?: null,
-                    'user_id' => $wp_user_id,
-                    'created_by' => 1,
-                    'created_at' => current_time('mysql'),
-                    'updated_at' => current_time('mysql')
+                    'provinsi_code' => $provinsi_code,
+                    'regency_code' => $regency_code,
+                    'user_id' => $user_id,
+                    'reg_type' => 'generate',  // Mark as demo data
+                    'created_by' => $user_id
                 ];
 
-                // Use createDemoAgency instead of create
-                if (!$this->agencyController->createDemoAgency($agency_data)) {
-                    throw new \Exception("Failed to create agency with fixed ID");
-                }
+                // 5. Create agency via runtime flow
+                // NOTE: Hook wp_agency_agency_created will auto-create division pusat
+                // Division pusat inherits user from agency (same user for both)
+                $agency_id = $this->createAgencyViaRuntimeFlow($agency_data);
 
-                // Track agency ID
-                self::$agency_ids[] = $agency['id'];
+                $this->debug("✓ Agency created: ID={$agency_id}, Name={$agency_data['name']}");
 
-                $this->debug("Created agency: {$agency['name']} with fixed ID: {$agency['id']} and WP User ID: {$wp_user_id}");
+                // 6. Division pusat will be created automatically by HOOK
+                // wp_agency_agency_created → AutoEntityCreator::handleAgencyCreated()
+                // Division pusat inherits user from agency (no separate user)
+
+                self::$agency_ids[] = $agency_id;
+                $generated_count++;
+                $this->debug("✓ Agency #{$generated_count} completed (division pusat auto-created by hook)");
 
             } catch (\Exception $e) {
-                $this->debug("Error processing agency {$agency['name']}: " . $e->getMessage());
-                throw $e;
+                $failed_count++;
+                $this->debug("✗ Failed to create agency: " . $e->getMessage());
+
+                // Continue with next agency instead of stopping
+                continue;
             }
         }
 
-        // Add cache handling after bulk generation
-        foreach (self::$agency_ids as $agency_id) {
-            $this->cache->invalidateAgencyCache($agency_id);
-            $this->cache->delete('agency_total_count', get_current_user_id());
-            $this->cache->invalidateDataTableCache('agency_list');
-        }
-
-        // Reset auto_increment
-        $this->wpdb->query(
-            "ALTER TABLE {$this->wpdb->prefix}app_agencies AUTO_INCREMENT = 211"
-        );
+        $this->debug("Generation completed: {$generated_count} succeeded, {$failed_count} failed");
     }
 
     /**

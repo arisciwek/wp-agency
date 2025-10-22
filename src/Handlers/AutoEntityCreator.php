@@ -4,17 +4,32 @@
  *
  * @package     WP_Agency
  * @subpackage  Handlers
- * @version     1.0.0
+ * @version     2.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Handlers/AutoEntityCreator.php
  *
- * Description: Handles automatic entity creation via hooks
+ * Description: Handles automatic entity creation and cascade delete via hooks
  *              - Creates division pusat when agency is created
+ *              - Creates user when division is created (if admin data provided)
  *              - Creates employee when division is created
+ *              - Cascade delete/deactivate employees when division is deleted
  *              Following wp-customer pattern for consistency
  *
  * Changelog:
+ * 2.1.0 - 2025-10-22
+ * - Added handleDivisionDeleted() for cascade delete employees
+ * - Demo mode (WP_AGENCY_DEVELOPMENT=true): HARD DELETE (remove from DB)
+ * - Production mode: SOFT DELETE (set status='inactive')
+ * - Registered wp_agency_division_deleted hook in wp-agency.php
+ *
+ * 2.0.0 - 2025-01-22 (Task-2068 Division User Auto-Creation)
+ * - BREAKING: User creation moved from Controller to Hook
+ * - Added createDivisionUser() method for user creation via hook
+ * - Updated handleDivisionCreated() to create user if admin data provided
+ * - Division.user_id updated after user creation
+ * - Consistent with agency creation pattern (hook-based)
+ *
  * 1.0.0 - 2025-01-22
  * - Task-2066: Initial implementation
  * - Added handleAgencyCreated() for auto-create division pusat
@@ -96,7 +111,7 @@ class AutoEntityCreator {
 
     /**
      * Handle division created event
-     * Automatically creates employee for the division owner
+     * Automatically creates user (if admin data provided) and employee
      *
      * @param int $division_id The newly created division ID
      * @param array $division_data The division data used for creation
@@ -112,13 +127,6 @@ class AutoEntityCreator {
                 return;
             }
 
-            // Get user_id from division data
-            $user_id = $division_data['user_id'] ?? null;
-            if (!$user_id) {
-                error_log("[AutoEntityCreator] No user_id in division data, skipping employee creation");
-                return;
-            }
-
             // Get agency info
             $agency = $this->agencyModel->find($division->agency_id);
             if (!$agency) {
@@ -126,33 +134,73 @@ class AutoEntityCreator {
                 return;
             }
 
-            // Check if employee already exists for this user and division
+            // STEP 1: Check if admin data provided → create new user
+            $has_admin_data = !empty($division_data['admin_username']) && !empty($division_data['admin_email']);
+            $user_id = null;
+
+            if ($has_admin_data) {
+                error_log("[AutoEntityCreator] Admin data provided, creating new user for division {$division_id}");
+
+                try {
+                    // Create user via hook
+                    $user_id = $this->createDivisionUser($division_data);
+
+                    // Update division.user_id to new user
+                    global $wpdb;
+                    $update_result = $wpdb->update(
+                        $wpdb->prefix . 'app_agency_divisions',
+                        ['user_id' => $user_id],
+                        ['id' => $division_id],
+                        ['%d'],
+                        ['%d']
+                    );
+
+                    if ($update_result === false) {
+                        error_log("[AutoEntityCreator] Failed to update division.user_id: " . $wpdb->last_error);
+                        // Continue with existing user_id
+                        $user_id = $division_data['user_id'] ?? null;
+                    } else {
+                        error_log("[AutoEntityCreator] Successfully updated division {$division_id} with new user {$user_id}");
+                    }
+
+                } catch (\Exception $e) {
+                    error_log("[AutoEntityCreator] Failed to create division user: " . $e->getMessage());
+                    // Fallback to existing user_id
+                    $user_id = $division_data['user_id'] ?? null;
+                }
+            } else {
+                // Use existing user_id from division data (inherited from agency)
+                $user_id = $division_data['user_id'] ?? null;
+                error_log("[AutoEntityCreator] No admin data, using existing user_id: {$user_id}");
+            }
+
+            // STEP 2: Validate user_id exists
+            if (!$user_id) {
+                error_log("[AutoEntityCreator] No user_id available, skipping employee creation");
+                return;
+            }
+
+            // STEP 3: Check if employee already exists for this user and division
             $existing_employee = $this->employeeModel->findByUserAndDivision($user_id, $division_id);
             if ($existing_employee) {
                 error_log("[AutoEntityCreator] Employee already exists for user {$user_id} in division {$division_id}");
                 return;
             }
 
-            // Get user info
+            // STEP 4: Get user info
             $user = get_userdata($user_id);
             if (!$user) {
                 error_log("[AutoEntityCreator] User not found: {$user_id}");
                 return;
             }
 
-            // Prepare employee data
-            // Note: finance, operation, legal, purchase fields not used in wp-agency
-            // Database will use default values (0) for these fields
+            // STEP 5: Create employee
             $employee_data = [
                 'agency_id' => $division->agency_id,
                 'division_id' => $division_id,
                 'user_id' => $user_id,
                 'name' => $user->display_name,
                 'position' => 'Admin',
-                'finance' => 0,
-                'operation' => 0,
-                'legal' => 0,
-                'purchase' => 0,
                 'keterangan' => 'Auto-created by system',
                 'email' => $user->user_email,
                 'phone' => '-',
@@ -162,7 +210,6 @@ class AutoEntityCreator {
 
             error_log("[AutoEntityCreator] Creating employee with data: " . print_r($employee_data, true));
 
-            // Create employee
             $employee_id = $this->employeeModel->create($employee_data);
 
             if ($employee_id) {
@@ -173,6 +220,131 @@ class AutoEntityCreator {
 
         } catch (\Exception $e) {
             error_log("[AutoEntityCreator] Error in handleDivisionCreated: " . $e->getMessage());
+            error_log("[AutoEntityCreator] Stack trace: " . $e->getTraceAsString());
+        }
+    }
+
+    /**
+     * Create user for division admin
+     *
+     * @param array $division_data Division data containing admin fields
+     * @return int User ID
+     * @throws \Exception If user creation fails
+     */
+    private function createDivisionUser(array $division_data): int {
+        error_log("[AutoEntityCreator] Creating division user from data: " . print_r($division_data, true));
+
+        // Validate required fields
+        if (empty($division_data['admin_username']) || empty($division_data['admin_email'])) {
+            throw new \Exception('Admin username and email are required');
+        }
+
+        // Prepare user data
+        $user_data = [
+            'user_login' => sanitize_user($division_data['admin_username']),
+            'user_email' => sanitize_email($division_data['admin_email']),
+            'first_name' => sanitize_text_field($division_data['admin_firstname'] ?? ''),
+            'last_name' => sanitize_text_field($division_data['admin_lastname'] ?? ''),
+            'display_name' => sanitize_text_field($division_data['admin_firstname'] ?? $division_data['admin_username']),
+            'user_pass' => wp_generate_password(),
+            'role' => 'agency'  // Base role for all plugin users
+        ];
+
+        error_log("[AutoEntityCreator] Inserting user with wp_insert_user()");
+
+        // Create user via wp_insert_user()
+        $user_id = wp_insert_user($user_data);
+
+        if (is_wp_error($user_id)) {
+            $error_msg = $user_id->get_error_message();
+            error_log("[AutoEntityCreator] wp_insert_user() failed: {$error_msg}");
+            throw new \Exception("Failed to create user: {$error_msg}");
+        }
+
+        error_log("[AutoEntityCreator] User created successfully: ID={$user_id}, Username={$user_data['user_login']}");
+
+        // Add agency_admin_unit role (dual-role pattern)
+        $user = get_user_by('ID', $user_id);
+        if ($user) {
+            $user->add_role('agency_admin_unit');
+            error_log("[AutoEntityCreator] Added role agency_admin_unit to user {$user_id}");
+        }
+
+        // Send email notification
+        wp_new_user_notification($user_id, null, 'user');
+        error_log("[AutoEntityCreator] Sent notification email to user {$user_id}");
+
+        return $user_id;
+    }
+
+    /**
+     * Handle division deleted event
+     * Cascade delete/deactivate employees based on mode:
+     * - Demo mode (WP_AGENCY_DEVELOPMENT): HARD DELETE (remove from DB)
+     * - Production: SOFT DELETE (set status = 'inactive')
+     *
+     * @param int $division_id The deleted division ID
+     * @param array $division_data The division data before deletion
+     * @param bool $is_hard_delete Whether this was a hard delete or soft delete
+     */
+    public function handleDivisionDeleted(int $division_id, array $division_data, bool $is_hard_delete): void {
+        error_log("[AutoEntityCreator] handleDivisionDeleted triggered for division ID: {$division_id}, hard_delete: " . ($is_hard_delete ? 'YES' : 'NO'));
+
+        try {
+            global $wpdb;
+
+            // Check if in demo mode
+            $is_demo_mode = defined('WP_AGENCY_DEVELOPMENT') && WP_AGENCY_DEVELOPMENT === true;
+
+            // Get all employees in this division
+            $employees = $wpdb->get_results($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}app_agency_employees WHERE division_id = %d",
+                $division_id
+            ));
+
+            if (empty($employees)) {
+                error_log("[AutoEntityCreator] No employees found for division {$division_id}");
+                return;
+            }
+
+            error_log("[AutoEntityCreator] Found " . count($employees) . " employees for division {$division_id}, mode: " . ($is_demo_mode ? 'DEMO' : 'PRODUCTION'));
+
+            if ($is_demo_mode) {
+                // DEMO MODE: HARD DELETE via Model
+                foreach ($employees as $employee) {
+                    $result = $this->employeeModel->delete($employee->id);
+                    if ($result) {
+                        error_log("[AutoEntityCreator] HARD deleted employee ID: {$employee->id}");
+                    } else {
+                        error_log("[AutoEntityCreator] Failed to delete employee ID: {$employee->id}");
+                    }
+                }
+            } else {
+                // PRODUCTION: SOFT DELETE (set status = 'inactive')
+                foreach ($employees as $employee) {
+                    $result = $wpdb->update(
+                        $wpdb->prefix . 'app_agency_employees',
+                        [
+                            'status' => 'inactive',
+                            'updated_at' => current_time('mysql')
+                        ],
+                        ['id' => $employee->id],
+                        ['%s', '%s'],
+                        ['%d']
+                    );
+
+                    if ($result !== false) {
+                        error_log("[AutoEntityCreator] SOFT deleted (set inactive) employee ID: {$employee->id}");
+                    } else {
+                        error_log("[AutoEntityCreator] Failed to deactivate employee ID: {$employee->id}");
+                    }
+                }
+            }
+
+            error_log("[AutoEntityCreator] Cascade delete completed for division {$division_id}");
+
+        } catch (\Exception $e) {
+            error_log("[AutoEntityCreator] Error in handleDivisionDeleted: " . $e->getMessage());
             error_log("[AutoEntityCreator] Stack trace: " . $e->getTraceAsString());
         }
     }

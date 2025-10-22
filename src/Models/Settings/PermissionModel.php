@@ -173,7 +173,7 @@ class PermissionModel {
                 'view_own_agency' => true,
                 'delete_agency' => false,
 
-                // Division capabilities  
+                // Division capabilities
                 'add_division' => true,
                 'view_division_list' => true,
                 'view_own_division' => true,
@@ -193,7 +193,7 @@ class PermissionModel {
                 'view_customer_branch_list' => true,
                 'view_customer_branch_detail' => true,
                 'view_customer_employee_list' => true,
-                'view_customer_employee_detail' => true,                
+                'view_customer_employee_detail' => true,
 
             ];
 
@@ -205,10 +205,63 @@ class PermissionModel {
                 }
             }
         }
+
+        // Set capabilities untuk semua agency employee roles
+        // Roles: agency_admin_dinas, agency_admin_unit, agency_pengawas, dll
+        $agency_roles = [
+            'agency_admin_dinas',
+            'agency_admin_unit',
+            'agency_pengawas',
+            'agency_pengawas_spesialis',
+            'agency_kepala_unit',
+            'agency_kepala_seksi',
+            'agency_kepala_bidang',
+            'agency_kepala_dinas'
+        ];
+
+        foreach ($agency_roles as $role_slug) {
+            $role = get_role($role_slug);
+            if ($role) {
+                // Add 'read' capability - required for wp-admin access
+                $role->add_cap('read');
+
+                // Basic view capabilities untuk semua employee roles
+                $employee_capabilities = [
+                    // Agency capabilities
+                    'view_agency_list' => true,
+                    'view_own_agency' => true,
+
+                    // Division capabilities
+                    'view_division_list' => true,
+                    'view_own_division' => true,
+
+                    // Employee capabilities
+                    'view_employee_list' => true,
+                    'view_own_employee' => true,
+
+                    // WP Customer Plugin - View Access
+                    'view_customer_list' => true,
+                    'view_customer_detail' => true,
+                    'view_customer_branch_list' => true,
+                    'view_customer_branch_detail' => true,
+                    'view_customer_employee_list' => true,
+                    'view_customer_employee_detail' => true,
+                ];
+
+                foreach ($employee_capabilities as $cap => $enabled) {
+                    if ($enabled) {
+                        $role->add_cap($cap);
+                    }
+                }
+            }
+        }
     }
 
     public function resetToDefault(): bool {
         try {
+            // Get all agency roles
+            $agency_role_slugs = \WP_Agency_Role_Manager::getRoleSlugs();
+
             // Reset all roles to default
             foreach (get_editable_roles() as $role_name => $role_info) {
                 $role = get_role($role_name);
@@ -227,9 +280,10 @@ class PermissionModel {
                     continue;
                 }
 
-                // Agency role gets its specific default capabilities
-                if ($role_name === 'agency') {
+                // Agency roles get their default capabilities
+                if (in_array($role_name, $agency_role_slugs)) {
                     $this->addCapabilities(); // Gunakan method yang sudah ada
+                    break; // Exit loop karena addCapabilities() sudah handle semua roles
                 }
             }
             return true;

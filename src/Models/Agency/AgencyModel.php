@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models
- * @version     2.1.0
+ * @version     2.1.2
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Agency/AgencyModel.php
@@ -15,6 +15,16 @@
  *              Menyediakan metode untuk DataTables server-side.
  *
  * Changelog:
+ * 2.1.2 - 2025-01-22 (Task-2067 Runtime Flow)
+ * - Deleted createDemoData() method (production code pollution)
+ * - Demo generation now uses standard create() method
+ * - Ensures hooks are properly fired during demo generation
+ *
+ * 2.1.1 - 2025-01-22 (Task-2065 Follow-up)
+ * - Fixed: Added reg_type field to create() method insert_data
+ * - Now properly saves reg_type value from controller ('self', 'by_admin', 'generate')
+ * - Prevents reg_type always defaulting to 'self' in database
+ *
  * 2.1.0 - 2025-01-22
  * - Task-2066: Added wp_agency_agency_created hook for auto entity creation
  * - Task-2066: Added wp_agency_agency_before_delete and wp_agency_agency_deleted hooks
@@ -220,6 +230,7 @@
             'user_id' => $data['user_id'],
             'provinsi_code' => $data['provinsi_code'] ?? null,
             'regency_code' => $data['regency_code'] ?? null,
+            'reg_type' => $data['reg_type'] ?? 'self',
             'created_by' => get_current_user_id(),
             'created_at' => current_time('mysql'),
             'updated_at' => current_time('mysql')
@@ -236,6 +247,7 @@
             '%d',  // user_id
             '%s',  // provinsi_code (nullable)
             '%s',  // regency_code (nullable)
+            '%s',  // reg_type
             '%d',  // created_by
             '%s',  // created_at
             '%s'   // updated_at
@@ -334,33 +346,49 @@
         error_log('User ID: ' . get_current_user_id());
         error_log('Can view_agency_list: ' . (current_user_can('view_agency_list') ? 'yes' : 'no'));
         error_log('Can view_own_agency: ' . (current_user_can('view_own_agency') ? 'yes' : 'no'));
-
-        // Base query parts
-        $select = "SELECT COUNT(DISTINCT p.id)";
-        $from = " FROM {$this->table} p";
-        $where = " WHERE 1=1";
-
-        error_log('Building WHERE clause:');
-        error_log('Initial WHERE: ' . $where);
+        error_log('Can edit_all_agencies: ' . (current_user_can('edit_all_agencies') ? 'yes' : 'no'));
 
         $current_user_id = get_current_user_id();
 
+        // Check if user is agency owner
         $has_agency = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$this->table} WHERE user_id = %d",
             $current_user_id
         ));
-        error_log('User has agency: ' . ($has_agency > 0 ? 'yes' : 'no'));
+        error_log('User has agency as owner: ' . ($has_agency > 0 ? 'yes' : 'no'));
 
-        if ($has_agency > 0 && current_user_can('view_agency_list') && current_user_can('edit_own_agency')) {
-            $where .= $wpdb->prepare(" AND p.user_id = %d", $current_user_id);
-            error_log('Added own agency restriction: ' . $where);
-        } elseif (current_user_can('view_agency_list') && current_user_can('edit_all_agencies')) {
-            error_log('User can view all agencies - no additional restrictions');
+        // Check if user is employee (active status only)
+        $is_employee = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->employee_table} WHERE user_id = %d AND status = 'active'",
+            $current_user_id
+        ));
+        error_log('User is active employee: ' . ($is_employee > 0 ? 'yes' : 'no'));
+
+        // Permission based filtering
+        if (current_user_can('edit_all_agencies')) {
+            // Admin: statistics always show active count only
+            error_log('Admin - show active only for statistics');
+            $sql = "SELECT COUNT(DISTINCT p.id) FROM {$this->table} p WHERE p.status = 'active'";
+        } elseif ($has_agency > 0 || $is_employee > 0) {
+            // User punya agency atau employee: filter by owner OR employee (active only)
+            error_log('User has agency or is employee - filtering by owner OR employee (active only)');
+            $sql = $wpdb->prepare(
+                "SELECT COUNT(DISTINCT p.id)
+                 FROM {$this->table} p
+                 LEFT JOIN {$this->employee_table} e ON p.id = e.agency_id AND e.status = 'active'
+                 WHERE (p.user_id = %d OR e.user_id = %d)
+                   AND p.status = 'active'",
+                $current_user_id,
+                $current_user_id
+            );
+        } else {
+            // User tidak punya akses
+            error_log('User has no access to agencies');
+            $sql = "SELECT 0";
         }
 
-        $sql = $select . $from . $where;
         error_log('Final Query: ' . $sql);
-        
+
         $total = (int) $wpdb->get_var($sql);
         
         // Set cache
@@ -373,11 +401,11 @@
         return $total;
     }
 
-    public function getDataTableData(int $start, int $length, string $search, string $orderColumn, string $orderDir): array {
+    public function getDataTableData(int $start, int $length, string $search, string $orderColumn, string $orderDir, string $status_filter = 'active'): array {
         global $wpdb;
 
         error_log("=== getDataTableData start ===");
-        error_log("Query params: start=$start, length=$length, search=$search");
+        error_log("Query params: start=$start, length=$length, search=$search, status_filter=$status_filter");
 
         $current_user_id = get_current_user_id();
 
@@ -395,34 +423,39 @@
         $join .= " LEFT JOIN {$wpdb->users} u ON p.user_id = u.ID";
         $where = " WHERE 1=1";
 
+        // Add status filter (soft delete aware)
+        if ($status_filter !== 'all') {
+            $where .= $wpdb->prepare(" AND p.status = %s", $status_filter);
+            error_log('Status filter applied: ' . $status_filter);
+        }
+
         error_log('Building WHERE clause:');
         error_log('Initial WHERE: ' . $where);
 
-        // Cek relasi user dengan agency
+        // Cek relasi user dengan agency (as owner)
         $has_agency = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$this->table} WHERE user_id = %d",
             $current_user_id
         ));
-        error_log('User has agency: ' . ($has_agency > 0 ? 'yes' : 'no'));
+        error_log('User has agency as owner: ' . ($has_agency > 0 ? 'yes' : 'no'));
 
-        // Cek status employee
-        $employee_agency = $wpdb->get_var($wpdb->prepare(
-            "SELECT agency_id FROM {$this->employee_table} WHERE user_id = %d",
+        // Cek status employee (active only)
+        $is_employee = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->employee_table} WHERE user_id = %d AND status = 'active'",
             $current_user_id
         ));
-        error_log('User is employee of agency: ' . ($employee_agency ? $employee_agency : 'no'));
+        error_log('User is active employee: ' . ($is_employee > 0 ? 'yes' : 'no'));
 
         // Permission based filtering
         if (current_user_can('edit_all_agencies')) {
             error_log('User can edit all agencies - no additional restrictions');
         }
-        else if ($has_agency > 0 && current_user_can('view_own_agency')) {
-            $where .= $wpdb->prepare(" AND p.user_id = %d", $current_user_id);
-            error_log('Added owner restriction: ' . $where);
-        }
-        else if ($employee_agency && current_user_can('view_own_agency')) {
-            $where .= $wpdb->prepare(" AND p.id = %d", $employee_agency);
-            error_log('Added employee restriction: ' . $where);
+        else if (($has_agency > 0 || $is_employee > 0) && current_user_can('view_own_agency')) {
+            // User punya agency ATAU employee: filter by owner OR employee
+            // Tambah LEFT JOIN ke employee table untuk filter
+            $join .= " LEFT JOIN {$this->employee_table} e ON p.id = e.agency_id AND e.user_id = {$current_user_id} AND e.status = 'active'";
+            $where .= $wpdb->prepare(" AND (p.user_id = %d OR e.user_id IS NOT NULL)", $current_user_id);
+            error_log('Added owner OR employee restriction');
         }
         else {
             $where .= " AND 1=0";
@@ -616,14 +649,42 @@
         }
 
         global $wpdb;
+        // Only count active divisions (soft delete aware)
         $count = (int) $wpdb->get_var($wpdb->prepare("
             SELECT COUNT(*)
             FROM {$this->division_table}
-            WHERE agency_id = %d
+            WHERE agency_id = %d AND status = 'active'
         ", $id));
 
         // Cache for 2 minutes
         $this->cache->set('division_count', $count, 120, $id);
+
+        return $count;
+    }
+
+    /**
+     * Get total employee count for agency (only active employees)
+     *
+     * @param int $id Agency ID
+     * @return int Total number of active employees in the agency
+     */
+    public function getEmployeeCount(int $id): int {
+        // Check cache first
+        $cached_count = $this->cache->get('agency_active_employee_count', $id);
+        if ($cached_count !== null) {
+            return (int) $cached_count;
+        }
+
+        global $wpdb;
+        // Only count active employees (soft delete aware)
+        $count = (int) $wpdb->get_var($wpdb->prepare("
+            SELECT COUNT(*)
+            FROM {$this->employee_table}
+            WHERE agency_id = %d AND status = 'active'
+        ", $id));
+
+        // Cache for 2 minutes
+        $this->cache->set('agency_active_employee_count', $count, 120, $id);
 
         return $count;
     }
@@ -744,64 +805,6 @@
         );
     }
 
-    public function createDemoData(array $data): bool {
-        global $wpdb;
-        
-        // Start transaction
-        $wpdb->query('START TRANSACTION');
-        
-        try {
-            // Disable foreign key checks temporarily
-            $wpdb->query('SET FOREIGN_KEY_CHECKS = 0');
-            
-            // First, delete any existing records with the same name-region combination
-            $wpdb->query($wpdb->prepare(
-                "DELETE FROM {$this->table}
-                 WHERE name = %s AND provinsi_code = %s AND regency_code = %s",
-                $data['name'],
-                $data['provinsi_code'],
-                $data['regency_code']
-            ));
-            
-            // Then delete any existing record with the same ID
-            $wpdb->delete($this->table, ['id' => $data['id']], ['%d']);
-            
-            // Now insert the new record
-            $result = $wpdb->insert(
-                $this->table,
-                $data,
-                $this->getFormatArray($data)
-            );
-
-            if ($result === false) {
-                throw new \Exception($wpdb->last_error);
-            }
-
-            // Verify insertion
-            $inserted = $this->find($data['id']);
-            if (!$inserted) {
-                throw new \Exception("Failed to verify inserted data");
-            }
-
-            // Re-enable foreign key checks
-            $wpdb->query('SET FOREIGN_KEY_CHECKS = 1');
-            
-            // Commit transaction
-            $wpdb->query('COMMIT');
-            
-            return true;
-
-        } catch (\Exception $e) {
-            // Rollback on error
-            $wpdb->query('ROLLBACK');
-            error_log("Error in createDemoData: " . $e->getMessage());
-            throw $e;
-        } finally {
-            // Make sure foreign key checks are re-enabled
-            $wpdb->query('SET FOREIGN_KEY_CHECKS = 1');
-        }
-    }
-    
     private function getFormatArray(array $data): array {
         $formats = [];
         foreach ($data as $value) {

@@ -135,6 +135,7 @@ class WPAgency {
         $auto_entity_creator = new \WPAgency\Handlers\AutoEntityCreator();
         add_action('wp_agency_agency_created', [$auto_entity_creator, 'handleAgencyCreated'], 10, 2);
         add_action('wp_agency_division_created', [$auto_entity_creator, 'handleDivisionCreated'], 10, 2);
+        add_action('wp_agency_division_deleted', [$auto_entity_creator, 'handleDivisionDeleted'], 10, 3);
 
         // NEW: Simplified WP App Core integration (v2.0)
         // wp-app-core handles ALL WordPress queries (user, role, permission)

@@ -297,10 +297,36 @@ class DivisionModel {
 
         if ($result === false) {
             error_log('Update division error: ' . $wpdb->last_error);
-            $this->cache->delete(self::KEY_DIVISION, $id);
-            $this->cache->delete(self::KEY_DIVISION_LIST);          
             return false;
         }
+
+        // Invalidate all related caches
+        $this->cache->delete(self::KEY_DIVISION, $id);
+        $this->cache->delete(self::KEY_DIVISION_LIST);
+        $this->cache->delete('division_total_count_unrestricted');
+
+        // Invalidate per-user count caches for all affected users
+        // Get all users who are owners or employees of this division's agency
+        $division = $this->find($id);
+        if ($division && $division->agency_id) {
+            $affected_users = $wpdb->get_col($wpdb->prepare(
+                "SELECT DISTINCT user_id FROM (
+                    SELECT user_id FROM {$this->agency_table} WHERE id = %d
+                    UNION
+                    SELECT user_id FROM {$wpdb->prefix}app_agency_employees WHERE agency_id = %d AND status = 'active'
+                ) AS users",
+                $division->agency_id,
+                $division->agency_id
+            ));
+
+            foreach ($affected_users as $user_id) {
+                $this->cache->delete('division_total_count_' . $user_id);
+                $this->cache->delete('agency_stats_' . $user_id);
+            }
+        }
+
+        // Also invalidate admin stats
+        $this->cache->delete('agency_stats_0');
 
         return true;
     }
@@ -379,7 +405,25 @@ class DivisionModel {
             // Invalidate unrestricted count cache
             $this->cache->delete('division_total_count_unrestricted');
 
-            // Invalidate dashboard stats cache
+            // Invalidate per-user count caches for all affected users
+            if ($division_data['agency_id']) {
+                $affected_users = $wpdb->get_col($wpdb->prepare(
+                    "SELECT DISTINCT user_id FROM (
+                        SELECT user_id FROM {$this->agency_table} WHERE id = %d
+                        UNION
+                        SELECT user_id FROM {$wpdb->prefix}app_agency_employees WHERE agency_id = %d AND status = 'active'
+                    ) AS users",
+                    $division_data['agency_id'],
+                    $division_data['agency_id']
+                ));
+
+                foreach ($affected_users as $user_id) {
+                    $this->cache->delete('division_total_count_' . $user_id);
+                    $this->cache->delete('agency_stats_' . $user_id);
+                }
+            }
+
+            // Also invalidate admin stats
             $this->cache->delete('agency_stats_0');
 
             error_log("[DivisionModel] Division {$id} deleted successfully (hard_delete: " .
@@ -426,7 +470,7 @@ class DivisionModel {
         return $exists;
     }
 
-    public function getDataTableData(int $agency_id, int $start, int $length, string $search, string $orderColumn, string $orderDir): array {
+    public function getDataTableData(int $agency_id, int $start, int $length, string $search, string $orderColumn, string $orderDir, string $status_filter = 'active'): array {
         global $wpdb;
 
         // Base query parts
@@ -438,6 +482,12 @@ class DivisionModel {
         $where = " WHERE r.agency_id = %d";
         $params = [$agency_id];
 
+        // Add status filter
+        if ($status_filter !== 'all') {
+            $where .= " AND r.status = %s";
+            $params[] = $status_filter;
+        }
+
         // Add search if provided
         if (!empty($search)) {
             $where .= " AND (r.name LIKE %s OR r.code LIKE %s OR wr.name LIKE %s)";
@@ -447,7 +497,7 @@ class DivisionModel {
         }
 
         // Validate order column
-        $validColumns = ['code', 'name', 'type', 'jurisdictions'];
+        $validColumns = ['code', 'name', 'type', 'status', 'jurisdictions'];
         if (!in_array($orderColumn, $validColumns)) {
             $orderColumn = 'code';
         }
@@ -475,10 +525,17 @@ class DivisionModel {
         // Get total filtered count
         $filtered = $wpdb->get_var("SELECT FOUND_ROWS()");
 
-        // Get total count for agency
+        // Get total count for agency (with status filter applied)
+        $total_where = "WHERE agency_id = %d";
+        $total_params = [$agency_id];
+        if ($status_filter !== 'all') {
+            $total_where .= " AND status = %s";
+            $total_params[] = $status_filter;
+        }
+
         $total = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE agency_id = %d",
-            $agency_id
+            "SELECT COUNT(*) FROM {$this->table} {$total_where}",
+            $total_params
         ));
 
         return [
@@ -492,14 +549,17 @@ class DivisionModel {
      * Get total division count based on user permission
      * Only users with 'view_division_list' capability can see all divisions
      *
-     * @param int|null $id Optional agency ID for filtering
+     * @param int|null $agency_id Optional agency ID for filtering
      * @return int Total number of divisions
      */
-    public function getTotalCount($agency_id): int {
+    public function getTotalCount(?int $agency_id = null): int {
         global $wpdb;
 
         $current_user_id = get_current_user_id();
-        $cache_key = 'division_total_count_' . $agency_id . '_' . $current_user_id;
+        $cache_key = 'division_total_count_' . $current_user_id;
+        if ($agency_id) {
+            $cache_key .= '_' . $agency_id;
+        }
 
         // Cek cache terlebih dahulu
         $cached_count = $this->cache->get($cache_key);
@@ -507,39 +567,42 @@ class DivisionModel {
             return (int) $cached_count;
         }
 
-        // Base query parts
-        $select = "SELECT SQL_CALC_FOUND_ROWS r.*, p.name as agency_name";
-        $from = " FROM {$this->table} r";
-        $join = " LEFT JOIN {$this->agency_table} p ON r.agency_id = p.id";
+        $employee_table = $wpdb->prefix . 'app_agency_employees';
 
-        // Default where clause
-        $where = " WHERE 1=1";
-        $params = [];
-
-        // Cek relasi User ID wordpress dengan agency User ID
+        // Check if user is agency owner
         $has_agency = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$this->agency_table} WHERE user_id = %d",
             $current_user_id
         ));
 
-        if ($has_agency > 0 && current_user_can('view_own_agency') && current_user_can('view_own_division')) {
-            $where .= " AND p.user_id = %d";
-            $params[] = get_current_user_id();
+        // Check if user is employee (active status only)
+        $is_employee = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$employee_table} WHERE user_id = %d AND status = 'active'",
+            $current_user_id
+        ));
+
+        // Permission based filtering
+        if (current_user_can('edit_all_agencies') || current_user_can('edit_all_divisions')) {
+            // Admin: statistics always show active count only
+            $sql = "SELECT COUNT(DISTINCT r.id) FROM {$this->table} r WHERE r.status = 'active'";
+            $total = (int) $wpdb->get_var($sql);
+        } elseif ($has_agency > 0 || $is_employee > 0) {
+            // User owns agency OR is employee: count divisions from their agencies (active only)
+            $sql = $wpdb->prepare(
+                "SELECT COUNT(DISTINCT r.id)
+                 FROM {$this->table} r
+                 INNER JOIN {$this->agency_table} p ON r.agency_id = p.id
+                 LEFT JOIN {$employee_table} e ON p.id = e.agency_id AND e.status = 'active'
+                 WHERE (p.user_id = %d OR e.user_id = %d)
+                   AND p.status = 'active'
+                   AND r.status = 'active'",
+                $current_user_id,
+                $current_user_id
+            );
+            $total = (int) $wpdb->get_var($sql);
+        } else {
+            $total = 0;
         }
-
-        if (current_user_can('edit_all_agency') && current_user_can('edit_all_division')) {
-            // Admin bisa melihat semua
-        }
-
-        // Complete query
-        $query = $select . $from . $join . $where;
-        $final_query = !empty($params) ? $wpdb->prepare($query, $params) : $query;
-
-        // Execute query
-        $wpdb->get_results($final_query);
-
-        // Get total
-        $total = (int) $wpdb->get_var("SELECT FOUND_ROWS()");
 
         // Simpan ke cache - 10 menit
         $this->cache->set($cache_key, $total, 10 * MINUTE_IN_SECONDS);

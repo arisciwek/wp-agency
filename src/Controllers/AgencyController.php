@@ -4,7 +4,7 @@
 *
 * @package     WP_Agency
 * @subpackage  Controllers
-* @version     1.0.0
+* @version     1.0.3
 * @author      arisciwek
 *
 * Path: /wp-agency/src/Controllers/AgencyController.php
@@ -16,12 +16,23 @@
 *              Menyediakan endpoints untuk DataTables server-side.
 *
 * Changelog:
+* 1.0.3 - 2025-01-22 (Task-2067 Runtime Flow)
+* - Deleted createDemoAgency() method (production code pollution)
+* - Demo generation now uses production code flow
+* - Zero demo-specific code in production namespace
+*
+* 1.0.2 - 2025-01-22 (Task-2065 Follow-up)
+* - Added user creation in store() method
+* - Admin can now input username and email when creating agency
+* - Auto-assigns dual roles: 'agency' + 'agency_admin_dinas'
+* - Sends email notification to new user
+* - Consistent with wp-customer pattern
+*
 * 1.0.1 - 2024-12-08
 * - Added view_own_agency permission check in show method
 * - Enhanced permission validation
 * - Improved error handling for permission checks
 *
-* Changelog:
 * 1.0.0 - 2024-12-03 14:30:00
 * - Refactor CRUD responses untuk panel kanan
 * - Added cache integration di semua endpoints
@@ -493,14 +504,14 @@ public function createPdfButton() {
         error_log($log_message, 3, $this->log_file);
     }
 
-    private function getAgencyTableData($start = 0, $length = 10, $search = '', $orderColumn = 'code', $orderDir = 'asc') {
+    private function getAgencyTableData($start = 0, $length = 10, $search = '', $orderColumn = 'code', $orderDir = 'asc', $status_filter = 'active') {
         try {
 
             // Validasi permission yang sudah bekerja di handleDataTableRequest()
             $hasPermission = current_user_can('view_agency_list');
 
             // Dapatkan role/capability user saat ini
-            $access = $this->validator->validateAccess(0); 
+            $access = $this->validator->validateAccess(0);
 
             $this->logPermissionCheck(
                 'view_agency_list',
@@ -513,11 +524,11 @@ public function createPdfButton() {
                 return null;
             }
 
-            // Get data using model
-            $result = $this->model->getDataTableData($start, $length, $search, $orderColumn, $orderDir);
-            
+            // Get data using model with status filter
+            $result = $this->model->getDataTableData($start, $length, $search, $orderColumn, $orderDir, $status_filter);
+
             return $result;
-            
+
         } catch (\Exception $e) {
             $this->debug_log('Error getting agency table data: ' . $e->getMessage());
             return null;
@@ -537,16 +548,22 @@ public function createPdfButton() {
             $start = isset($_POST['start']) ? intval($_POST['start']) : 0;
             $length = isset($_POST['length']) ? intval($_POST['length']) : 10;
             $search = isset($_POST['search']['value']) ? sanitize_text_field($_POST['search']['value']) : '';
-            
+            $status_filter = isset($_POST['status_filter']) ? sanitize_text_field($_POST['status_filter']) : 'active';
+
+            // Force active filter if user doesn't have delete_agency permission
+            if (!current_user_can('delete_agency')) {
+                $status_filter = 'active';
+            }
+
             // Get order parameters
-            $orderColumn = isset($_POST['order'][0]['column']) && isset($_POST['columns'][$_POST['order'][0]['column']]['data']) 
+            $orderColumn = isset($_POST['order'][0]['column']) && isset($_POST['columns'][$_POST['order'][0]['column']]['data'])
                 ? sanitize_text_field($_POST['columns'][$_POST['order'][0]['column']]['data'])
                 : 'name';
             $orderDir = isset($_POST['order'][0]['dir']) ? sanitize_text_field($_POST['order'][0]['dir']) : 'asc';
 
             // Additional parameters if needed
-            $additionalParams = [];
-            
+            $additionalParams = ['status_filter' => $status_filter];
+
             // If filtering by specific parameters
             if (isset($_POST['status'])) {
                 $additionalParams['status'] = sanitize_text_field($_POST['status']);
@@ -576,7 +593,7 @@ public function createPdfButton() {
             }
 
             // Get fresh data if no cache
-            $result = $this->getAgencyTableData($start, $length, $search, $orderColumn, $orderDir);
+            $result = $this->getAgencyTableData($start, $length, $search, $orderColumn, $orderDir, $status_filter);
             if (!$result) {
                 throw new \Exception('Failed to fetch agency data');
             }
@@ -682,15 +699,61 @@ public function createPdfButton() {
                 return;
             }
 
+            // Handle user creation if username and email provided
+            $user_id = null;
+            if (!empty($_POST['username']) && !empty($_POST['email'])) {
+                // Validate username and email
+                $username = sanitize_user($_POST['username']);
+                $email = sanitize_email($_POST['email']);
+
+                if (username_exists($username)) {
+                    wp_send_json_error(['message' => __('Username sudah digunakan', 'wp-agency')]);
+                    return;
+                }
+
+                if (email_exists($email)) {
+                    wp_send_json_error(['message' => __('Email sudah terdaftar', 'wp-agency')]);
+                    return;
+                }
+
+                // Create new user
+                $user_data = [
+                    'user_login' => $username,
+                    'user_email' => $email,
+                    'user_pass' => wp_generate_password(),
+                    'role' => 'agency'
+                ];
+
+                $user_id = wp_insert_user($user_data);
+
+                if (is_wp_error($user_id)) {
+                    wp_send_json_error(['message' => $user_id->get_error_message()]);
+                    return;
+                }
+
+                // Add agency_admin_dinas role (dual-role pattern)
+                $user = get_user_by('ID', $user_id);
+                if ($user) {
+                    $user->add_role('agency_admin_dinas');
+                }
+
+                // Send notification to new user
+                wp_new_user_notification($user_id, null, 'user');
+            } else {
+                // Use existing user_id or current user
+                $user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : get_current_user_id();
+            }
+
             $data = [
                 'name' => sanitize_text_field($_POST['name']),
                 'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
                 'provinsi_code' => isset($_POST['provinsi_code']) ? sanitize_text_field($_POST['provinsi_code']) : null,
                 'regency_code' => isset($_POST['regency_code']) ? sanitize_text_field($_POST['regency_code']) : null,
-                'user_id' => isset($_POST['user_id']) ? (int)$_POST['user_id'] : get_current_user_id(),
+                'user_id' => $user_id,
+                'reg_type' => 'by_admin', // Mark as admin creation
                 'created_by' => get_current_user_id()
             ];
-        
+
             error_log('Received data: ' . print_r($data, true));
 
             $form_errors = $this->validator->validateForm($data);
@@ -937,37 +1000,6 @@ public function createPdfButton() {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
     }
-    
-    /**
-     * Khusus untuk membuat demo data agency
-     * Mendukung ID yang fixed dan override existing data
-     */
-    public function createDemoAgency(array $data): bool {
-        try {
-            // Debug log input
-            $this->debug_log('Creating demo agency with data: ' . print_r($data, true));
-
-            // Create via model
-            $created = $this->model->createDemoData($data);
-            
-            if (!$created) {
-                throw new \Exception('Failed to create demo agency');
-            }
-
-            $access = $this->validator->validateAccess(0); 
-
-            // Clear relevant caches
-            $this->cache->invalidateAgencyCache($data['id']);
-            $this->cache->delete('agency_total_count', $access['access_type']);
-            $this->cache->invalidateDataTableCache('agency_list');
-
-            return true;
-
-        } catch (\Exception $e) {
-            $this->debug_log('Error creating demo agency: ' . $e->getMessage());
-            throw $e;
-        }
-    }    
 
     public function getStats() {
         try {
@@ -977,10 +1009,11 @@ public function createPdfButton() {
             $agency_id = isset($_POST['id']) ? intval($_POST['id']) : 0;
             $current_user_id = get_current_user_id();
 
-            // For global stats (agency_id = 0), use cache key without user_id since permissions don't affect global counts
-            $cache_key = 'agency_stats_' . $agency_id;
+            // Stats should be filtered by user permissions
+            // Use user_id in cache key for per-user stats
+            $cache_key = 'agency_stats_' . $current_user_id;
             if ($agency_id > 0) {
-                $cache_key .= '_' . $current_user_id;
+                $cache_key .= '_agency_' . $agency_id;
             }
 
             // Check cache first
@@ -998,10 +1031,11 @@ public function createPdfButton() {
                 }
             }
 
+        // Get counts filtered by user permissions
         $stats = [
-            'total_agencies' => $this->model->getTotalCountUnrestricted(),
-            'total_divisions' => $this->divisionModel->getTotalCountUnrestricted(),
-            'total_employees' => $this->employeeModel->getTotalCount($agency_id)
+            'total_agencies' => $this->model->getTotalCount(),  // ✅ RESTRICTED by user
+            'total_divisions' => $this->divisionModel->getTotalCount(),  // ✅ RESTRICTED by user
+            'total_employees' => $this->employeeModel->getTotalCount($agency_id)  // Already restricted
         ];
 
             // Cache for 5 minutes

@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Employee
- * @version     1.1.0
+ * @version     1.2.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Employee/AgencyEmployeeModel.php
@@ -15,6 +15,11 @@
  *              Menyediakan metode untuk DataTables server-side.
  *
  * Changelog:
+ * 1.2.0 - 2025-10-22
+ * - Removed fields: finance, operation, legal, purchase from create() method
+ * - Fields removed from database schema, no longer needed
+ * - Updated insert format string to match remaining fields
+ *
  * 1.1.0 - 2025-01-22
  * - Task-2066: Added findByUserAndDivision() method for auto entity creation
  * - Method checks if employee already exists for user in division
@@ -58,10 +63,6 @@ class AgencyEmployeeModel {
                 'user_id' => $data['user_id'] ?? get_current_user_id(),
                 'name' => $data['name'],
                 'position' => $data['position'],
-                'finance' => $data['finance'],
-                'operation' => $data['operation'],
-                'legal' => $data['legal'],
-                'purchase' => $data['purchase'],
                 'keterangan' => $data['keterangan'],
                 'email' => $data['email'],
                 'phone' => $data['phone'],
@@ -71,7 +72,7 @@ class AgencyEmployeeModel {
                 'status' => $data['status'] ?? 'active'
             ],
             [
-                '%d', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s'
+                '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s'
             ]
         );
 
@@ -231,6 +232,25 @@ class AgencyEmployeeModel {
             'agency_id' => $agency_id
         ]);
 
+        // Invalidate per-user count caches for all affected users
+        $affected_users = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT user_id FROM (
+                SELECT user_id FROM {$this->agency_table} WHERE id = %d
+                UNION
+                SELECT user_id FROM {$this->table} WHERE agency_id = %d AND status = 'active'
+            ) AS users",
+            $agency_id,
+            $agency_id
+        ));
+
+        foreach ($affected_users as $user_id) {
+            $this->cache->delete('employee_total_count_' . $user_id);
+            $this->cache->delete('agency_stats_' . $user_id);
+        }
+
+        // Also invalidate admin stats
+        $this->cache->delete('agency_stats_0');
+
         return true;
     }
 
@@ -268,6 +288,25 @@ class AgencyEmployeeModel {
         $this->cache->invalidateDataTableCache('agency_employee_list', [
             'agency_id' => $agency_id
         ]);
+
+        // Invalidate per-user count caches for all affected users
+        $affected_users = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT user_id FROM (
+                SELECT user_id FROM {$this->agency_table} WHERE id = %d
+                UNION
+                SELECT user_id FROM {$this->table} WHERE agency_id = %d AND status = 'active'
+            ) AS users",
+            $agency_id,
+            $agency_id
+        ));
+
+        foreach ($affected_users as $user_id) {
+            $this->cache->delete('employee_total_count_' . $user_id);
+            $this->cache->delete('agency_stats_' . $user_id);
+        }
+
+        // Also invalidate admin stats
+        $this->cache->delete('agency_stats_0');
 
         return true;
     }
@@ -307,7 +346,7 @@ class AgencyEmployeeModel {
         return $exists;
     }
 
-    public function getDataTableData(int $agency_id, int $start, int $length, string $search, string $orderColumn, string $orderDir): array {
+    public function getDataTableData(int $agency_id, int $start, int $length, string $search, string $orderColumn, string $orderDir, string $status_filter = 'active'): array {
         global $wpdb;
 
         error_log('=== Start Debug Employee DataTable Query ===');
@@ -317,9 +356,10 @@ class AgencyEmployeeModel {
         error_log('Search: ' . $search);
         error_log('Order Column: ' . $orderColumn);
         error_log('Order Direction: ' . $orderDir);
+        error_log('Status Filter: ' . $status_filter);
 
         // Base query parts
-        $select = "SELECT SQL_CALC_FOUND_ROWS e.*, 
+        $select = "SELECT SQL_CALC_FOUND_ROWS e.*,
                          b.name as division_name,
                          u.display_name as created_by_name";
         $from = " FROM {$this->table} e";
@@ -327,6 +367,12 @@ class AgencyEmployeeModel {
                   LEFT JOIN {$wpdb->users} u ON e.created_by = u.ID";
         $where = " WHERE e.agency_id = %d";
         $params = [$agency_id];
+
+        // Add status filter
+        if ($status_filter !== 'all') {
+            $where .= " AND e.status = %s";
+            $params[] = $status_filter;
+        }
 
         error_log('Initial Query Parts:');
         error_log('Select: ' . $select);
@@ -401,13 +447,20 @@ class AgencyEmployeeModel {
         $filtered = $wpdb->get_var("SELECT FOUND_ROWS()");
         error_log('Filtered Count: ' . $filtered);
 
-        // Get total count for agency
+        // Get total count for agency with status filter
+        $total_where = "WHERE agency_id = %d";
+        $total_params = [$agency_id];
+        if ($status_filter !== 'all') {
+            $total_where .= " AND status = %s";
+            $total_params[] = $status_filter;
+        }
+
         $total_query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE agency_id = %d",
-            $agency_id
+            "SELECT COUNT(*) FROM {$this->table} {$total_where}",
+            $total_params
         );
         error_log('Total Count Query: ' . $total_query);
-        
+
         $total = $wpdb->get_var($total_query);
         error_log('Total Count: ' . $total);
 
@@ -421,41 +474,64 @@ class AgencyEmployeeModel {
     }
     
     /**
-     * Get total employee count for a specific agency
+     * Get total employee count based on user permission
+     * Filters by owner OR employee relation to agencies
      */
     public function getTotalCount(?int $agency_id = null): int {
         global $wpdb;
 
-        // Generate cache key
-        $cache_key = 'agency_employee_count';
+        $current_user_id = get_current_user_id();
+
+        // Generate cache key with user_id for permission-based caching
+        $cache_key = 'employee_total_count_' . $current_user_id;
         if ($agency_id) {
             $cache_key .= '_' . $agency_id;
         }
-        
+
         // Cek cache dulu
         $cached_count = $this->cache->get($cache_key);
         if ($cached_count !== null) {
             return (int)$cached_count;
         }
 
-        // Query database
-        $sql = "SELECT COUNT(*) FROM {$this->table}";
-        $params = [];
+        // Check if user is agency owner
+        $has_agency = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->agency_table} WHERE user_id = %d",
+            $current_user_id
+        ));
 
-        if ($agency_id) {
-            $sql .= " WHERE agency_id = %d";
-            $params[] = $agency_id;
+        // Check if user is employee (active status only)
+        $is_employee = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->table} WHERE user_id = %d AND status = 'active'",
+            $current_user_id
+        ));
+
+        // Permission based filtering
+        if (current_user_can('edit_all_agencies') || current_user_can('edit_all_employees')) {
+            // Admin: statistics always show active count only
+            $sql = "SELECT COUNT(DISTINCT e.id) FROM {$this->table} e WHERE e.status = 'active'";
+            $count = (int) $wpdb->get_var($sql);
+        } elseif ($has_agency > 0 || $is_employee > 0) {
+            // User owns agency OR is employee: count employees from their agencies (active only)
+            $sql = $wpdb->prepare(
+                "SELECT COUNT(DISTINCT e.id)
+                 FROM {$this->table} e
+                 INNER JOIN {$this->agency_table} a ON e.agency_id = a.id
+                 LEFT JOIN {$this->table} emp ON a.id = emp.agency_id AND emp.status = 'active'
+                 WHERE (a.user_id = %d OR emp.user_id = %d)
+                   AND a.status = 'active'
+                   AND e.status = 'active'",
+                $current_user_id,
+                $current_user_id
+            );
+            $count = (int) $wpdb->get_var($sql);
+        } else {
+            $count = 0;
         }
 
-        if (!empty($params)) {
-            $sql = $wpdb->prepare($sql, $params);
-        }
-
-        $count = (int) $wpdb->get_var($sql);
-        
         // Simpan ke cache
-        $this->cache->set($cache_key, $count, 30 * MINUTE_IN_SECONDS);
-        
+        $this->cache->set($cache_key, $count, 10 * MINUTE_IN_SECONDS);
+
         return $count;
     }
 
@@ -534,6 +610,25 @@ class AgencyEmployeeModel {
         $this->cache->invalidateDataTableCache('agency_employee_list', [
             'agency_id' => $agency_id
         ]);
+
+        // Invalidate per-user count caches for all affected users
+        $affected_users = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT user_id FROM (
+                SELECT user_id FROM {$this->agency_table} WHERE id = %d
+                UNION
+                SELECT user_id FROM {$this->table} WHERE agency_id = %d AND status = 'active'
+            ) AS users",
+            $agency_id,
+            $agency_id
+        ));
+
+        foreach ($affected_users as $user_id) {
+            $this->cache->delete('employee_total_count_' . $user_id);
+            $this->cache->delete('agency_stats_' . $user_id);
+        }
+
+        // Also invalidate admin stats
+        $this->cache->delete('agency_stats_0');
 
         return true;
     }

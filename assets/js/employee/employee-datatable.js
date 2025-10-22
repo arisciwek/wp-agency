@@ -33,6 +33,7 @@
         initialized: false,
         currentHighlight: null,
         agencyId: null,
+        statusFilter: 'active',
         isLoading: false,
         $container: null,
         $tableContainer: null,
@@ -61,6 +62,12 @@
                 .off('employee:created.datatable employee:updated.datatable employee:deleted.datatable employee:status_changed.datatable')
                 .on('employee:created.datatable employee:updated.datatable employee:deleted.datatable employee:status_changed.datatable',
                     () => this.refresh());
+
+            // Status filter change handler
+            $('#employee-status-filter').off('change').on('change', (e) => {
+                this.statusFilter = $(e.target).val();
+                this.refresh();
+            });
 
             // Reload button handler
             this.$errorState.find('.reload-table').off('click').on('click', () => {
@@ -195,6 +202,7 @@
                             ...d,
                             action: 'handle_employee_datatable',
                             agency_id: self.agencyId,
+                            status_filter: self.statusFilter,
                             nonce: wpAgencyData.nonce
                         };
                     },

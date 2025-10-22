@@ -35,6 +35,7 @@
          table: null,
          initialized: false,
          currentHighlight: null,
+         statusFilter: 'active',
 
          init() {
              if (this.initialized) {
@@ -84,6 +85,7 @@
                         return {
                             ...d,
                             action: 'handle_agency_datatable',
+                            status_filter: this.statusFilter,
                             nonce: wpAgencyData.nonce
                         };
                     },
@@ -164,6 +166,12 @@
              // Hash change event
              $(window).off('hashchange.agencyTable')
                      .on('hashchange.agencyTable', () => this.handleHashChange());
+
+             // Status filter change handler
+             $('#agency-status-filter').off('change').on('change', (e) => {
+                 this.statusFilter = $(e.target).val();
+                 this.refresh();
+             });
 
              // CRUD event listeners
              $(document).off('agency:created.datatable agency:updated.datatable agency:deleted.datatable agency:created agency:updated agency:deleted')

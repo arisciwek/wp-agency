@@ -38,6 +38,44 @@
     align-items: center;
 }
 
+.division-header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.division-header-title h3 {
+    margin: 0;
+}
+
+.division-header-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.division-header-filter label {
+    margin: 0;
+    font-weight: 500;
+    color: #50575e;
+    font-size: 14px;
+}
+
+.division-header-filter select {
+    padding: 6px 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 140px;
+    background-color: #fff;
+}
+
+.division-header-filter select:focus {
+    border-color: #2271b1;
+    outline: none;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
 .division-header-actions {
     display: flex;
     gap: 10px;
@@ -782,5 +820,37 @@ div#division-table_filter input {
 .jurisdiction-checkbox em {
     color: #666;
     font-style: italic;
+}
+
+/* ==========================================================================
+   Status Filter & Badges
+   ========================================================================== */
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.status-badge.status-active {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-badge.status-inactive {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Adjust column widths for status column */
+.column-status {
+    text-align: center;
 }
 

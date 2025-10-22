@@ -122,7 +122,13 @@ class AgencyEmployeeController {
             $length = isset($_POST['length']) ? intval($_POST['length']) : 10;
             $search = isset($_POST['search']['value']) ? sanitize_text_field($_POST['search']['value']) : '';
             $agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
-            
+            $status_filter = isset($_POST['status_filter']) ? sanitize_text_field($_POST['status_filter']) : 'active';
+
+            // Force active filter if user doesn't have delete_employee permission
+            if (!current_user_can('delete_employee')) {
+                $status_filter = 'active';
+            }
+
             if (!$agency_id) {
                 throw new \Exception('Agency ID is required');
             }
@@ -141,7 +147,7 @@ class AgencyEmployeeController {
                 $search,
                 $orderColumn,
                 $orderDir,
-                ['agency_id' => $agency_id]
+                ['agency_id' => $agency_id, 'status_filter' => $status_filter]
             );
 
             if ($cached_result !== null) {
@@ -156,7 +162,8 @@ class AgencyEmployeeController {
                 $length,
                 $search,
                 $orderColumn,
-                $orderDir
+                $orderDir,
+                $status_filter
             );
 
             if (!$result) {
@@ -205,7 +212,7 @@ class AgencyEmployeeController {
                 $orderColumn,
                 $orderDir,
                 $response,
-                ['agency_id' => $agency_id]
+                ['agency_id' => $agency_id, 'status_filter' => $status_filter]
             );
 
             wp_send_json($response);

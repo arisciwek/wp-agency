@@ -87,6 +87,46 @@
     min-height: 50px;
 }
 
+/* Agency Header Filter Layout */
+.wi-panel-header .agency-header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.wi-panel-header .agency-header-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wi-panel-header .agency-header-filter label {
+    font-weight: 600;
+    color: #1d2327;
+    margin: 0;
+    font-size: 14px;
+}
+
+.wi-panel-header .agency-header-filter select {
+    padding: 6px 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 140px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.wi-panel-header .agency-header-filter select:hover {
+    border-color: #2271b1;
+}
+
+.wi-panel-header .agency-header-filter select:focus {
+    border-color: #2271b1;
+    outline: 1px solid #2271b1;
+    outline-offset: -1px;
+}
+
 .wp-agency-close-panel {
     background: none;
     border: none;

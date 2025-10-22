@@ -33,18 +33,18 @@ class MenuManager {
     }
 
     public function registerMenus() {
-        // Menu WP Agency
+        // Menu WP Agency - menggunakan view_agency_list agar role agency bisa akses
         add_menu_page(
             __('WP Agency', 'wp-agency'),
             __('WP Agency', 'wp-agency'),
-            'manage_options',
+            'view_agency_list',
             'wp-agency',
             [$this->agency_controller, 'renderMainPage'],
             'dashicons-businessperson',
             30
         );
 
-        // Submenu Settings
+        // Submenu Settings - tetap menggunakan manage_options untuk admin only
         add_submenu_page(
             'wp-agency',
             __('Pengaturan', 'wp-agency'),

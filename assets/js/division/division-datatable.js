@@ -36,6 +36,7 @@
          initialized: false,
          currentHighlight: null,
          agencyId: null,
+         statusFilter: 'active', // Default filter: active only
          $container: null,
          $tableContainer: null,
          $loadingState: null,
@@ -52,6 +53,7 @@
 
              // Always reinitialize when called to ensure fresh data
              this.agencyId = agencyId;
+             this.statusFilter = 'active'; // Reset to active on init
              this.showLoading();
              this.initDataTable();
              this.bindEvents();
@@ -68,6 +70,12 @@
              this.$errorState.find('.reload-table').off('click').on('click', () => {
                  this.refresh();
              });
+
+            // Status filter change handler
+            $('#division-status-filter').off('change').on('change', (e) => {
+                this.statusFilter = $(e.target).val();
+                this.refresh();
+            });
 
             // Event delegation for action buttons
             $('#division-table')
@@ -86,7 +94,7 @@
                         window.EditDivisionForm.loadDivisionData(id);
                     }
                 });
-                
+
          },
 
          async handleDelete(id) {
@@ -145,6 +153,7 @@
                         <th>Nama</th>
                         <th>Admin</th>
                         <th>Tipe</th>
+                        <th>Status</th>
                         <th>Yuridiksi</th>
                         <th>Aksi</th>
                     </tr>
@@ -165,6 +174,7 @@
                             ...d,
                             action: 'handle_division_datatable',
                             agency_id: this.agencyId,
+                            status_filter: this.statusFilter,
                             nonce: wpAgencyData.nonce
                         };
                     },
@@ -184,18 +194,30 @@
 
                 columns: [
                     { data: 'code', width: '10%', className: 'column-code' },
-                    { data: 'name', width: '25%', className: 'column-name' },
+                    { data: 'name', width: '20%', className: 'column-name' },
                     {
                         data: 'admin_name',
-                        width: '15%',
+                        width: '12%',
                         className: 'column-admin',
                         render: (data) => data || '-'
                     },
                     {
                         data: 'type',
-                        width: '10%',
+                        width: '8%',
                         className: 'column-type',
                         render: (data) => data === 'pusat' ? 'Pusat' : 'Cabang'
+                    },
+                    {
+                        data: 'status',
+                        width: '10%',
+                        className: 'column-status',
+                        render: (data) => {
+                            if (data === 'active') {
+                                return '<span class="status-badge status-active">Aktif</span>';
+                            } else {
+                                return '<span class="status-badge status-inactive">Tidak Aktif</span>';
+                            }
+                        }
                     },
                     {
                         data: 'jurisdictions',
