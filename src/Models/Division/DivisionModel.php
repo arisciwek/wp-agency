@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Division
- * @version     1.0.0
+ * @version     1.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Division/DivisionModel.php
@@ -15,6 +15,14 @@
  *              Menyediakan metode untuk DataTables server-side.
  *
  * Changelog:
+ * 1.1.0 - 2025-01-22
+ * - Task-2066: Added wp_agency_division_created hook for auto entity creation
+ * - Task-2066: Added wp_agency_division_before_delete and wp_agency_division_deleted hooks
+ * - Implemented soft delete support (status='inactive' vs hard delete)
+ * - Hook fires after successful division creation
+ * - Enables automatic employee creation via AutoEntityCreator
+ * - Delete hooks enable cascade cleanup and external integrations
+ *
  * 1.0.0 - 2024-12-10
  * - Initial implementation
  * - Added core CRUD operations
@@ -199,6 +207,11 @@ class DivisionModel {
 
         $new_id = (int) $wpdb->insert_id;
 
+        // Task-2066: Fire hook for auto-create employee
+        if ($new_id) {
+            do_action('wp_agency_division_created', $new_id, $insertData);
+        }
+
         // Invalidate unrestricted count cache
         $this->cache->delete('division_total_count_unrestricted');
 
@@ -295,21 +308,87 @@ class DivisionModel {
     public function delete(int $id): bool {
         global $wpdb;
 
-        $result = $wpdb->delete(
-            $this->table,
-            ['id' => $id],
-            ['%d']
-        ) !== false;
+        // 1. Get division data before deletion
+        $division = $this->find($id);
+        if (!$division) {
+            return false; // Division not found
+        }
 
-        if ($result) {
+        // 2. Prepare division data array for hooks
+        $division_data = [
+            'id' => $division->id,
+            'agency_id' => $division->agency_id,
+            'code' => $division->code,
+            'name' => $division->name,
+            'type' => $division->type,
+            'status' => $division->status ?? 'active',
+            'nitku' => $division->nitku ?? null,
+            'postal_code' => $division->postal_code ?? null,
+            'latitude' => $division->latitude ?? null,
+            'longitude' => $division->longitude ?? null,
+            'address' => $division->address ?? null,
+            'phone' => $division->phone ?? null,
+            'email' => $division->email ?? null,
+            'provinsi_code' => $division->provinsi_code ?? null,
+            'regency_code' => $division->regency_code ?? null,
+            'user_id' => $division->user_id ?? null,
+            'created_by' => $division->created_by ?? null,
+            'created_at' => $division->created_at ?? null,
+            'updated_at' => $division->updated_at ?? null
+        ];
+
+        // 3. Fire before delete hook (for validation/prevention)
+        do_action('wp_agency_division_before_delete', $id, $division_data);
+
+        // 4. Check if hard delete is enabled
+        $settings = get_option('wp_agency_general_options', []);
+        $is_hard_delete = isset($settings['enable_hard_delete']) &&
+                         $settings['enable_hard_delete'] === true;
+
+        // 5. Perform delete (soft or hard)
+        if ($is_hard_delete) {
+            // Hard delete - actual DELETE from database
+            error_log("[DivisionModel] Hard deleting division {$id} ({$division_data['name']})");
+
+            $result = $wpdb->delete(
+                $this->table,
+                ['id' => $id],
+                ['%d']
+            );
+        } else {
+            // Soft delete - set status to 'inactive'
+            error_log("[DivisionModel] Soft deleting division {$id} ({$division_data['name']})");
+
+            $result = $wpdb->update(
+                $this->table,
+                [
+                    'status' => 'inactive',
+                    'updated_at' => current_time('mysql')
+                ],
+                ['id' => $id],
+                ['%s', '%s'],
+                ['%d']
+            );
+        }
+
+        // 6. If successful, fire after delete hook and invalidate cache
+        if ($result !== false && $result !== 0) {
+            // Fire after delete hook (for cascade cleanup)
+            do_action('wp_agency_division_deleted', $id, $division_data, $is_hard_delete);
+
             // Invalidate unrestricted count cache
             $this->cache->delete('division_total_count_unrestricted');
 
             // Invalidate dashboard stats cache
             $this->cache->delete('agency_stats_0');
+
+            error_log("[DivisionModel] Division {$id} deleted successfully (hard_delete: " .
+                     ($is_hard_delete ? 'YES' : 'NO') . ")");
+
+            return true;
         }
 
-        return $result;
+        return false;
     }
 
     public function existsByNameInAgency(string $name, int $agency_id, ?int $excludeId = null): bool {

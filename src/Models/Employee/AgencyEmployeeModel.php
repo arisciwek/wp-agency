@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Employee
- * @version     1.0.0
+ * @version     1.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Employee/AgencyEmployeeModel.php
@@ -15,6 +15,10 @@
  *              Menyediakan metode untuk DataTables server-side.
  *
  * Changelog:
+ * 1.1.0 - 2025-01-22
+ * - Task-2066: Added findByUserAndDivision() method for auto entity creation
+ * - Method checks if employee already exists for user in division
+ *
  * 1.0.0 - 2024-01-12
  * - Initial implementation
  * - Added core CRUD operations
@@ -118,7 +122,46 @@ class AgencyEmployeeModel {
         if ($result) {
             $this->cache->set('agency_employee', $result, $this->cache::getCacheExpiry(), $id);
         }
-        
+
+        return $result;
+    }
+
+    /**
+     * Find employee by user_id and division_id
+     * Used to check if employee already exists before auto-creation
+     *
+     * @param int $user_id WordPress user ID
+     * @param int $division_id Division ID
+     * @return object|null Employee object or null if not found
+     */
+    public function findByUserAndDivision(int $user_id, int $division_id): ?object {
+        global $wpdb;
+
+        // Create cache key
+        $cache_key = "user_{$user_id}_division_{$division_id}";
+
+        // Check cache first
+        $cached_result = $this->cache->get('agency_employee_by_user_division', $cache_key);
+        if ($cached_result !== null) {
+            return $cached_result;
+        }
+
+        // Query database
+        $result = $wpdb->get_row($wpdb->prepare("
+            SELECT e.*,
+                   c.name as agency_name,
+                   b.name as division_name
+            FROM {$this->table} e
+            LEFT JOIN {$this->agency_table} c ON e.agency_id = c.id
+            LEFT JOIN {$this->division_table} b ON e.division_id = b.id
+            WHERE e.user_id = %d AND e.division_id = %d
+        ", $user_id, $division_id));
+
+        // Cache the result
+        if ($result) {
+            $this->cache->set('agency_employee_by_user_division', $result, 300, $cache_key);
+        }
+
         return $result;
     }
 

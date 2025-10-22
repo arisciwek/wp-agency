@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Controllers/Auth
- * @version     1.0.0
+ * @version     1.2.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Controllers/Auth/AgencyRegistrationHandler.php
@@ -20,6 +20,11 @@
  * - Agencys table
  *
  * Changelog:
+ * 1.2.0 - 2025-01-22 (Task-2066 Multiple Roles)
+ * - Added agency_admin_dinas role to self-registration
+ * - Now assigns 2 roles: 'agency' (base) + 'agency_admin_dinas' (admin)
+ * - Follows wp-customer pattern (customer + customer_admin)
+ *
  * 1.1.0 - 2025-01-22 (Task-2065-B Form Sync)
  * - Added provinsi_code and regency_code handling
  * - Added reg_type and status fields
@@ -91,9 +96,10 @@ class AgencyRegistrationHandler {
             ]);
         }
 
-        // Tambahkan role agency
+        // Set roles (following wp-customer pattern)
         $user = new \WP_User($user_id);
         $user->set_role('agency');
+        $user->add_role('agency_admin_dinas'); // Add admin role for self-registration
 
         // Generate kode agency
         $code = $this->generate_agency_code();

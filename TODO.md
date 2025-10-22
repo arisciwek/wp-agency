@@ -1,5 +1,99 @@
 # TODO List for WP Agency Plugin
 
+## TODO-2066: Auto Entity Creation & Lifecycle Hooks ✅ COMPLETED
+
+**Status**: ✅ COMPLETED
+**Created**: 2025-01-22
+**Completed**: 2025-01-22
+**Dependencies**: wp-customer (reference pattern), wp-customer TODO-2169 (naming convention)
+**Priority**: High
+**Complexity**: Medium (hook implementation + handler + delete hooks)
+
+**Summary**: Implementasi complete hook system untuk entity lifecycle di wp-agency mengikuti pattern wp-customer dengan naming convention yang benar (`wp_{plugin}_{entity}_{action}`). Includes creation hooks for auto entity creation AND deletion hooks for cascade cleanup.
+
+**Problem**:
+- Manual entity creation required after agency/division creation
+- No lifecycle hooks for deletion (cascade cleanup, external sync)
+- Inconsistent data structure across agencies
+- No soft delete support
+
+**Solution:**
+
+**Creation Hooks:**
+- ✅ Added `wp_agency_agency_created` hook in AgencyModel (fixed naming)
+- ✅ Added `wp_agency_division_created` hook in DivisionModel
+- ✅ Created AutoEntityCreator handler class
+- ✅ Registered creation hooks in main plugin file
+- ✅ Added findByUserAndDivision() method in AgencyEmployeeModel
+
+**Deletion Hooks:**
+- ✅ Added `wp_agency_agency_before_delete` hook in AgencyModel
+- ✅ Added `wp_agency_agency_deleted` hook in AgencyModel
+- ✅ Added `wp_agency_division_before_delete` hook in DivisionModel
+- ✅ Added `wp_agency_division_deleted` hook in DivisionModel
+- ✅ Implemented soft delete support (status='inactive')
+- ✅ Implemented hard delete option (via settings)
+
+**Hook Flow**:
+```
+Creation:
+Agency Created → wp_agency_agency_created hook fires
+               → AutoEntityCreator::handleAgencyCreated()
+               → Division Pusat auto-created
+               → wp_agency_division_created hook fires
+               → AutoEntityCreator::handleDivisionCreated()
+               → Employee auto-created
+
+Deletion:
+Agency Delete → wp_agency_agency_before_delete (validation)
+              → Soft/Hard delete based on settings
+              → wp_agency_agency_deleted (cascade cleanup)
+```
+
+**Files Created**:
+- `/src/Handlers/AutoEntityCreator.php` - Main handler class
+
+**Files Modified**:
+- `/src/Models/Agency/AgencyModel.php` (v2.0.0 → v2.1.0)
+- `/src/Models/Division/DivisionModel.php` (v1.0.0 → v1.1.0)
+- `/src/Models/Employee/AgencyEmployeeModel.php` (v1.0.0 → v1.1.0)
+- `/wp-agency.php` (v1.0.0 → v1.1.0)
+- `/TODO/TODO-2066-auto-entity-creation.md` - Complete documentation
+
+**Hooks Implemented:**
+- **2 Creation hooks** (agency_created, division_created)
+- **4 Deletion hooks** (2x before_delete, 2x deleted)
+- **Total: 6 lifecycle hooks**
+
+**Features**:
+- ✅ Automatic division pusat creation when agency created
+- ✅ Automatic employee creation when division created
+- ✅ Soft delete support (status='inactive', data recoverable)
+- ✅ Hard delete option (actual DELETE from database)
+- ✅ Before delete hooks for validation/prevention
+- ✅ After delete hooks for cascade cleanup
+- ✅ Duplicate prevention (checks before creating)
+- ✅ Comprehensive error handling and logging
+- ✅ Cache-aware implementation
+- ✅ Follows wp-customer pattern with correct naming convention
+
+**Naming Convention**: `wp_{plugin}_{entity}_{action}`
+- Entity name ALWAYS explicit (wp_agency_**agency**_created)
+- Consistent with wp-customer TODO-2169 standard
+- Scalable and predictable
+
+**Benefits**:
+- ✅ Automation reduces manual work
+- ✅ Consistent data structure across agencies
+- ✅ Extensible via WordPress hook system
+- ✅ Cascade cleanup for data integrity
+- ✅ Soft delete for data recovery
+- ✅ Easy to debug with detailed logging
+
+**Reference**: `/TODO/TODO-2066-auto-entity-creation.md`
+
+---
+
 ## TODO-2065-B: Synchronize Agency Registration and Create/Edit Forms ✅ COMPLETED
 
 **Status**: ✅ COMPLETED

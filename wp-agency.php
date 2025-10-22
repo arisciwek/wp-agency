@@ -1,24 +1,33 @@
 <?php
 /**
  * Plugin Name: WP Agency
- * Plugin URI: 
+ * Plugin URI:
  * Description: Plugin untuk mengelola data Agency dan Divisionnya
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: arisciwek
- * Author URI: 
+ * Author URI:
  * License: GPL v2 or later
- * 
+ *
  * @package     WP_Agency
- * @version     1.0.0
+ * @version     1.1.0
  * @author      arisciwek
- * 
+ *
  * Path: /wp-agency/wp-agency.php
+ *
+ * Changelog:
+ * 1.1.0 - 2025-01-22
+ * - Task-2066: Added AutoEntityCreator hook system
+ * - Auto-create division pusat when agency is created
+ * - Auto-create employee when division is created
+ *
+ * 1.0.0 - 2024-01-07
+ * - Initial release
  */
 
 defined('ABSPATH') || exit;
 
 // Define plugin constants first, before anything else
-define('WP_AGENCY_VERSION', '1.0.0');
+define('WP_AGENCY_VERSION', '1.1.0');
 define('WP_AGENCY_FILE', __FILE__);
 define('WP_AGENCY_PATH', plugin_dir_path(__FILE__));
 define('WP_AGENCY_URL', plugin_dir_url(__FILE__));
@@ -121,6 +130,11 @@ class WPAgency {
         // Initialize other hooks
         $init_hooks = new WP_Agency_Init_Hooks();
         $init_hooks->init();
+
+        // Task-2066: Register AutoEntityCreator hooks for automatic entity creation
+        $auto_entity_creator = new \WPAgency\Handlers\AutoEntityCreator();
+        add_action('wp_agency_agency_created', [$auto_entity_creator, 'handleAgencyCreated'], 10, 2);
+        add_action('wp_agency_division_created', [$auto_entity_creator, 'handleDivisionCreated'], 10, 2);
 
         // NEW: Simplified WP App Core integration (v2.0)
         // wp-app-core handles ALL WordPress queries (user, role, permission)

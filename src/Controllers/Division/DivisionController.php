@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Controllers/Division
- * @version     1.0.0
+ * @version     1.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Controllers/Division/DivisionController.php
@@ -15,6 +15,12 @@
  *              dan response formatting untuk DataTables.
  *
  * Changelog:
+ * 1.1.0 - 2025-01-22 (Task-2066 Multiple Roles)
+ * - Updated role assignment for division admin users
+ * - Now assigns 2 roles: 'agency' (base) + 'agency_admin_unit' (division admin)
+ * - Follows wp-customer pattern (customer + customer_branch_admin)
+ * - Changed from single role 'division_admin' to dual-role pattern
+ *
  * 1.0.0 - 2024-12-10
  * - Initial implementation
  * - Added CRUD endpoints
@@ -860,7 +866,7 @@ class DivisionController {
                     'first_name' => sanitize_text_field($_POST['admin_firstname']),
                     'last_name' => sanitize_text_field($_POST['admin_lastname'] ?? ''),
                     'user_pass' => wp_generate_password(),
-                    'role' => 'division_admin'
+                    'role' => 'agency'  // Base role for all plugin users
                 ];
 
                 $user_id = wp_insert_user($user_data);
@@ -868,8 +874,14 @@ class DivisionController {
                     throw new \Exception($user_id->get_error_message());
                 }
 
+                // Add agency_admin_unit role (dual-role pattern)
+                $user = get_user_by('ID', $user_id);
+                if ($user) {
+                    $user->add_role('agency_admin_unit');
+                }
+
                 $data['user_id'] = $user_id;
-                
+
                 // Kirim email aktivasi
                 wp_new_user_notification($user_id, null, 'user');
             }

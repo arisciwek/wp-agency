@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models
- * @version     2.0.0
+ * @version     2.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Agency/AgencyModel.php
@@ -15,6 +15,14 @@
  *              Menyediakan metode untuk DataTables server-side.
  *
  * Changelog:
+ * 2.1.0 - 2025-01-22
+ * - Task-2066: Added wp_agency_agency_created hook for auto entity creation
+ * - Task-2066: Added wp_agency_agency_before_delete and wp_agency_agency_deleted hooks
+ * - Implemented soft delete support (status='inactive' vs hard delete)
+ * - Hook fires after successful agency creation
+ * - Enables automatic division pusat creation via AutoEntityCreator
+ * - Delete hooks enable cascade cleanup and external integrations
+ *
  * 2.0.0 - 2024-12-03 15:00:00
  * - Refactor create/update untuk return complete data
  * - Added proper error handling dan validasi
@@ -249,6 +257,11 @@
         $new_id = (int) $wpdb->insert_id;
         error_log('AgencyModel::create() - Insert successful. New ID: ' . $new_id);
 
+        // Task-2066: Fire hook for auto-create division pusat
+        if ($new_id) {
+            do_action('wp_agency_agency_created', $new_id, $insert_data);
+        }
+
         $this->cache->invalidateAgencyCache($new_id);
 
         // Invalidate unrestricted count cache
@@ -470,20 +483,67 @@
 
     public function delete(int $id): bool {
         global $wpdb;
-        
-        // Store the current agency data before deletion (for cache invalidation)
+
+        // 1. Get agency data before deletion
         $agency = $this->find($id);
         if (!$agency) {
             return false; // Agency not found
         }
 
-        $result = $wpdb->delete(
-            $this->table,
-            ['id' => $id],
-            ['%d']
-        );
+        // 2. Prepare agency data array for hooks
+        $agency_data = [
+            'id' => $agency->id,
+            'code' => $agency->code,
+            'name' => $agency->name,
+            'status' => $agency->status,
+            'provinsi_code' => $agency->provinsi_code ?? null,
+            'regency_code' => $agency->regency_code ?? null,
+            'user_id' => $agency->user_id ?? null,
+            'reg_type' => $agency->reg_type ?? 'self',
+            'created_by' => $agency->created_by ?? null,
+            'created_at' => $agency->created_at ?? null,
+            'updated_at' => $agency->updated_at ?? null
+        ];
 
+        // 3. Fire before delete hook (for validation/prevention)
+        do_action('wp_agency_agency_before_delete', $id, $agency_data);
+
+        // 4. Check if hard delete is enabled
+        $settings = get_option('wp_agency_general_options', []);
+        $is_hard_delete = isset($settings['enable_hard_delete']) &&
+                         $settings['enable_hard_delete'] === true;
+
+        // 5. Perform delete (soft or hard)
+        if ($is_hard_delete) {
+            // Hard delete - actual DELETE from database
+            error_log("[AgencyModel] Hard deleting agency {$id} ({$agency_data['name']})");
+
+            $result = $wpdb->delete(
+                $this->table,
+                ['id' => $id],
+                ['%d']
+            );
+        } else {
+            // Soft delete - set status to 'inactive'
+            error_log("[AgencyModel] Soft deleting agency {$id} ({$agency_data['name']})");
+
+            $result = $wpdb->update(
+                $this->table,
+                [
+                    'status' => 'inactive',
+                    'updated_at' => current_time('mysql')
+                ],
+                ['id' => $id],
+                ['%s', '%s'],
+                ['%d']
+            );
+        }
+
+        // 6. If successful, fire after delete hook and invalidate cache
         if ($result !== false) {
+            // Fire after delete hook (for cascade cleanup)
+            do_action('wp_agency_agency_deleted', $id, $agency_data, $is_hard_delete);
+
             // Clear all related cache
             $this->cache->invalidateAgencyCache($id);
 
@@ -497,6 +557,9 @@
 
             // Invalidate dashboard stats cache
             $this->cache->delete('agency_stats_0');
+
+            error_log("[AgencyModel] Agency {$id} deleted successfully (hard_delete: " .
+                     ($is_hard_delete ? 'YES' : 'NO') . ")");
 
             return true;
         }
