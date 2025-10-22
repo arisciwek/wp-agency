@@ -15,6 +15,11 @@
  *              Terintegrasi dengan CreateAgencyForm component.
  *
  * Changelog:
+ * 1.1.0 - 2025-01-22 (Task-2065 Form Sync)
+ * - Refactored to use shared component agency-form-fields.php
+ * - Ensures field consistency with register and edit forms
+ * - Single source of truth for form structure
+ *
  * 1.0.0 - 2024-12-03
  * - Initial implementation
  * - Added form structure
@@ -37,68 +42,42 @@ defined('ABSPATH') || exit;
             <input type="hidden" name="action" value="create_agency">
 
             <div class="modal-content">
-                <div class="row left-side">
-                    <div class="agency-form-section">
-                        <h4><?php _e('Informasi Dasar', 'wp-agency'); ?></h4>
+                <?php
+                // Set args for shared component
+                $args = [
+                    'mode' => 'admin-create',
+                    'layout' => 'two-column',
+                    'field_classes' => 'regular-text',
+                    'wrapper_classes' => 'wp-agency-form-group'
+                ];
 
-                        <div class="wp-agency-form-group">
-                            <label for="agency-name" class="required-field">
-                                <?php _e('Nama Disnaker', 'wp-agency'); ?>
-                            </label>
-                            <input type="text" id="agency-name" name="name" maxlength="100" required>
-                            <span class="field-hint"><?php _e('Masukkan nama lengkap disnaker', 'wp-agency'); ?></span>
-                        </div>
+                // Try multiple path resolution methods
+                $template_path = null;
 
+                // Method 1: Using WP_AGENCY_PATH constant (if available)
+                if (defined('WP_AGENCY_PATH')) {
+                    $template_path = WP_AGENCY_PATH . 'src/Views/templates/partials/agency-form-fields.php';
+                }
 
+                // Method 2: Fallback to __FILE__ relative path
+                if (!$template_path || !file_exists($template_path)) {
+                    $template_path = dirname(dirname(__FILE__)) . '/partials/agency-form-fields.php';
+                }
 
-                        <div class="wp-agency-form-group">
-                            <label for="agency-status" class="required-field">
-                                <?php _e('Status', 'wp-agency'); ?>
-                            </label>
-                            <select id="agency-status" name="status" required>
-                                <option value="active"><?php _e('Aktif', 'wp-agency'); ?></option>
-                                <option value="inactive"><?php _e('Tidak Aktif', 'wp-agency'); ?></option>
-                            </select>
-                            <span class="field-hint"><?php _e('Status aktif disnaker', 'wp-agency'); ?></span>
-                        </div>
-                    </div>
-                </div>
+                // Method 3: Last resort - hardcoded absolute path
+                if (!file_exists($template_path)) {
+                    $template_path = '/home/mkt01/Public/wppm/public_html/wp-content/plugins/wp-agency/src/Views/templates/partials/agency-form-fields.php';
+                }
 
-                <div class="row right-side">
-                    <div class="agency-form-section">
-                        <h4><?php _e('Lokasi', 'wp-agency'); ?></h4>
-
-                        <div class="wp-agency-form-group">
-                           <label for="agency-provinsi" class="required-field">
-                               <?php _e('Provinsi', 'wp-agency'); ?>
-                           </label>
-                           <div class="input-group">
-                               <select id="agency-provinsi"
-                                       name="provinsi_code"
-                                       class="regular-text"
-                                       required
-                                       aria-label="<?php _e('Pilih Provinsi', 'wp-agency'); ?>">
-                                   <option value=""><?php _e('Pilih Provinsi', 'wp-agency'); ?></option>
-                               </select>
-                           </div>
-                       </div>
-
-                        <div class="wp-agency-form-group">
-                            <label for="agency-regency" class="required-field">
-                                <?php _e('Kabupaten/Kota', 'wp-agency'); ?>
-                            </label>
-                            <div class="input-group">
-                                <select id="agency-regency"
-                                        name="regency_code"
-                                        class="regular-text"
-                                        required
-                                        aria-label="<?php _e('Pilih Kabupaten/Kota', 'wp-agency'); ?>">
-                                    <option value=""><?php _e('Pilih Kabupaten/Kota', 'wp-agency'); ?></option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                if (file_exists($template_path)) {
+                    include $template_path;
+                } else {
+                    echo '<p class="error">Template component not found after trying all methods!</p>';
+                    echo '<p class="error">WP_AGENCY_PATH defined: ' . (defined('WP_AGENCY_PATH') ? 'YES - ' . WP_AGENCY_PATH : 'NO') . '</p>';
+                    echo '<p class="error">Final path tried: ' . esc_html($template_path) . '</p>';
+                    echo '<p class="error">File readable: ' . (is_readable($template_path) ? 'YES' : 'NO') . '</p>';
+                }
+                ?>
             </div>
 
             <div class="modal-footer">

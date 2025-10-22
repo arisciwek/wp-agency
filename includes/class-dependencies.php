@@ -58,7 +58,7 @@ public function enqueue_frontend_assets() {
         // Enqueue styles
         wp_enqueue_style(
             'wp-agency-form',
-            WP_AGENCY_URL . 'assets/css/agency-form.css',
+            WP_AGENCY_URL . 'assets/css/agency/agency-form.css',
             [],
             $this->version
         );
@@ -89,22 +89,60 @@ public function enqueue_frontend_assets() {
             true
         );
 
-        // Registration form handler
+        // Wilayah Indonesia plugin scripts (for cascade select)
+        $wilayah_plugin_url = plugins_url('wilayah-indonesia');
         wp_enqueue_script(
-            'wp-agency-register',
-            WP_AGENCY_URL . 'assets/js/auth/register.js',
-            ['jquery', 'jquery-validate', 'wp-agency-toast'],
+            'wilayah-select-handler-core',
+            $wilayah_plugin_url . '/assets/js/components/select-handler-core.js',
+            ['jquery'],
+            '1.1.0',
+            true
+        );
+        wp_enqueue_script(
+            'wilayah-select-handler-ui',
+            $wilayah_plugin_url . '/assets/js/components/select-handler-ui.js',
+            ['jquery', 'wilayah-select-handler-core'],
+            '1.1.0',
+            true
+        );
+
+        // Localize wilayah scripts
+        wp_localize_script('wilayah-select-handler-core', 'wilayahData', [
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('wilayah_select_nonce'),
+            'debug' => false,
+            'texts' => [
+                'loading' => __('Memuat...', 'wp-agency'),
+                'error' => __('Gagal memuat data', 'wp-agency'),
+                'select_regency' => __('Pilih Kabupaten/Kota', 'wp-agency')
+            ]
+        ]);
+
+        // Wilayah sync helper
+        wp_enqueue_script(
+            'wp-agency-wilayah-sync',
+            WP_AGENCY_URL . 'assets/js/auth/wilayah-sync.js',
+            ['jquery', 'wilayah-select-handler-core'],
             $this->version,
             true
         );
 
-        // Localize script
+        // Registration form handler
+        wp_enqueue_script(
+            'wp-agency-register',
+            WP_AGENCY_URL . 'assets/js/auth/register.js',
+            ['jquery', 'jquery-validate', 'wp-agency-toast', 'wp-agency-wilayah-sync'],
+            $this->version,
+            true
+        );
+
+        // Localize script (using wp_agency_nonce for consistency)
         wp_localize_script(
             'wp-agency-register',
             'wpAgencyData',
             [
                 'ajaxUrl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('wp_agency_register'),
+                'nonce' => wp_create_nonce('wp_agency_nonce'),
                 'i18n' => [
                     'registering' => __('Mendaftar...', 'wp-agency'),
                     'register' => __('Daftar', 'wp-agency'),
@@ -204,23 +242,27 @@ public function enqueue_frontend_assets() {
     }
 
     public function enqueue_scripts() {
-        $screen = get_current_screen();
-        if (!$screen) return;
-
-        // Check if we're on the registration page
+        // Check if we're on the registration page (BEFORE get_current_screen check)
         if (get_query_var('wp_agency_register')) {
+            error_log('WP_Agency: Enqueuing registration scripts...');
             // Enqueue registration-specific scripts
             wp_enqueue_script('jquery-validate', 'https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js', ['jquery'], '1.19.5', true);
             wp_enqueue_script('wp-agency-toast', WP_AGENCY_URL . 'assets/js/agency/agency-toast.js', ['jquery'], $this->version, true);
-            wp_enqueue_script('wp-agency-register', WP_AGENCY_URL . 'assets/js/auth/register.js', ['jquery', 'jquery-validate', 'wp-agency-toast'], $this->version, true);
-            
-            // Localize script
+            wp_enqueue_script('wp-agency-wilayah-sync', WP_AGENCY_URL . 'assets/js/auth/wilayah-sync.js', ['jquery'], $this->version, true);
+            error_log('WP_Agency: wilayah-sync enqueued');
+            wp_enqueue_script('wp-agency-register', WP_AGENCY_URL . 'assets/js/auth/register.js', ['jquery', 'jquery-validate', 'wp-agency-toast', 'wp-agency-wilayah-sync'], $this->version, true);
+
+            // Localize script for both register and wilayah-sync
             wp_localize_script('wp-agency-register', 'wpAgencyData', [
                 'ajaxUrl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('wp_agency_register')
+                'nonce' => wp_create_nonce('wp_agency_nonce')
             ]);
             return;
         }
+
+        // Get screen for admin pages
+        $screen = get_current_screen();
+        if (!$screen) return;
 
         // Settings page scripts
         if ($screen->id === 'wp-agency_page_wp-agency-settings') {

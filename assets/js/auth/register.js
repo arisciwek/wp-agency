@@ -3,7 +3,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Assets/JS/Auth
- * @version     1.0.0
+ * @version     1.2.0
  * @author      arisciwek
  *
  * Path: /wp-agency/assets/js/auth/register.js
@@ -11,15 +11,30 @@
  * Description: Menangani form registrasi disnaker:
  *              - AJAX submission
  *              - Validasi form
- *              - Format NPWP
  *              - Toast notifications
- * 
+ *              - Province/Regency handled by wilayah-indonesia plugin
+ *
  * Dependencies:
  * - jQuery
  * - wp-agency-toast
  * - WordPress AJAX
+ * - wilayah-indonesia plugin (for province/regency selects)
  *
- * Last modified: 2024-01-11
+ * Changelog:
+ * 1.2.0 - 2025-01-22 (Task-2065-B Form Sync - Fix)
+ * - Removed manual AJAX province/regency loading
+ * - Now uses wilayah-indonesia plugin do_action
+ * - Simplified code - plugin handles selects automatically
+ *
+ * 1.1.0 - 2025-01-22 (Task-2065-B Form Sync)
+ * - Added province and regency select loading
+ * - Added wilayah AJAX handlers
+ * - Updated to work with shared form component
+ *
+ * 1.0.0 - 2024-01-11
+ * - Initial version
+ *
+ * Last modified: 2025-01-22
  */
 (function($) {
     'use strict';
@@ -29,8 +44,9 @@
         init() {
             this.form = $('#agency-register-form');
             this.submitButton = this.form.find('button[type="submit"]');
-            
+
             this.bindEvents();
+            // Note: Province/Regency selects now handled by wilayah-indonesia plugin
         },
 
         bindEvents() {

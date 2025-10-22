@@ -20,6 +20,12 @@
  * - WordPress AJAX
  * 
  * Changelog:
+ * 1.1.0 - 2025-01-22 (Task-2065 Form Sync)
+ * - Refactored to use shared component agency-form-fields.php
+ * - Ensures field consistency with admin-create form
+ * - Single source of truth for form structure
+ * - Added provinsi and regency fields
+ *
  * 1.0.0 - 2024-01-11
  * - Initial version
  * - Added registration form with validation
@@ -35,65 +41,43 @@ defined('ABSPATH') || exit;
 <form id="agency-register-form" class="wp-agency-form" method="post">
     <?php wp_nonce_field('wp_agency_register', 'register_nonce'); ?>
 
-    <!-- Card untuk Informasi Login -->
-    <div class="wp-agency-card">
-        <div class="wp-agency-card-header">
-            <h3><?php _e('Informasi Login', 'wp-agency'); ?></h3>
-        </div>
-        <div class="wp-agency-card-body">
-            <!-- Username -->
-            <div class="form-group">
-                <label for="username">Username <span class="required">*</span></label>
-                <input type="text" 
-                       id="username" 
-                       name="username" 
-                       class="regular-text" 
-                       required>
-                <p class="description"><?php _e('Username untuk login', 'wp-agency'); ?></p>
-            </div>
+    <?php
+    // Set args for shared component
+    $args = [
+        'mode' => 'self-register',
+        'layout' => 'single-column',
+        'field_classes' => 'regular-text',
+        'wrapper_classes' => 'form-group'
+    ];
 
-            <!-- Email -->
-            <div class="form-group">
-                <label for="email">Email <span class="required">*</span></label>
-                <input type="email" 
-                       id="email" 
-                       name="email" 
-                       class="regular-text" 
-                       required>
-            </div>
+    // Try multiple path resolution methods
+    $template_path = null;
 
-            <!-- Password -->
-            <div class="form-group">
-                <label for="password">Password <span class="required">*</span></label>
-                <input type="password" 
-                       id="password" 
-                       name="password" 
-                       class="regular-text" 
-                       required>
-            </div>
-        </div>
-    </div>
+    // Method 1: Using WP_AGENCY_PATH constant (if available)
+    if (defined('WP_AGENCY_PATH')) {
+        $template_path = WP_AGENCY_PATH . 'src/Views/templates/partials/agency-form-fields.php';
+    }
 
-    <!-- Card untuk Informasi Perusahaan -->
-    <div class="wp-agency-card">
-        <div class="wp-agency-card-header">
-            <h3><?php _e('Informasi Perusahaan', 'wp-agency'); ?></h3>
-        </div>
-        <div class="wp-agency-card-body">
-            <!-- Nama Lengkap/Perusahaan -->
-            <div class="form-group">
-                <label for="name">Nama Lengkap/Perusahaan <span class="required">*</span></label>
-                <input type="text" 
-                       id="name" 
-                       name="name" 
-                       class="regular-text" 
-                       required>
-                <p class="description"><?php _e('Nama ini akan digunakan sebagai identitas agency', 'wp-agency'); ?></p>
-            </div>
+    // Method 2: Fallback to __FILE__ relative path
+    if (!$template_path || !file_exists($template_path)) {
+        $template_path = dirname(dirname(__FILE__)) . '/partials/agency-form-fields.php';
+    }
 
+    // Method 3: Last resort - hardcoded absolute path
+    if (!file_exists($template_path)) {
+        $template_path = '/home/mkt01/Public/wppm/public_html/wp-content/plugins/wp-agency/src/Views/templates/partials/agency-form-fields.php';
+    }
 
-        </div>
-    </div>
+    if (file_exists($template_path)) {
+        include $template_path;
+    } else {
+        echo '<p class="error">Template component not found after trying all methods!</p>';
+        echo '<p class="error">WP_AGENCY_PATH defined: ' . (defined('WP_AGENCY_PATH') ? 'YES - ' . WP_AGENCY_PATH : 'NO') . '</p>';
+        echo '<p class="error">Final path tried: ' . esc_html($template_path) . '</p>';
+        echo '<p class="error">File readable: ' . (is_readable($template_path) ? 'YES' : 'NO') . '</p>';
+    }
+    ?>
+
 	<div class="wp-agency-submit clearfix">
 	    <div class="form-submit">
 	        <button type="submit" class="button button-primary">

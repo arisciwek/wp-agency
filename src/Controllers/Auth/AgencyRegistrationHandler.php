@@ -20,6 +20,12 @@
  * - Agencys table
  *
  * Changelog:
+ * 1.1.0 - 2025-01-22 (Task-2065-B Form Sync)
+ * - Added provinsi_code and regency_code handling
+ * - Added reg_type and status fields
+ * - Enhanced validation for location fields
+ * - Updated to match new shared form component
+ *
  * 1.0.0 - 2024-01-11
  * - Initial version
  * - Added agency registration handler
@@ -33,20 +39,29 @@ namespace WPAgency\Controllers\Auth;
 defined('ABSPATH') || exit;
 
 class AgencyRegistrationHandler {
-    
+
     public function handle_registration() {
         check_ajax_referer('wp_agency_register', 'register_nonce');
-        
+
         $username = sanitize_user($_POST['username']);
         $email = sanitize_email($_POST['email']);
         $password = $_POST['password'];
         $name = sanitize_text_field($_POST['name']);
+        $provinsi_code = isset($_POST['provinsi_code']) ? sanitize_text_field($_POST['provinsi_code']) : '';
+        $regency_code = isset($_POST['regency_code']) ? sanitize_text_field($_POST['regency_code']) : '';
 
         // Validasi dasar
         if (empty($username) || empty($email) || empty($password) ||
             empty($name)) {
             wp_send_json_error([
                 'message' => __('Semua field wajib diisi.', 'wp-agency')
+            ]);
+        }
+
+        // Validasi lokasi (required)
+        if (empty($provinsi_code) || empty($regency_code)) {
+            wp_send_json_error([
+                'message' => __('Provinsi dan Kabupaten/Kota wajib diisi.', 'wp-agency')
             ]);
         }
 
@@ -87,7 +102,11 @@ class AgencyRegistrationHandler {
         $agency_data = [
             'code' => $code,
             'name' => $name,
+            'status' => 'active', // Default active untuk self-registration
+            'provinsi_code' => $provinsi_code,
+            'regency_code' => $regency_code,
             'user_id' => $user_id,
+            'reg_type' => 'self', // Mark as self-registration
             'created_by' => $user_id
         ];
 

@@ -1,5 +1,65 @@
 # TODO List for WP Agency Plugin
 
+## TODO-2065-B: Synchronize Agency Registration and Create/Edit Forms ✅ COMPLETED
+
+**Status**: ✅ COMPLETED
+**Created**: 2025-01-22
+**Completed**: 2025-01-22
+**Dependencies**: wilayah-indonesia plugin
+**Priority**: Medium
+**Complexity**: Medium (refactoring + integration)
+
+**Summary**: Implement shared component pattern untuk agency forms dengan wilayah-indonesia plugin integration. Menambahkan provinsi/regency cascade selects dan hidden ID fields. Single source of truth untuk form structure.
+
+**Problem**:
+- Form fields tidak konsisten antara register, create, dan edit forms
+- Duplicate field definitions (not DRY)
+- Registration form kurang field penting (provinsi, regency)
+- Province/regency selects tidak berfungsi di registration page
+- Maintenance harus dilakukan di multiple files
+
+**Solution**:
+- ✅ Created shared component `agency-form-fields.php`
+- ✅ Conditional rendering berdasarkan mode (self-register, admin-create, edit)
+- ✅ Updated all three forms to use shared component
+- ✅ Integrated wilayah-indonesia plugin untuk cascade selects
+- ✅ Added hidden fields provinsi_id dan regency_id (Option 1)
+- ✅ Auto-populate ID fields via JavaScript sync
+
+**Files Created**:
+- `/src/Views/templates/partials/agency-form-fields.php` - Shared component
+- `/assets/js/auth/wilayah-sync.js` - Sync code to ID fields
+- `/TODO/TODO-2065-form-sync.md` - Complete documentation
+
+**Files Modified**:
+- `/src/Views/templates/auth/register.php` (v1.0.0 → v1.1.0)
+- `/src/Views/templates/forms/create-agency-form.php` (v1.0.0 → v1.1.0)
+- `/src/Views/templates/forms/edit-agency-form.php` (v1.0.1 → v1.1.0)
+- `/src/Controllers/Auth/AgencyRegistrationHandler.php` (v1.0.0 → v1.1.0)
+- `/assets/js/auth/register.js` (v1.0.0 → v1.2.0)
+- `/includes/class-dependencies.php` - Enqueue wilayah scripts
+- `/includes/class-init-hooks.php` - Added AJAX handler
+
+**Form Fields**:
+- `provinsi_code` (select, visible) → saved to database
+- `regency_code` (select, visible) → saved to database
+- `provinsi_id` (hidden) → auto-populated via JavaScript
+- `regency_id` (hidden) → auto-populated via JavaScript
+
+**Benefits**:
+- ✅ Single source of truth untuk form fields
+- ✅ Easy maintenance (edit once, apply everywhere)
+- ✅ Consistent field structure across all forms
+- ✅ Working cascade province→regency selects
+- ✅ Both code and ID available for future use
+- ✅ Reduced code duplication
+
+**Pattern Reference**: Follows wp-customer pattern (customer-form-fields.php)
+
+See: [TODO/TODO-2065-form-sync.md](TODO/TODO-2065-form-sync.md)
+
+---
+
 ## TODO-2065: Platform Access to WP Customer Data with Jurisdiction Filtering 📋 PLANNING
 
 **Status**: 📋 PLANNING

@@ -38,6 +38,8 @@ class WP_Agency_Init_Hooks {
 
         // AJAX handlers
         add_action('wp_ajax_nopriv_wp_agency_register', [$this, 'handle_registration']);
+        add_action('wp_ajax_get_wilayah_id_from_code', [$this, 'handle_get_wilayah_id']);
+        add_action('wp_ajax_nopriv_get_wilayah_id_from_code', [$this, 'handle_get_wilayah_id']);
     }
 
     /**
@@ -109,5 +111,44 @@ public function handle_template_redirect() {
     public function handle_registration() {
         $handler = new AgencyRegistrationHandler();
         $handler->handle_registration();
+    }
+
+    /**
+     * Handle get wilayah ID from code
+     * Converts province/regency code to ID
+     */
+    public function handle_get_wilayah_id() {
+        check_ajax_referer('wp_agency_nonce', 'nonce');
+
+        $type = isset($_POST['type']) ? sanitize_text_field($_POST['type']) : '';
+        $code = isset($_POST['code']) ? sanitize_text_field($_POST['code']) : '';
+
+        if (empty($type) || empty($code)) {
+            wp_send_json_error(['message' => 'Missing parameters']);
+        }
+
+        global $wpdb;
+
+        if ($type === 'province') {
+            $table = $wpdb->prefix . 'wi_provinces';
+            $id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM $table WHERE code = %s",
+                $code
+            ));
+        } elseif ($type === 'regency') {
+            $table = $wpdb->prefix . 'wi_regencies';
+            $id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM $table WHERE code = %s",
+                $code
+            ));
+        } else {
+            wp_send_json_error(['message' => 'Invalid type']);
+        }
+
+        if ($id) {
+            wp_send_json_success(['id' => $id]);
+        } else {
+            wp_send_json_error(['message' => 'ID not found']);
+        }
     }
 }

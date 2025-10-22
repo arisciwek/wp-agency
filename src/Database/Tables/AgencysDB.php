@@ -62,6 +62,7 @@ class AgencysDB {
             provinsi_code varchar(10) NULL,
             regency_code varchar(10) NULL,
             user_id bigint(20) UNSIGNED NULL,
+            reg_type enum('self','by_admin','generate') NOT NULL DEFAULT 'self',
             created_by bigint(20) NOT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
