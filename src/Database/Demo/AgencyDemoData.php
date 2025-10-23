@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Database/Demo
- * @version     2.2.0
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Database/Demo/AgencyDemoData.php

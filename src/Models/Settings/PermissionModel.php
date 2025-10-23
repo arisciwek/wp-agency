@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Settings
- * @version     1.1.0
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Settings/PermissionModel.php

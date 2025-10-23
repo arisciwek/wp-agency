@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Cache
- * @version     3.0.0
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Cache/CacheManager.php

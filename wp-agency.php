@@ -3,22 +3,32 @@
  * Plugin Name: WP Agency
  * Plugin URI:
  * Description: Plugin untuk mengelola data Agency dan Divisionnya
- * Version: 1.1.0
+ * Version: 1.0.7
  * Author: arisciwek
  * Author URI:
  * License: GPL v2 or later
  *
  * @package     WP_Agency
- * @version     1.1.0
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/wp-agency.php
  *
  * Changelog:
- * 1.1.0 - 2025-01-22
+ * 1.0.7 - 2025-01-23
+ * - Task-2070: Employee demo generator runtime flow migration
+ * - Task-2069: Division demo generator runtime flow with orphan cleanup
+ * - Added comprehensive hooks documentation (17 hooks: 9 actions + 8 filters)
+ * - Migrated demo generators to production validation patterns
+ * - Enhanced cache clearing for WordPress user operations
+ * - Fixed duplicate employee usernames
+ * - Updated README.md with hooks system documentation
+ *
+ * 1.0.6 - 2025-01-22
  * - Task-2066: Added AutoEntityCreator hook system
  * - Auto-create division pusat when agency is created
  * - Auto-create employee when division is created
+ * - Lifecycle hooks for agency, division, employee (created, before_delete, deleted)
  *
  * 1.0.0 - 2024-01-07
  * - Initial release
@@ -27,7 +37,7 @@
 defined('ABSPATH') || exit;
 
 // Define plugin constants first, before anything else
-define('WP_AGENCY_VERSION', '1.1.0');
+define('WP_AGENCY_VERSION', '1.0.7');
 define('WP_AGENCY_FILE', __FILE__);
 define('WP_AGENCY_PATH', plugin_dir_path(__FILE__));
 define('WP_AGENCY_URL', plugin_dir_url(__FILE__));
@@ -136,6 +146,24 @@ class WPAgency {
         add_action('wp_agency_agency_created', [$auto_entity_creator, 'handleAgencyCreated'], 10, 2);
         add_action('wp_agency_division_created', [$auto_entity_creator, 'handleDivisionCreated'], 10, 2);
         add_action('wp_agency_division_deleted', [$auto_entity_creator, 'handleDivisionDeleted'], 10, 3);
+
+        /**
+         * Hook: wp_agency_employee_created
+         *
+         * Fires after an employee is successfully created.
+         * Triggered by AgencyEmployeeModel->create() method.
+         *
+         * @since 2.2.0 (Task-2070)
+         * @param int   $employee_id   The newly created employee ID
+         * @param array $employee_data The employee data used for creation
+         *
+         * Use cases:
+         * - Send welcome email notification
+         * - Create employee audit log
+         * - Trigger onboarding workflow
+         * - Update statistics cache
+         */
+        // Hook registered but no default handler yet (future: notification, email, etc)
 
         // NEW: Simplified WP App Core integration (v2.0)
         // wp-app-core handles ALL WordPress queries (user, role, permission)

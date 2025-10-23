@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Database/Tables
- * @version     1.0.1
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Database/Tables/DivisionsDB.php

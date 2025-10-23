@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Division
- * @version     1.0.0
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Division/JurisdictionModel.php

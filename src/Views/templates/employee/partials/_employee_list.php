@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Views/Templates/Employee/Partials
- * @version     1.0.0
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Views/templates/employee/partials/_employee_list.php

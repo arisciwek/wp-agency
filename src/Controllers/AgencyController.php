@@ -4,7 +4,7 @@
 *
 * @package     WP_Agency
 * @subpackage  Controllers
-* @version     1.0.3
+* @version     1.0.7
 * @author      arisciwek
 *
 * Path: /wp-agency/src/Controllers/AgencyController.php

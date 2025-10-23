@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Controllers/Auth
- * @version     1.2.0
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Controllers/Auth/AgencyRegistrationHandler.php

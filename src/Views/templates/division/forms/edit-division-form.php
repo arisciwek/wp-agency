@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Views/Templates/Division/Forms
- * @version     1.0.0
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Views/templates/division/forms/edit-division-form.php

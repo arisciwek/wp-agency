@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Includes
- * @version     1.1.0
+ * @version     1.0.7
  * @author      arisciwek
  *
  * path : /wp-agency/includes/class-deactivator.php

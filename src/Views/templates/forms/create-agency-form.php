@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Views/Templates/Forms
- * @version     1.0.0
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Views/templates/forms/create-agency-form.php

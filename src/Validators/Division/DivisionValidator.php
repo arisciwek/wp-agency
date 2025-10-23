@@ -4,7 +4,7 @@
 *
 * @package     WP_Agency
 * @subpackage  Validators/Division
-* @version     1.0.0
+* @version     1.0.7
 * @author      arisciwek
 *
 * Path: src/Validators/Division/DivisionValidator.php

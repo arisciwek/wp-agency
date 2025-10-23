@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Views/Templates/Employee/Forms
- * @version     1.0.1
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Views/templates/employee/forms/edit-employee-form.php

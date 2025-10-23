@@ -1,5 +1,170 @@
 # TODO List for WP Agency Plugin
 
+## TODO-2071: Implement Filter Hooks from Documentation 📋 PLANNING
+
+**Status**: 📋 PLANNING
+**Created**: 2025-01-23
+**Dependencies**: TODO-2066 (Lifecycle Hooks) ✅
+**Priority**: MEDIUM
+**Complexity**: Medium (filter implementation across multiple files)
+
+**Summary**: Implement all filter hooks documented in `/docs/hooks/README.md`. Complete hook system dengan 9 action hooks (✅ implemented) dan 8 filter hooks (⏳ implementation in progress).
+
+**Current Status**:
+- ✅ **Action Hooks**: 9/9 implemented (Agency, Division, Employee lifecycle)
+- ⏳ **Filter Hooks**: 0/8 implemented (documented but not in code)
+
+**Filter Hooks to Implement**:
+
+**Permission Filters (3 hooks)**:
+- [ ] `wp_agency_can_create_employee` - Override employee creation permission
+  - Parameters: `($can_create, $agency_id, $division_id, $user_id)`
+  - Return: `bool`
+  - Location: `AgencyEmployeeController.php` or `AgencyEmployeeValidator.php`
+
+- [ ] `wp_agency_can_create_division` - Override division creation permission
+  - Parameters: `($can_create, $agency_id, $user_id)`
+  - Return: `bool`
+  - Location: `DivisionController.php` or `DivisionValidator.php`
+
+- [ ] `wp_agency_max_inspector_assignments` - Maximum inspector assignments
+  - Parameters: none
+  - Return: `int`
+  - Location: Inspector assignment logic (future feature)
+
+**UI/UX Filters (2 hooks)**:
+- [ ] `wp_agency_enable_export` - Enable/disable export button
+  - Parameters: none
+  - Return: `bool`
+  - Location: DataTable templates (agency-list.php, division-list.php, employee-list.php)
+
+- [ ] `wp_company_detail_tabs` - Add/remove company detail tabs
+  - Parameters: `($tabs)`
+  - Return: `array`
+  - Location: Company detail view template
+
+**System Filters (1 hook)**:
+- [ ] `wp_agency_debug_mode` - Enable debug logging
+  - Parameters: none
+  - Return: `bool`
+  - Location: Logger class or utility functions
+
+**External Integration Filters (2 hooks)**:
+- [ ] `wilayah_indonesia_get_province_options` - Get province dropdown options
+  - Parameters: `($options)`
+  - Return: `array`
+  - Location: Form templates or AJAX handlers
+
+- [ ] `wilayah_indonesia_get_regency_options` - Get regency dropdown options
+  - Parameters: `($options, $province_id)`
+  - Return: `array`
+  - Location: Form templates or AJAX handlers
+
+**Implementation Plan**:
+
+**Phase 1: Permission Filters**
+- [ ] Implement `wp_agency_can_create_employee` in AgencyEmployeeController
+  - Add filter before validation in create() method
+  - Default: check current capability, allow override
+  - Return false to prevent creation
+
+- [ ] Implement `wp_agency_can_create_division` in DivisionController
+  - Add filter before validation in create() method
+  - Default: check current capability, allow override
+
+- [ ] Document `wp_agency_max_inspector_assignments` for future use
+  - Skip implementation (feature not yet built)
+
+**Phase 2: UI/UX Filters**
+- [ ] Implement `wp_agency_enable_export` in DataTable templates
+  - Add filter check before rendering export button
+  - Default: true (enabled)
+  - Hide button if filter returns false
+
+- [ ] Implement `wp_company_detail_tabs` in company detail template
+  - Add filter to tabs array before rendering
+  - Allow adding/removing/reordering tabs
+  - Default: existing tabs structure
+
+**Phase 3: System Filters**
+- [ ] Implement `wp_agency_debug_mode` globally
+  - Add filter in error_log calls or Logger class
+  - Default: false (production mode)
+  - Enable verbose logging when true
+
+**Phase 4: External Integration Filters**
+- [ ] Implement wilayah filters in form rendering
+  - Add filters when building province/regency dropdowns
+  - Allow external plugins to modify options
+  - Maintain compatibility with wilayah-indonesia plugin
+
+**Implementation Example**:
+```php
+// In AgencyEmployeeController::create()
+$can_create = current_user_can('add_agency_employee');
+$can_create = apply_filters('wp_agency_can_create_employee', $can_create, $agency_id, $division_id, $user_id);
+
+if (!$can_create) {
+    wp_send_json_error(['message' => 'Permission denied by custom filter']);
+    return;
+}
+```
+
+**Files to Modify**:
+- `/src/Controllers/Employee/AgencyEmployeeController.php` (permission filter)
+- `/src/Controllers/Division/DivisionController.php` (permission filter)
+- `/src/Views/templates/agency-list.php` (export filter)
+- `/src/Views/templates/division-list.php` (export filter)
+- `/src/Views/templates/employee-list.php` (export filter)
+- `/src/Views/templates/company-detail.php` (tabs filter)
+- Form templates with wilayah dropdowns (integration filters)
+- Logger or debug utility class (debug mode filter)
+
+**Success Criteria**:
+- ✅ All 8 filter hooks implemented in code
+- ✅ Filters applied at correct locations
+- ✅ Default behavior preserved (backward compatible)
+- ✅ Filter parameters match documentation
+- ✅ Examples created for each filter
+- ✅ Updated hooks documentation with implementation notes
+
+**Testing Plan**:
+```php
+// Test permission filter
+add_filter('wp_agency_can_create_employee', function($can, $agency_id, $division_id, $user_id) {
+    // Block creation outside business hours
+    return $can && (current_time('H') >= 8 && current_time('H') <= 17);
+}, 10, 4);
+
+// Test UI filter
+add_filter('wp_agency_enable_export', '__return_false'); // Disable export
+
+// Test debug mode
+add_filter('wp_agency_debug_mode', '__return_true'); // Enable debug logs
+```
+
+**Benefits**:
+- ✅ Complete hook system (9 actions + 8 filters = 17 hooks)
+- ✅ External extensibility via filters
+- ✅ Custom business logic without core modifications
+- ✅ Consistent with WordPress hook standards
+- ✅ Developer-friendly with comprehensive documentation
+
+**Documentation Reference**:
+- `/docs/hooks/README.md` - Main hooks documentation
+- `/docs/hooks/filters/permission-filters.md` - Permission filters
+- `/docs/hooks/filters/ui-filters.md` - UI/UX filters
+- `/docs/hooks/filters/system-filters.md` - System filters
+- `/docs/hooks/examples/` - Real-world examples
+
+**Notes**:
+- Action hooks (9) already implemented in TODO-2066 ✅
+- Filter hooks (8) documented but need implementation ⏳
+- Some filters (like inspector assignments) are for future features
+- Maintain backward compatibility (filters should enhance, not break)
+
+---
+
 ## TODO-2070: Employee Generator Runtime Flow Migration ✅ COMPLETED
 
 **Status**: ✅ COMPLETED

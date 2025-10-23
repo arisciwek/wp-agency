@@ -5,7 +5,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Views/Templates
- * @version     1.0.0
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Views/templates/company/company-right-panel.php

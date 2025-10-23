@@ -154,6 +154,22 @@ wp-agency/
 
 This plugin is designed to be extensible, allowing other plugins to add new functionality through various hooks and filters. Currently supported integrations include:
 
+### Hooks & Filters System
+
+The plugin provides **17 comprehensive hooks** for extending functionality without modifying core code:
+
+- **9 Action Hooks**: Lifecycle events (agency/division/employee created, before_delete, deleted)
+- **8 Filter Hooks**: Permission overrides, UI customization, system configuration, external integrations
+
+**Hook Categories**:
+- **Lifecycle Hooks**: React to entity creation and deletion events
+- **Permission Filters**: Custom authorization logic for CRUD operations
+- **UI/UX Filters**: Customize interface elements and behavior
+- **System Filters**: Debug mode, configuration overrides
+- **Integration Filters**: Wilayah Indonesia plugin integration
+
+For complete hook reference, examples, and integration guides, see **[Hooks Documentation](docs/hooks/README.md)**
+
 ### Tab Extensions
 Other plugins can add new tabs to the company detail panel. This allows for seamless integration of additional functionality while maintaining clean separation of concerns. Features:
 
@@ -211,6 +227,35 @@ Example integration points:
 - Graceful fallbacks
 
 ## 📝 Changelog
+
+### Version 1.0.7 (2025-01-23)
+- **Task-2070**: Employee demo generator runtime flow migration
+  - Migrated to production validation patterns
+  - Zero production code pollution
+  - Full validation via AgencyEmployeeValidator
+  - Dynamic division mapping for varying IDs
+- **Task-2069**: Division demo generator runtime flow with orphan cleanup
+  - Runtime flow pattern following wp-customer Branch pattern
+  - Automatic cascade cleanup for orphaned employees
+- **Hooks System**: Added comprehensive documentation
+  - 17 hooks total (9 action hooks + 8 filter hooks)
+  - Complete reference with examples in `/docs/hooks/`
+  - Updated README.md with hooks integration guide
+- **Improvements**:
+  - Enhanced cache clearing for WordPress user operations
+  - Fixed duplicate employee usernames (20 users renamed)
+  - Enhanced validator to allow existing WP users
+  - Pattern consistency across all demo generators
+
+### Version 1.0.6 (2025-01-22)
+- **Task-2066**: AutoEntityCreator hook system implementation
+  - Auto-create division pusat when agency is created
+  - Auto-create employee when division is created
+  - Lifecycle hooks: `wp_agency_agency_created`, `wp_agency_division_created`, `wp_agency_employee_created`
+  - Deletion hooks: `before_delete` and `deleted` for all entities
+  - Soft delete and hard delete support
+- Comprehensive error handling and logging
+- Cache-aware hook implementation
 
 ### Version 1.0.3
 - Added extensible tab system in company detail panel

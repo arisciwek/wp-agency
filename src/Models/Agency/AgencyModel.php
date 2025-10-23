@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models
- * @version     2.1.2
+ * @version     1.0.7
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Agency/AgencyModel.php

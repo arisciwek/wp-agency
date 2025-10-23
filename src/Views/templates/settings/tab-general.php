@@ -4,7 +4,7 @@
  *
  * @package     WPAgency
  * @subpackage  Views/Settings
- * @version     1.0.0
+ * @version     1.0.7
  * @author      arisciwek
  * 
  * Description:

@@ -4,7 +4,7 @@
  * 
  * @package     WP_Agency
  * @subpackage  Views/Templates/Agency/PDF
- * @version     1.0.0
+ * @version     1.0.7
  * 
  * Path: /wp-agency/src/Views/templates/agency/pdf/agency-detail-pdf.php
  */
