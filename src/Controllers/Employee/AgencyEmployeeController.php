@@ -701,27 +701,4 @@ class AgencyEmployeeController {
     }
     
 
-    /**
-     * Khusus untuk membuat demo data employee tanpa cache
-     */
-    public function createDemoEmployee(array $data): ?int {
-        try {
-            // Debug log
-            $this->debug_log('Creating demo employee: ' . print_r($data, true));
-
-            // Buat employee via model
-            $employee_id = $this->model->create($data);
-
-            if (!$employee_id) {
-                throw new \Exception('Gagal membuat demo employee');
-            }
-
-            $this->debug_log("Created employee record with ID: " . $employee_id);
-
-            return $employee_id;
-        } catch (\Exception $e) {
-            $this->debug_log('Error creating demo employee: ' . $e->getMessage());
-            throw $e;
-        }
-    }
 }

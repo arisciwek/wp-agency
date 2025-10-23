@@ -233,7 +233,7 @@ class DivisionDemoData extends AbstractDemoData {
 
             // STEP 2: Enable hard delete temporarily untuk demo cleanup
             $original_settings = get_option('wp_agency_general_options', []);
-            $cleanup_settings = array_merge($original_settings, ['enable_hard_delete' => true]);
+            $cleanup_settings = array_merge($original_settings, ['enable_hard_delete_branch' => true]);
             update_option('wp_agency_general_options', $cleanup_settings);
             $this->debug("[DivisionDemoData] Enabled hard delete mode for cleanup");
 

@@ -183,6 +183,22 @@ class WPUserGenerator {
             throw new \Exception("Failed to set static user ID: " . $wpdb->last_error);
         }
 
+        // Clear WordPress user caches for both old and new IDs
+        $old_user_id = $user_id;
+        $new_user_id = $data['id'];
+
+        clean_user_cache($old_user_id);  // Clear cache for old auto ID
+        clean_user_cache($new_user_id);  // Clear cache for new static ID
+
+        // Also clear the email-to-ID mapping cache (if exists)
+        wp_cache_delete($data['username'], 'userlogins');
+        wp_cache_delete($data['username'], 'userslugs');
+        if (isset($data['email'])) {
+            wp_cache_delete(md5($data['email']), 'useremail');
+        }
+
+        $this->debug("Cleared WordPress user caches for IDs {$old_user_id} and {$new_user_id}");
+
         $user_id = $data['id'];
         $this->debug("User ID successfully changed to static ID: {$user_id}");
 

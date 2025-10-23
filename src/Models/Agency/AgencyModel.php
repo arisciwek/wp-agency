@@ -541,10 +541,10 @@
         // 3. Fire before delete hook (for validation/prevention)
         do_action('wp_agency_agency_before_delete', $id, $agency_data);
 
-        // 4. Check if hard delete is enabled
+        // 4. Check if hard delete is enabled (same setting as Division/Employee for consistency)
         $settings = get_option('wp_agency_general_options', []);
-        $is_hard_delete = isset($settings['enable_hard_delete']) &&
-                         $settings['enable_hard_delete'] === true;
+        $is_hard_delete = isset($settings['enable_hard_delete_branch']) &&
+                         $settings['enable_hard_delete_branch'] === true;
 
         // 5. Perform delete (soft or hard)
         if ($is_hard_delete) {

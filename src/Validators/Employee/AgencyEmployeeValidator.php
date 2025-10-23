@@ -198,8 +198,26 @@ class AgencyEmployeeValidator {
             $errors[] = __('Email wajib diisi', 'wp-agency');
         } elseif (!is_email($data['email'])) {
             $errors[] = __('Format email tidak valid', 'wp-agency');
-        } elseif (email_exists($data['email'])) {
-            $errors[] = __('Email sudah digunakan', 'wp-agency');
+        } else {
+            // Check if email exists
+            $email_user_id = email_exists($data['email']);
+            if ($email_user_id) {
+                // Allow if email belongs to the user_id being assigned AND that user has no employee record yet
+                if (!empty($data['user_id']) && (int)$email_user_id === (int)$data['user_id']) {
+                    // Check if this user already has an employee record
+                    global $wpdb;
+                    $existing_employee = $wpdb->get_var($wpdb->prepare(
+                        "SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_employees WHERE user_id = %d",
+                        $data['user_id']
+                    ));
+                    if ($existing_employee > 0) {
+                        $errors[] = __('User ini sudah memiliki employee record', 'wp-agency');
+                    }
+                    // Else: OK - creating employee for existing WP user who has no employee record yet
+                } else {
+                    $errors[] = __('Email sudah digunakan', 'wp-agency');
+                }
+            }
         }
 
         if (empty($data['division_id'])) {

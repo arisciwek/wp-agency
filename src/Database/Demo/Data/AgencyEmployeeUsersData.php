@@ -378,16 +378,16 @@ class AgencyEmployeeUsersData {
             'id' => 208,
             'agency_id' => 7,
             'division_id' => 20,
-            'username' => 'lestari_naufal',
-            'display_name' => 'Lestari Naufal',
+            'username' => 'naufal_lestari',
+            'display_name' => 'Naufal Lestari',
             'roles' => ['agency', 'agency_kepala_unit']
         ],
         209 => [
             'id' => 209,
             'agency_id' => 7,
             'division_id' => 20,
-            'username' => 'melati_prima',
-            'display_name' => 'Melati Prima',
+            'username' => 'prima_melati',
+            'display_name' => 'Prima Melati',
             'roles' => ['agency', 'agency_pengawas']
         ],
         // Agency 7 (Disnaker Provinsi DKI Jakarta) - Division 21 (Cabang 2)
@@ -395,16 +395,16 @@ class AgencyEmployeeUsersData {
             'id' => 210,
             'agency_id' => 7,
             'division_id' => 21,
-            'username' => 'nurul_rini',
-            'display_name' => 'Nurul Rini',
+            'username' => 'rini_nurul',
+            'display_name' => 'Rini Nurul',
             'roles' => ['agency', 'agency_kepala_bidang']
         ],
         211 => [
             'id' => 211,
             'agency_id' => 7,
             'division_id' => 21,
-            'username' => 'permata_santoso',
-            'display_name' => 'Permata Santoso',
+            'username' => 'santoso_permata',
+            'display_name' => 'Santoso Permata',
             'roles' => ['agency', 'agency_pengawas_spesialis']
         ],
 
@@ -413,16 +413,16 @@ class AgencyEmployeeUsersData {
             'id' => 212,
             'agency_id' => 8,
             'division_id' => 22,
-            'username' => 'rizal_septian',
-            'display_name' => 'Rizal Septian',
+            'username' => 'septian_rizal',
+            'display_name' => 'Septian Rizal',
             'roles' => ['agency', 'agency_kepala_dinas']
         ],
         213 => [
             'id' => 213,
             'agency_id' => 8,
             'division_id' => 22,
-            'username' => 'tari_yusuf',
-            'display_name' => 'Tari Yusuf',
+            'username' => 'yusuf_tari',
+            'display_name' => 'Yusuf Tari',
             'roles' => ['agency', 'agency_pengawas']
         ],
         // Agency 8 (Disnaker Provinsi Maluku) - Division 23 (Cabang 1)
@@ -430,16 +430,16 @@ class AgencyEmployeeUsersData {
             'id' => 214,
             'agency_id' => 8,
             'division_id' => 23,
-            'username' => 'wulan_alam',
-            'display_name' => 'Wulan Alam',
+            'username' => 'alam_wulan',
+            'display_name' => 'Alam Wulan',
             'roles' => ['agency', 'agency_kepala_seksi']
         ],
         215 => [
             'id' => 215,
             'agency_id' => 8,
             'division_id' => 23,
-            'username' => 'zahra_citra',
-            'display_name' => 'Zahra Citra',
+            'username' => 'citra_zahra',
+            'display_name' => 'Citra Zahra',
             'roles' => ['agency', 'agency_pengawas']
         ],
         // Agency 8 (Disnaker Provinsi Maluku) - Division 24 (Cabang 2)
@@ -447,16 +447,16 @@ class AgencyEmployeeUsersData {
             'id' => 216,
             'agency_id' => 8,
             'division_id' => 24,
-            'username' => 'bunga_erlangga',
-            'display_name' => 'Bunga Erlangga',
+            'username' => 'erlangga_bunga',
+            'display_name' => 'Erlangga Bunga',
             'roles' => ['agency', 'agency_kepala_bidang']
         ],
         217 => [
             'id' => 217,
             'agency_id' => 8,
             'division_id' => 24,
-            'username' => 'dini_gilang',
-            'display_name' => 'Dini Gilang',
+            'username' => 'gilang_dini',
+            'display_name' => 'Gilang Dini',
             'roles' => ['agency', 'agency_pengawas_spesialis']
         ],
 
@@ -465,16 +465,16 @@ class AgencyEmployeeUsersData {
             'id' => 218,
             'agency_id' => 9,
             'division_id' => 25,
-            'username' => 'farah_ilham',
-            'display_name' => 'Farah Ilham',
+            'username' => 'ilham_farah',
+            'display_name' => 'Ilham Farah',
             'roles' => ['agency', 'agency_kepala_dinas']
         ],
         219 => [
             'id' => 219,
             'agency_id' => 9,
             'division_id' => 25,
-            'username' => 'hani_khoirul',
-            'display_name' => 'Hani Khoirul',
+            'username' => 'khoirul_hani',
+            'display_name' => 'Khoirul Hani',
             'roles' => ['agency', 'agency_pengawas']
         ],
         // Agency 9 (Disnaker Provinsi Papua) - Division 26 (Cabang 1)
@@ -482,16 +482,16 @@ class AgencyEmployeeUsersData {
             'id' => 220,
             'agency_id' => 9,
             'division_id' => 26,
-            'username' => 'jasmine_manda',
-            'display_name' => 'Jasmine Manda',
+            'username' => 'manda_jasmine',
+            'display_name' => 'Manda Jasmine',
             'roles' => ['agency', 'agency_kepala_unit']
         ],
         221 => [
             'id' => 221,
             'agency_id' => 9,
             'division_id' => 26,
-            'username' => 'liza_okta',
-            'display_name' => 'Liza Okta',
+            'username' => 'okta_liza',
+            'display_name' => 'Okta Liza',
             'roles' => ['agency', 'agency_pengawas']
         ],
         // Agency 9 (Disnaker Provinsi Papua) - Division 27 (Cabang 2)
@@ -499,16 +499,16 @@ class AgencyEmployeeUsersData {
             'id' => 222,
             'agency_id' => 9,
             'division_id' => 27,
-            'username' => 'nova_qori',
-            'display_name' => 'Nova Qori',
+            'username' => 'qori_nova',
+            'display_name' => 'Qori Nova',
             'roles' => ['agency', 'agency_kepala_seksi']
         ],
         223 => [
             'id' => 223,
             'agency_id' => 9,
             'division_id' => 27,
-            'username' => 'panca_sari',
-            'display_name' => 'Panca Sari',
+            'username' => 'sari_panca',
+            'display_name' => 'Sari Panca',
             'roles' => ['agency', 'agency_pengawas_spesialis']
         ],
 
@@ -517,16 +517,16 @@ class AgencyEmployeeUsersData {
             'id' => 224,
             'agency_id' => 10,
             'division_id' => 28,
-            'username' => 'reza_ulfa',
-            'display_name' => 'Reza Ulfa',
+            'username' => 'ulfa_reza',
+            'display_name' => 'Ulfa Reza',
             'roles' => ['agency', 'agency_kepala_dinas']
         ],
         225 => [
             'id' => 225,
             'agency_id' => 10,
             'division_id' => 28,
-            'username' => 'tiara_wira',
-            'display_name' => 'Tiara Wira',
+            'username' => 'wira_tiara',
+            'display_name' => 'Wira Tiara',
             'roles' => ['agency', 'agency_pengawas']
         ],
         // Agency 10 (Disnaker Provinsi Sulawesi Selatan) - Division 29 (Cabang 1)
@@ -534,16 +534,16 @@ class AgencyEmployeeUsersData {
             'id' => 226,
             'agency_id' => 10,
             'division_id' => 29,
-            'username' => 'vicky_zain',
-            'display_name' => 'Vicky Zain',
+            'username' => 'zain_vicky',
+            'display_name' => 'Zain Vicky',
             'roles' => ['agency', 'agency_kepala_unit']
         ],
         227 => [
             'id' => 227,
             'agency_id' => 10,
             'division_id' => 29,
-            'username' => 'yoga_bagus',
-            'display_name' => 'Yoga Bagus',
+            'username' => 'bagus_yoga',
+            'display_name' => 'Bagus Yoga',
             'roles' => ['agency', 'agency_pengawas']
         ],
         // Agency 10 (Disnaker Provinsi Sulawesi Selatan) - Division 30 (Cabang 2)

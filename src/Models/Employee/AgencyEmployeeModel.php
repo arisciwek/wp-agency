@@ -81,7 +81,10 @@ class AgencyEmployeeModel {
         }
 
         $employee_id = (int) $wpdb->insert_id;
-        
+
+        // Task-2070: Fire hook after successful employee creation
+        // Allows plugins/handlers to respond to new employee (email, notification, audit log, etc)
+        do_action('wp_agency_employee_created', $employee_id, $data);
 
         // Invalidasi cache terkait agency_employee
         $this->cache->delete('agency_active_employee_count', (string)$data['agency_id']);
@@ -254,61 +257,121 @@ class AgencyEmployeeModel {
         return true;
     }
 
+    /**
+     * Delete employee with HOOK support
+     *
+     * Supports soft/hard delete based on settings
+     * - Fires wp_agency_employee_before_delete HOOK
+     * - Performs soft delete (status='inactive') or hard delete (actual DELETE)
+     * - Fires wp_agency_employee_deleted HOOK
+     *
+     * @param int $id Employee ID to delete
+     * @return bool True on success, false on failure
+     */
     public function delete(int $id): bool {
         global $wpdb;
 
-        // Dapatkan data employee sebelum dihapus
+        // 1. Get employee data BEFORE deletion for HOOK
         $employee = $this->find($id);
         if (!$employee) {
             return false;
         }
 
+        // 2. Convert to array for HOOK
+        $employee_data = [
+            'id' => $employee->id,
+            'agency_id' => $employee->agency_id,
+            'division_id' => $employee->division_id,
+            'user_id' => $employee->user_id,
+            'name' => $employee->name,
+            'position' => $employee->position,
+            'email' => $employee->email,
+            'phone' => $employee->phone,
+            'finance' => $employee->finance ?? null,
+            'operation' => $employee->operation ?? null,
+            'legal' => $employee->legal ?? null,
+            'purchase' => $employee->purchase ?? null,
+            'keterangan' => $employee->keterangan ?? null,
+            'status' => $employee->status ?? 'active',
+            'created_by' => $employee->created_by ?? null,
+            'created_at' => $employee->created_at ?? null,
+            'updated_at' => $employee->updated_at ?? null
+        ];
+
         $agency_id = $employee->agency_id;
         $division_id = $employee->division_id;
 
-        $result = $wpdb->delete(
-            $this->table,
-            ['id' => $id],
-            ['%d']
-        );
+        // 3. Fire before delete HOOK (for validation, logging, pre-deletion notifications)
+        do_action('wp_agency_employee_before_delete', $id, $employee_data);
 
-        if ($result === false) {
-            return false;
+        // 4. Check hard delete setting (same setting as Division/Agency for consistency)
+        $settings = get_option('wp_agency_general_options', []);
+        $is_hard_delete = isset($settings['enable_hard_delete_branch']) &&
+                         $settings['enable_hard_delete_branch'] === true;
+
+        // 5. Perform delete (soft or hard)
+        if ($is_hard_delete) {
+            // Hard delete - actual DELETE from database
+            $result = $wpdb->delete(
+                $this->table,
+                ['id' => $id],
+                ['%d']
+            );
+        } else {
+            // Soft delete - status = 'inactive'
+            $result = $wpdb->update(
+                $this->table,
+                [
+                    'status' => 'inactive',
+                    'updated_at' => current_time('mysql')
+                ],
+                ['id' => $id],
+                ['%s', '%s'],
+                ['%d']
+            );
         }
 
-        // Invalidasi cache
-        $this->cache->delete('agency_employee', $id);
-        $this->cache->delete('agency_employee_count', (string)$agency_id);
-        $this->cache->delete('agency_active_employee_count', (string)$agency_id);
-        // Also invalidate global employee count cache
-        $this->cache->delete('agency_employee_count');
-        // Invalidate dashboard stats cache
-        $this->cache->delete('agency_stats_0');
-        $this->cache->delete('division_agency_employee_list', (string)$division_id);
-        $this->cache->invalidateDataTableCache('agency_employee_list', [
-            'agency_id' => $agency_id
-        ]);
+        // 6. Fire after delete HOOK and handle cleanup
+        if ($result !== false) {
+            // Fire HOOK - passing $is_hard_delete as third parameter
+            do_action('wp_agency_employee_deleted', $id, $employee_data, $is_hard_delete);
 
-        // Invalidate per-user count caches for all affected users
-        $affected_users = $wpdb->get_col($wpdb->prepare(
-            "SELECT DISTINCT user_id FROM (
-                SELECT user_id FROM {$this->agency_table} WHERE id = %d
-                UNION
-                SELECT user_id FROM {$this->table} WHERE agency_id = %d AND status = 'active'
-            ) AS users",
-            $agency_id,
-            $agency_id
-        ));
+            // Invalidasi cache
+            $this->cache->delete('agency_employee', $id);
+            $this->cache->delete('agency_employee_count', (string)$agency_id);
+            $this->cache->delete('agency_active_employee_count', (string)$agency_id);
+            // Also invalidate global employee count cache
+            $this->cache->delete('agency_employee_count');
+            // Invalidate dashboard stats cache
+            $this->cache->delete('agency_stats_0');
+            $this->cache->delete('division_agency_employee_list', (string)$division_id);
+            $this->cache->invalidateDataTableCache('agency_employee_list', [
+                'agency_id' => $agency_id
+            ]);
 
-        foreach ($affected_users as $user_id) {
-            $this->cache->delete('employee_total_count_' . $user_id);
-            $this->cache->delete('agency_stats_' . $user_id);
+            // Invalidate per-user count caches for all affected users
+            $affected_users = $wpdb->get_col($wpdb->prepare(
+                "SELECT DISTINCT user_id FROM (
+                    SELECT user_id FROM {$this->agency_table} WHERE id = %d
+                    UNION
+                    SELECT user_id FROM {$this->table} WHERE agency_id = %d AND status = 'active'
+                ) AS users",
+                $agency_id,
+                $agency_id
+            ));
+
+            foreach ($affected_users as $user_id) {
+                $this->cache->delete('employee_total_count_' . $user_id);
+                $this->cache->delete('agency_stats_' . $user_id);
+            }
+
+            // Also invalidate admin stats
+            $this->cache->delete('agency_stats_0');
+
+            return true;
         }
 
-        // Also invalidate admin stats
-        $this->cache->delete('agency_stats_0');
-
-        return true;
+        return false;
     }
 
     public function existsByEmail(string $email, ?int $excludeId = null): bool {

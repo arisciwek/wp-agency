@@ -212,7 +212,7 @@ class AgencyDemoData extends AbstractDemoData {
         // 1. Enable hard delete temporarily (for complete cleanup)
         $original_settings = get_option('wp_agency_general_options', []);
         $cleanup_settings = array_merge($original_settings, [
-            'enable_hard_delete' => true
+            'enable_hard_delete_branch' => true
         ]);
         update_option('wp_agency_general_options', $cleanup_settings);
 
