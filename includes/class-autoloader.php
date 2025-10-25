@@ -78,24 +78,28 @@ class WPAgencyAutoloader {
      */
     public function loadClass($class) {
         try {
+            $this->log("=== AUTOLOADER LOADING: $class ===");
+
             // Check if class already loaded
             if (isset($this->loadedClasses[$class])) {
                 return true;
             }
-            
+
             // Validate class name format
             if (!$this->isValidClassName($class)) {
                 $this->log("Invalid class name format: $class");
                 return false;
             }
-            
+
             // Check if class uses our namespace
             if (strpos($class, $this->prefix) !== 0) {
+                $this->log("Class doesn't use our prefix: $class (prefix: {$this->prefix})");
                 return false;
             }
-            
+
             // Get the relative class name
             $relativeClass = substr($class, strlen($this->prefix));
+            $this->log("Relative class: $relativeClass");
             
             // Find matching namespace mapping
             $mappedPath = $this->findMappedPath($relativeClass);
@@ -103,9 +107,11 @@ class WPAgencyAutoloader {
                 $this->log("No mapping found for class: $class");
                 return false;
             }
-            
+
             // Build the full file path
             $file = $this->baseDir . $mappedPath;
+            $this->log("Base directory: {$this->baseDir}");
+            $this->log("Full file path: $file");
             
             // Check if file exists
             if (!$this->validateFile($file)) {
@@ -145,11 +151,16 @@ class WPAgencyAutoloader {
      * Find mapped path for class
      */
     private function findMappedPath($relativeClass) {
+        $this->log("Finding mapped path for: $relativeClass");
+        $this->log("Available mappings: " . print_r($this->mappings, true));
+
         // Try each mapping from most specific to least
         foreach ($this->mappings as $namespace => $directory) {
             if (empty($namespace) || strpos($relativeClass, $namespace) === 0) {
                 $classPath = empty($namespace) ? $relativeClass : substr($relativeClass, strlen($namespace));
-                return $directory . str_replace('\\', '/', $classPath) . '.php';
+                $mappedPath = $directory . str_replace('\\', '/', $classPath) . '.php';
+                $this->log("Mapped path result: $mappedPath");
+                return $mappedPath;
             }
         }
         return false;
@@ -159,16 +170,22 @@ class WPAgencyAutoloader {
      * Validate file exists and is readable
      */
     private function validateFile($file) {
+        // Clear stat cache to avoid stale file existence checks
+        clearstatcache(true, $file);
+
         if (!file_exists($file)) {
             $this->log("File does not exist: $file");
+            // Double-check with realpath
+            $realFile = realpath($file);
+            $this->log("Realpath result: " . ($realFile ? $realFile : 'FALSE'));
             return false;
         }
-        
+
         if (!is_readable($file)) {
             $this->log("File not readable: $file");
             return false;
         }
-        
+
         return true;
     }
     
@@ -185,9 +202,10 @@ class WPAgencyAutoloader {
      * Debug logging
      */
     private function log($message) {
-        if ($this->debugMode) {
-            // error_log("[WPAgencyAutoloader] $message");
-        }
+        // Disabled verbose autoloader logging to prevent AJAX response pollution
+        // if ($this->debugMode) {
+        //     error_log("[WPAgencyAutoloader] $message");
+        // }
     }
     
     /**

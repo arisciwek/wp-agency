@@ -1,0 +1,57 @@
+/**
+ * Agency Filter Styles (Scope Local)
+ *
+ * @package     WP_Agency
+ * @subpackage  Assets/CSS/Agency
+ * @version     1.0.0
+ * @author      arisciwek
+ *
+ * Path: /wp-agency/assets/css/agency/agency-filter.css
+ *
+ * Description: Styles for agency status filter component.
+ *              Scope local - uses agency-* CSS classes.
+ *
+ * Changelog:
+ * 1.0.0 - 2025-10-24
+ * - Initial implementation
+ * - Moved from inline style to separate CSS file
+ */
+
+/* Filter Wrapper */
+.agency-filter-wrapper {
+    padding: 0;
+    margin: 0;
+}
+
+/* Filter Group */
+.agency-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Filter Label */
+.agency-filter-label {
+    font-weight: 600;
+    color: #1d2327;
+    margin: 0;
+}
+
+/* Filter Select */
+.agency-filter-select {
+    min-width: 200px;
+    padding: 6px 10px;
+    border: 1px solid #8c8f94;
+    border-radius: 3px;
+    font-size: 14px;
+    line-height: 1.5;
+    background-color: #fff;
+    color: #2c3338;
+}
+
+.agency-filter-select:focus {
+    border-color: #2271b1;
+    outline: 2px solid transparent;
+    outline-offset: 0;
+    box-shadow: 0 0 0 1px #2271b1;
+}

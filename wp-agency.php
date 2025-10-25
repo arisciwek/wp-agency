@@ -181,6 +181,32 @@ class WPAgency {
         // Agency Controller
         $this->agency_controller = new \WPAgency\Controllers\AgencyController();
 
+        // Agency Dashboard Controller (TODO-2071 - Base Panel System)
+        // Delay initialization until after wp-app-core is loaded (plugins_loaded hook)
+        $self = $this; // Store reference for closure
+        add_action('plugins_loaded', function() use ($self) {
+            if (class_exists('WPAppCore\\Models\\DataTable\\DataTableModel')) {
+//                 error_log('=== AGENCY DASHBOARD CONTROLLER INIT (plugins_loaded) ===');
+
+                // Force autoloader to check for the class
+                if (!class_exists('WPAgency\\Controllers\\Agency\\AgencyDashboardController')) {
+                    error_log('ERROR: AgencyDashboardController class not found by autoloader');
+                    return;
+                }
+
+                try {
+                    $self->dashboard_controller = new \WPAgency\Controllers\Agency\AgencyDashboardController();
+                    error_log('AgencyDashboardController initialized successfully');
+                } catch (\Exception $e) {
+                    error_log('ERROR initializing AgencyDashboardController: ' . $e->getMessage());
+                } catch (\Error $e) {
+                    error_log('FATAL ERROR initializing AgencyDashboardController: ' . $e->getMessage());
+                }
+            } else {
+                error_log('ERROR: wp-app-core not loaded, AgencyDashboardController not initialized');
+            }
+        }, 20); // Priority 20 ensures wp-app-core loaded first
+
         // Employee Controller
         new \WPAgency\Controllers\Employee\AgencyEmployeeController();
 
