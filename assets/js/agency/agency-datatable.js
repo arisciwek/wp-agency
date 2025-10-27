@@ -1,346 +1,258 @@
 /**
- * Agency DataTable Handler
+ * Agency DataTable Handler - Base Panel System Integration
  *
  * @package     WP_Agency
- * @subpackage  Assets/JS/Components
- * @version     1.0.2
+ * @subpackage  Assets/JS/Agency
+ * @version     2.0.0
  * @author      arisciwek
  *
- * Path: /wp-agency/assets/js/components/agency-datatable.js
+ * Path: /wp-agency/assets/js/agency/agency-datatable.js
  *
  * Description: Komponen untuk mengelola DataTables agency.
- *              Menangani server-side processing, panel kanan,
- *              dan integrasi dengan komponen form terpisah.
+ *              Terintegrasi dengan base panel system dari wp-app-core.
+ *              Menangani server-side processing dan event handling.
  *
- * Form Integration:
- * - Create form handling sudah dipindahkan ke create-agency-form.js
- * - Component ini hanya menyediakan method refresh() untuk update table
- * - Event 'agency:created' digunakan sebagai trigger untuk refresh
+ * Changelog:
+ * 2.0.0 - 2025-10-25
+ * - Migrated from inline script in datatable.php (TODO-3077)
+ * - Integrated with wp-app-core base panel system
+ * - Uses wpapp:open-panel event for panel integration
+ * - Table ID: #agency-list-table (singular + list)
+ * - AJAX action: get_agencies_datatable
+ * - Columns: code, name, provinsi_name, regency_name, actions
+ * - Localized strings via wpAgencyDataTable object
+ * 1.0.2 - 2025-10-22
+ * - Old implementation (backed up as agency-datatable.js.backup)
  *
  * Dependencies:
  * - jQuery
  * - DataTables library
- * - AgencyToast for notifications
- * - CreateAgencyForm for handling create operations
- * - EditAgencyForm for handling edit operations
+ * - wp-app-core base panel system
+ * - wpAgencyDataTable localized object (translations, ajaxurl, nonce)
  *
- * Related Files:
- * - create-agency-form.js: Handles create form submission
- * - edit-agency-form.js: Handles edit form submission
+ * Global Variables Required:
+ * - wpAgencyDataTable.ajaxurl: WordPress AJAX URL
+ * - wpAgencyDataTable.nonce: Security nonce
+ * - wpAgencyDataTable.i18n: Translation strings
  */
- (function($) {
-     'use strict';
 
-     const AgencyDataTable = {
-         table: null,
-         initialized: false,
-         currentHighlight: null,
-         statusFilter: 'active',
+(function($) {
+    'use strict';
 
-         init() {
-             if (this.initialized) {
-                 return;
-             }
+    /**
+     * Agency DataTable Module
+     */
+    const AgencyDataTable = {
 
-             // Wait for dependencies
-             if (!window.Agency || !window.AgencyToast) {
-                 setTimeout(() => this.init(), 100);
-                 return;
-             }
+        /**
+         * DataTable instance
+         */
+        table: null,
 
-             this.initialized = true;
-             this.initDataTable();
-             this.bindEvents();
-             this.handleInitialHash();
-         },
+        /**
+         * Initialization flag
+         */
+        initialized: false,
 
-        initDataTable() {
-            if ($.fn.DataTable.isDataTable('#agencies-table')) {
-                $('#agencies-table').DataTable().destroy();
+        /**
+         * Initialize DataTable
+         */
+        init() {
+            if (this.initialized) {
+                console.log('[AgencyDataTable] Already initialized');
+                return;
             }
 
-            // Initialize clean table structure
-            $('#agencies-table').empty().html(`
-                <thead>
-                    <tr>
-                        <th>Kode</th>
-                        <th>Disnaker</th>
-                        <th>Admin</th>
-                        <th>Unit Kerja</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            `);
+            // Check if table element exists
+            if ($('#agency-list-table').length === 0) {
+                console.log('[AgencyDataTable] Table element not found');
+                return;
+            }
 
-            this.table = $('#agencies-table').DataTable({
+            // Check dependencies
+            if (typeof wpAgencyDataTable === 'undefined') {
+                console.error('[AgencyDataTable] wpAgencyDataTable object not found. Script not localized properly.');
+                return;
+            }
+
+            console.log('[AgencyDataTable] Initializing...');
+
+            this.initDataTable();
+            this.bindEvents();
+
+            this.initialized = true;
+            console.log('[AgencyDataTable] Initialized successfully');
+        },
+
+        /**
+         * Initialize DataTable with server-side processing
+         */
+        initDataTable() {
+            const self = this;
+
+            this.table = $('#agency-list-table').DataTable({
                 processing: true,
                 serverSide: true,
                 ajax: {
-                    url: wpAgencyData.ajaxUrl,
+                    url: wpAgencyDataTable.ajaxurl,
                     type: 'POST',
-                    cache: false,
-                    timeout: 10000,
-                    data: (d) => {
-                        return {
-                            ...d,
-                            action: 'handle_agency_datatable',
-                            status_filter: this.statusFilter,
-                            nonce: wpAgencyData.nonce
-                        };
+                    data: function(d) {
+                        d.action = 'get_agencies_datatable';
+                        d.nonce = wpAgencyDataTable.nonce;
+                        return d;
                     },
-                    error: (xhr, error, thrown) => {
-                        console.error('DataTables Error:', error, thrown);
-                        AgencyToast.error('Gagal memuat data agency');
+                    error: function(xhr, error, code) {
+                        console.error('[AgencyDataTable] AJAX Error:', error, code);
+                        console.error('[AgencyDataTable] Response:', xhr.responseText);
                     }
                 },
-                // Di bagian columns, tambahkan setelah kolom code
                 columns: [
                     {
                         data: 'code',
-                        title: 'Kode',
-                        width: '100px'
+                        width: '12%'
                     },
                     {
                         data: 'name',
-                        title: 'Disnaker'
+                        width: '35%'
                     },
                     {
-                        data: 'owner_name',
-                        title: 'Admin',
-                        defaultContent: '-'
+                        data: 'provinsi_name',
+                        width: '23%'
                     },
                     {
-                        data: 'division_count',
-                        title: 'Unit Kerja',
-                        className: 'text-center',
-                        searchable: false,
-                        width: '40px'
+                        data: 'regency_name',
+                        width: '23%'
                     },
                     {
                         data: 'actions',
-                        title: 'Aksi',
+                        width: '7%',
                         orderable: false,
-                        searchable: false,
-                        className: 'text-center nowrap'
+                        searchable: false
                     }
                 ],
-                order: [[0, 'asc']], // Default sort by code
-                pageLength: wpAgencyData.perPage || 10,
-                language: {
-                    "emptyTable": "Tidak ada data yang tersedia",
-                    "info": "Menampilkan _START_ hingga _END_ dari _TOTAL_ entri",
-                    "infoEmpty": "Menampilkan 0 hingga 0 dari 0 entri",
-                    "infoFiltered": "(disaring dari _MAX_ total entri)",
-                    "lengthMenu": "Tampilkan _MENU_ entri",
-                    "loadingRecords": "Memuat...",
-                    "processing": "Memproses...",
-                    "search": "Cari:",
-                    "zeroRecords": "Tidak ditemukan data yang sesuai",
-                    "paginate": {
-                        "first": "Pertama",
-                        "last": "Terakhir",
-                        "next": "Selanjutnya",
-                        "previous": "Sebelumnya"
+                order: [[1, 'asc']], // Default sort by name
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+                language: wpAgencyDataTable.i18n || {
+                    processing: 'Loading...',
+                    search: 'Search:',
+                    lengthMenu: 'Show _MENU_ entries',
+                    info: 'Showing _START_ to _END_ of _TOTAL_ entries',
+                    infoEmpty: 'Showing 0 to 0 of 0 entries',
+                    infoFiltered: '(filtered from _MAX_ total entries)',
+                    zeroRecords: 'No matching records found',
+                    emptyTable: 'No data available in table',
+                    paginate: {
+                        first: 'First',
+                        previous: 'Previous',
+                        next: 'Next',
+                        last: 'Last'
                     }
-                },
-                drawCallback: (settings) => {
-                    this.bindActionButtons();
-
-                    // Get current hash if any
-                    const hash = window.location.hash;
-                    if (hash && hash.startsWith('#')) {
-                        const id = hash.substring(1);
-                        if (id) {
-                            this.highlightRow(id);
-                        }
-                    }
-                },
-                createdRow: (row, data) => {
-                    $(row).attr('data-id', data.id);
                 }
             });
+
+            console.log('[AgencyDataTable] DataTable initialized');
         },
 
-         bindEvents() {
-             // Hash change event
-             $(window).off('hashchange.agencyTable')
-                     .on('hashchange.agencyTable', () => this.handleHashChange());
+        /**
+         * Bind event handlers
+         */
+        bindEvents() {
+            const self = this;
 
-             // Status filter change handler
-             $('#agency-status-filter').off('change').on('change', (e) => {
-                 this.statusFilter = $(e.target).val();
-                 this.refresh();
-             });
+            /**
+             * Handle row click to open detail panel
+             *
+             * DEPRECATED (TODO-3080): Row click now handled by wpapp-panel-manager.js
+             * Disabled to prevent conflict with NEW panel system
+             * OLD event 'wpapp:open-panel' was for panel-handler.js (now disabled)
+             * NEW system (wpapp-panel-manager.js) handles row click automatically
+             */
+            /*
+            $('#agency-list-table tbody').on('click', 'tr', function() {
+                const data = self.table.row(this).data();
 
-             // CRUD event listeners
-             $(document).off('agency:created.datatable agency:updated.datatable agency:deleted.datatable agency:created agency:updated agency:deleted')
-                       .on('agency:created agency:updated agency:deleted',
-                           () => this.refresh());
-         },
+                if (data && data.DT_RowData && data.DT_RowData.id) {
+                    console.log('[AgencyDataTable] Row clicked, opening panel for ID:', data.DT_RowData.id);
 
-         bindActionButtons() {
-             const $table = $('#agencies-table');
-             $table.off('click', '.view-agency, .edit-agency, .delete-agency');
-
-             // View action
-             $table.on('click', '.view-agency', (e) => {
-                 const id = $(e.currentTarget).data('id');
-                 if (id) window.location.hash = id;
-
-                 // Reset tab ke details
-                 $('.tab-content').removeClass('active');
-                 $('#agency-details').addClass('active');
-                 $('.nav-tab').removeClass('nav-tab-active');
-                 $('.nav-tab[data-tab="agency-details"]').addClass('nav-tab-active');
-
-             });
-
-             // Edit action
-             $table.on('click', '.edit-agency', (e) => {
-                 e.preventDefault();
-                 const id = $(e.currentTarget).data('id');
-                 this.loadAgencyForEdit(id);
-             });
-
-             // Delete action
-             $table.on('click', '.delete-agency', (e) => {
-                 const id = $(e.currentTarget).data('id');
-                 this.handleDelete(id);
-             });
-         },
-
-         async loadAgencyForEdit(id) {
-            if (!id) return;
-
-            try {
-                console.log('Loading agency data for edit ID:', id); // Debug log
-
-                const response = await $.ajax({
-                    url: wpAgencyData.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'get_agency',
-                        id: id,
-                        nonce: wpAgencyData.nonce
-                    }
-                });
-
-                console.log('Response from get_agency:', response); // Debug response
-
-                if (response.success) {
-                    if (window.EditAgencyForm) {
-                        window.EditAgencyForm.showEditForm(response.data);
-                    } else {
-                        console.error('EditAgencyForm component not found'); // Debug component
-                        AgencyToast.error('Komponen form edit tidak tersedia');
-                    }
-                } else {
-                    console.error('Failed to load agency data:', response); // Debug error
-                    AgencyToast.error(response.data?.message || 'Gagal memuat data agency');
+                    // Trigger event for base panel system
+                    $(document).trigger('wpapp:open-panel', {
+                        id: data.DT_RowData.id,
+                        entity: 'agency'
+                    });
                 }
-            } catch (error) {
-                console.error('Load agency error:', error);
-                AgencyToast.error('Gagal menghubungi server');
+            });
+            */
+
+            /**
+             * Handle edit button click
+             */
+            $(document).on('click', '.wpapp-edit-agency', function(e) {
+                e.stopPropagation(); // Prevent row click
+
+                const agencyId = $(this).data('id');
+                console.log('[AgencyDataTable] Edit button clicked for ID:', agencyId);
+
+                // TODO: Open edit modal or navigate to edit page
+                console.log('[AgencyDataTable] Edit functionality not yet implemented');
+            });
+
+            /**
+             * Handle delete button click
+             */
+            $(document).on('click', '.wpapp-delete-agency', function(e) {
+                e.stopPropagation(); // Prevent row click
+
+                const agencyId = $(this).data('id');
+                const confirmMessage = wpAgencyDataTable.i18n?.confirmDelete ||
+                                     'Are you sure you want to delete this agency?';
+
+                if (!confirm(confirmMessage)) {
+                    return;
+                }
+
+                console.log('[AgencyDataTable] Delete button clicked for ID:', agencyId);
+
+                // TODO: Implement delete functionality
+                console.log('[AgencyDataTable] Delete functionality not yet implemented');
+            });
+
+            console.log('[AgencyDataTable] Events bound');
+        },
+
+        /**
+         * Refresh DataTable
+         */
+        refresh() {
+            if (this.table) {
+                console.log('[AgencyDataTable] Refreshing table...');
+                this.table.ajax.reload(null, false); // Keep current page
             }
-         },
+        },
 
-         async handleDelete(id) {
-             if (!id) return;
+        /**
+         * Destroy DataTable instance
+         */
+        destroy() {
+            if (this.table) {
+                console.log('[AgencyDataTable] Destroying table...');
+                this.table.destroy();
+                this.table = null;
+                this.initialized = false;
+            }
+        }
+    };
 
-             // Tampilkan modal konfirmasi dengan WIModal
-             WIModal.show({
-                 title: 'Konfirmasi Hapus',
-                 message: 'Yakin ingin menghapus agency ini? Aksi ini tidak dapat dibatalkan.',
-                 icon: 'trash',
-                 type: 'danger',
-                 confirmText: 'Hapus',
-                 confirmClass: 'button-danger',
-                 cancelText: 'Batal',
-                 onConfirm: async () => {
-                     try {
-                         const response = await $.ajax({
-                             url: wpAgencyData.ajaxUrl,
-                             type: 'POST',
-                             data: {
-                                 action: 'delete_agency',
-                                 id: id,
-                                 nonce: wpAgencyData.nonce
-                             }
-                         });
+    /**
+     * Initialize on document ready
+     */
+    $(document).ready(function() {
+        AgencyDataTable.init();
+    });
 
-                         if (response.success) {
-                             AgencyToast.success(response.data.message);
+    /**
+     * Expose to global scope for external access
+     */
+    window.AgencyDataTable = AgencyDataTable;
 
-                             // Clear hash if deleted agency is currently viewed
-                             if (window.location.hash === `#${id}`) {
-                                 window.location.hash = '';
-                             }
-
-                             this.refresh();
-                             $(document).trigger('agency:deleted');
-                         } else {
-                             AgencyToast.error(response.data?.message || 'Gagal menghapus agency');
-                         }
-                     } catch (error) {
-                         console.error('Delete agency error:', error);
-                         AgencyToast.error('Gagal menghubungi server');
-                     }
-                 }
-             });
-         },
-
-         handleHashChange() {
-             const hash = window.location.hash;
-             if (hash) {
-                 const id = hash.substring(1);
-                 if (id) {
-                     this.highlightRow(id);
-                 }
-             }
-         },
-
-         handleInitialHash() {
-             const hash = window.location.hash;
-             if (hash && hash.startsWith('#')) {
-                 this.handleHashChange();
-             }
-         },
-
-         highlightRow(id) {
-             if (this.currentHighlight) {
-                 $(`tr[data-id="${this.currentHighlight}"]`).removeClass('highlight');
-             }
-
-             const $row = $(`tr[data-id="${id}"]`);
-             if ($row.length) {
-                 $row.addClass('highlight');
-                 this.currentHighlight = id;
-
-                 // Scroll into view if needed
-                 const container = this.table.table().container();
-                 const rowTop = $row.position().top;
-                 const containerHeight = $(container).height();
-                 const scrollTop = $(container).scrollTop();
-
-                 if (rowTop < scrollTop || rowTop > scrollTop + containerHeight) {
-                     $row[0].scrollIntoView({behavior: 'smooth', block: 'center'});
-                 }
-             }
-         },
-
-         refresh() {
-             if (this.table) {
-                 this.table.ajax.reload(null, false);
-             }
-         }
-
-     };
-
-     // Initialize when document is ready
-     $(document).ready(() => {
-         window.AgencyDataTable = AgencyDataTable;
-         AgencyDataTable.init();
-     });
-
- })(jQuery);
+})(jQuery);

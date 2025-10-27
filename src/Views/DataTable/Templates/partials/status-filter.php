@@ -3,17 +3,21 @@
  * Agency Status Filter Partial
  *
  * @package     WP_Agency
- * @subpackage  Views/Agency/Partials
- * @version     1.0.0
+ * @subpackage  Views/DataTable/Templates/Partials
+ * @version     1.0.3
  * @author      arisciwek
  *
- * Path: /wp-agency/src/Views/agency/partials/status-filter.php
+ * Path: /wp-agency/src/Views/DataTable/Templates/partials/status-filter.php
  *
  * Description: Partial template untuk status filter.
  *              Scope local - uses agency-* CSS classes.
  *              Requires edit_all_agencies capability.
  *
  * Changelog:
+ * 1.0.3 - 2025-10-25
+ * - Moved from /Views/agency/partials/ to /Views/DataTable/Templates/partials/
+ * - Updated path to match DataTable structure
+ * - Updated subpackage to Views/DataTable/Templates/Partials
  * 1.0.2 - 2025-10-24
  * - Removed: All inline styles (<style> tag) moved to agency-filter.css
  * - Removed: All inline scripts (<script> tag) moved to agency-filter.js
@@ -37,22 +41,20 @@ $can_filter = current_user_can('edit_all_agencies') || current_user_can('manage_
 ?>
 
 <?php if ($can_filter): ?>
-<div class="agency-filter-wrapper">
-    <div class="agency-filter-group">
-        <label for="agency-status-filter" class="agency-filter-label">
-            <?php esc_html_e('Filter Status:', 'wp-agency'); ?>
-        </label>
-        <select id="agency-status-filter" class="agency-filter-select" data-current="<?php echo esc_attr($current_status); ?>">
-            <option value="all" <?php selected($current_status, 'all'); ?>>
-                <?php esc_html_e('Semua Status', 'wp-agency'); ?>
-            </option>
-            <option value="active" <?php selected($current_status, 'active'); ?>>
-                <?php esc_html_e('Aktif', 'wp-agency'); ?>
-            </option>
-            <option value="inactive" <?php selected($current_status, 'inactive'); ?>>
-                <?php esc_html_e('Tidak Aktif', 'wp-agency'); ?>
-            </option>
-        </select>
-    </div>
+<div class="agency-status-filter-group">
+    <label for="agency-status-filter" class="agency-filter-label">
+        <?php esc_html_e('Filter Status:', 'wp-agency'); ?>
+    </label>
+    <select id="agency-status-filter" class="agency-filter-select" data-current="<?php echo esc_attr($current_status); ?>">
+        <option value="all" <?php selected($current_status, 'all'); ?>>
+            <?php esc_html_e('Semua Status', 'wp-agency'); ?>
+        </option>
+        <option value="active" <?php selected($current_status, 'active'); ?>>
+            <?php esc_html_e('Aktif', 'wp-agency'); ?>
+        </option>
+        <option value="inactive" <?php selected($current_status, 'inactive'); ?>>
+            <?php esc_html_e('Tidak Aktif', 'wp-agency'); ?>
+        </option>
+    </select>
 </div>
 <?php endif; ?>

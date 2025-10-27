@@ -222,7 +222,8 @@ class WPAgency {
         // Register AJAX handlers
         add_action('wp_ajax_get_agency_stats', [$this->agency_controller, 'getStats']);
         add_action('wp_ajax_handle_agency_datatable', [$this->agency_controller, 'handleDataTableRequest']);
-        add_action('wp_ajax_get_agency', [$this->agency_controller, 'show']);
+        // Updated for centralized panel handler (TODO-1180)
+        add_action('wp_ajax_get_agency', [$this->agency_controller, 'handle_get_agency']);
 
         // Check setiap request apakah WP Customer sudah available
         add_action('init', function() {

@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Includes
- * @version     1.0.7
+ * @version     1.0.8
  * @author      arisciwek
  *
  * Path: /wp-agency/includes/class-dependencies.php
@@ -13,6 +13,11 @@
  *              dan library eksternal
  *
  * Changelog:
+ * 1.0.8 - 2025-10-25
+ * - Updated agency-datatable.js to version 2.0.0 (TODO-3077)
+ * - Added wp_localize_script for wpAgencyDataTable with i18n translations
+ * - Removed wp-agency-toast dependency from agency-datatable
+ * - Integrated with base panel system from wp-app-core
  * 1.1.0 - 2024-12-10
  * - Added division management dependencies
  * - Added division CSS and JS files
@@ -213,7 +218,8 @@ public function enqueue_frontend_assets() {
         }
 
         // Agency and Division pages styles
-        if ($screen->id === 'toplevel_page_wp-agency') {
+        // Support both old menu (wp-agency) and new menu (wp-agency-disnaker)
+        if (in_array($screen->id, ['toplevel_page_wp-agency', 'toplevel_page_wp-agency-disnaker'])) {
             // Core styles
             wp_enqueue_style('wp-agency-toast', WP_AGENCY_URL . 'assets/css/agency/toast.css', [], $this->version);
             wp_enqueue_style('wp-agency-modal', WP_AGENCY_URL . 'assets/css/agency/confirmation-modal.css', [], $this->version);
@@ -223,10 +229,10 @@ public function enqueue_frontend_assets() {
             // DataTables
             wp_enqueue_style('datatables', 'https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css', [], '1.13.7');
 
-            // Agency styles
+            // Agency styles - LOCAL SCOPE ONLY
+            // Global layout/structure handled by wp-app-core/wpapp-datatable.css
+            // This file contains agency-specific enhancements (hover effects, colors, etc.)
             wp_enqueue_style('wp-agency-agency', WP_AGENCY_URL . 'assets/css/agency/agency-style.css', [], $this->version);
-
-            wp_enqueue_style('wp-agency-agency-form', WP_AGENCY_URL . 'assets/css/agency/agency-form.css', [], $this->version);
 
             // Division styles
             wp_enqueue_style('wp-agency-division', WP_AGENCY_URL . 'assets/css/division/division-style.css', [], $this->version);
@@ -336,7 +342,8 @@ public function enqueue_frontend_assets() {
         }
 
         // Agency and Division pages scripts
-        if ($screen->id === 'toplevel_page_wp-agency') {
+        // Support both old menu (wp-agency) and new menu (wp-agency-disnaker)
+        if (in_array($screen->id, ['toplevel_page_wp-agency', 'toplevel_page_wp-agency-disnaker'])) {
             // Core dependencies
             wp_enqueue_script('jquery-validate', 'https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js', ['jquery'], '1.19.5', true);
             wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js', ['jquery'], '1.13.7', true);
@@ -356,10 +363,41 @@ public function enqueue_frontend_assets() {
 
 
             // Agency scripts - path fixed according to tree.md
-            wp_enqueue_script('agency-datatable', WP_AGENCY_URL . 'assets/js/agency/agency-datatable.js', ['jquery', 'datatables', 'wp-agency-toast'], $this->version, true);
+            wp_enqueue_script('agency-datatable', WP_AGENCY_URL . 'assets/js/agency/agency-datatable.js', ['jquery', 'datatables'], '2.0.0', true);
+
+            // Localize agency-datatable with translations (TODO-3077)
+            wp_localize_script('agency-datatable', 'wpAgencyDataTable', [
+                'ajaxurl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('wpapp_panel_nonce'),
+                'i18n' => [
+                    'processing' => __('Loading...', 'wp-agency'),
+                    'search' => __('Search:', 'wp-agency'),
+                    'lengthMenu' => __('Show _MENU_ entries', 'wp-agency'),
+                    'info' => __('Showing _START_ to _END_ of _TOTAL_ entries', 'wp-agency'),
+                    'infoEmpty' => __('Showing 0 to 0 of 0 entries', 'wp-agency'),
+                    'infoFiltered' => __('(filtered from _MAX_ total entries)', 'wp-agency'),
+                    'zeroRecords' => __('No matching records found', 'wp-agency'),
+                    'emptyTable' => __('No data available in table', 'wp-agency'),
+                    'confirmDelete' => __('Are you sure you want to delete this agency?', 'wp-agency'),
+                    'paginate' => [
+                        'first' => __('First', 'wp-agency'),
+                        'previous' => __('Previous', 'wp-agency'),
+                        'next' => __('Next', 'wp-agency'),
+                        'last' => __('Last', 'wp-agency')
+                    ]
+                ]
+            ]);
+
+            // Agency filter JS (status filter dropdown)
+            wp_enqueue_script('agency-filter', WP_AGENCY_URL . 'assets/js/agency/agency-filter.js', ['jquery', 'datatables'], $this->version, true);
+
             wp_enqueue_script('create-agency-form', WP_AGENCY_URL . 'assets/js/agency/create-agency-form.js', ['jquery', 'jquery-validate', 'wp-agency-toast'], $this->version, true);
             wp_enqueue_script('edit-agency-form', WP_AGENCY_URL . 'assets/js/agency/edit-agency-form.js', ['jquery', 'jquery-validate', 'wp-agency-toast'], $this->version, true);
 
+            // DISABLED for testing (TODO-3080)
+            // Test if scroll jump comes from agency-script.js
+            // wpAppPanelManager should handle everything now
+            /*
             wp_enqueue_script('agency',
                 WP_AGENCY_URL . 'assets/js/agency/agency-script.js',
                 [
@@ -372,6 +410,7 @@ public function enqueue_frontend_assets() {
                 $this->version,
                 true
             );
+            */
 
             // Division scripts
             wp_enqueue_script('division-datatable', WP_AGENCY_URL . 'assets/js/division/division-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);
@@ -448,8 +487,9 @@ public function enqueue_frontend_assets() {
     public function leaflet_enqueue_scripts() {
         $screen = get_current_screen();
         if (!$screen) return;
-        
-        if ($screen->id === 'toplevel_page_wp-agency') {
+
+        // Support both old menu (wp-agency) and new menu (wp-agency-disnaker)
+        if (in_array($screen->id, ['toplevel_page_wp-agency', 'toplevel_page_wp-agency-disnaker'])) {
             // Leaflet CSS & JS
             wp_enqueue_style(
                 'leaflet',

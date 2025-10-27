@@ -30,113 +30,113 @@
 }
 
 /* ===================================================================
-   AGENCY HEADER CARDS (Scope Local - wp-agency)
-   Prefix: agency-* indicates this is from wp-agency plugin
+   AGENCY STATS CARDS (Scope Local - wp-agency)
+   Prefix: agency-stats-* indicates this is from wp-agency plugin
+   Copied from customer-stats-card structure in companies.css
    =================================================================== */
 
-.agency-header-cards {
-    display: flex;
-    gap: 15px;
-}
-
-.agency-card {
+.agency-stats-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 15px;
-    background: #f8f9fa;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    min-width: 120px;
-    transition: all 0.2s ease;
+    gap: 15px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.agency-card:hover {
+.agency-stats-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.agency-card-icon {
+.agency-stats-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 55px;
+    height: 55px;
+    min-width: 55px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.05);
+    background: #f0f0f0;
+    font-size: 26px;
 }
 
-.agency-card-icon .dashicons {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
+.agency-stats-icon .dashicons {
+    font-size: 26px;
+    width: 26px;
+    height: 26px;
     color: #666;
 }
 
-.agency-card-content {
-    display: flex;
-    flex-direction: column;
+.agency-stats-content {
+    flex: 1;
 }
 
-.agency-card-value {
-    font-size: 18px;
-    font-weight: 600;
-    line-height: 1.2;
+.agency-stats-value {
+    margin: 0 0 5px 0;
+    font-size: 32px;
+    font-weight: 700;
     color: #2c3e50;
+    line-height: 1;
 }
 
-.agency-card-label {
-    font-size: 11px;
-    color: #666;
+.agency-stats-label {
+    margin: 0;
+    font-size: 13px;
+    color: #7f8c8d;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    font-weight: 500;
 }
 
 /* Card Color Variants */
-.agency-card-blue .agency-card-icon {
+.agency-stats-card-blue .agency-stats-icon {
     background: rgba(66, 139, 202, 0.1);
 }
 
-.agency-card-blue .agency-card-icon .dashicons {
+.agency-stats-card-blue .agency-stats-icon .dashicons {
     color: #428bca;
 }
 
-.agency-card-blue .agency-card-value {
+.agency-stats-card-blue .agency-stats-value {
     color: #428bca;
 }
 
-.agency-card-green .agency-card-icon {
+.agency-stats-card-green .agency-stats-icon {
     background: rgba(92, 184, 92, 0.1);
 }
 
-.agency-card-green .agency-card-icon .dashicons {
+.agency-stats-card-green .agency-stats-icon .dashicons {
     color: #5cb85c;
 }
 
-.agency-card-green .agency-card-value {
+.agency-stats-card-green .agency-stats-value {
     color: #5cb85c;
 }
 
-.agency-card-orange .agency-card-icon {
+.agency-stats-card-orange .agency-stats-icon {
     background: rgba(240, 173, 78, 0.1);
 }
 
-.agency-card-orange .agency-card-icon .dashicons {
+.agency-stats-card-orange .agency-stats-icon .dashicons {
     color: #f0ad4e;
 }
 
-.agency-card-orange .agency-card-value {
+.agency-stats-card-orange .agency-stats-value {
     color: #f0ad4e;
 }
 
-.agency-card-red .agency-card-icon {
+.agency-stats-card-red .agency-stats-icon {
     background: rgba(217, 83, 79, 0.1);
 }
 
-.agency-card-red .agency-card-icon .dashicons {
+.agency-stats-card-red .agency-stats-icon .dashicons {
     color: #d9534f;
 }
 
-.agency-card-red .agency-card-value {
+.agency-stats-card-red .agency-stats-value {
     color: #d9534f;
 }

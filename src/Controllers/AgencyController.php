@@ -4,7 +4,7 @@
 *
 * @package     WP_Agency
 * @subpackage  Controllers
-* @version     1.0.7
+* @version     1.0.8
 * @author      arisciwek
 *
 * Path: /wp-agency/src/Controllers/AgencyController.php
@@ -16,6 +16,14 @@
 *              Menyediakan endpoints untuk DataTables server-side.
 *
 * Changelog:
+* 1.0.8 - 2025-10-26 (TODO-1180)
+* - Added handle_get_agency() method for centralized panel handler
+* - Integrates with wp-app-core panel-handler.js
+* - Uses wpapp_panel_nonce instead of wp_agency_nonce
+* - Renders agency-right-panel.php template
+* - Returns HTML + data for panel injection
+* - FIXED: Changed getCountByAgency() to getTotalCount() (correct method name)
+*
 * 1.0.3 - 2025-01-22 (Task-2067 Runtime Flow)
 * - Deleted createDemoAgency() method (production code pollution)
 * - Demo generation now uses production code flow
@@ -105,7 +113,8 @@ class AgencyController {
         add_action('wp_ajax_update_agency', [$this, 'update']);
 
         // Register endpoint lain yang diperlukan
-        add_action('wp_ajax_get_agency', [$this, 'show']);
+        // NOTE: wp_ajax_get_agency is now registered in wp-agency.php → handle_get_agency() (TODO-1180)
+        // add_action('wp_ajax_get_agency', [$this, 'show']); // DISABLED - using centralized handler
         add_action('wp_ajax_create_agency', [$this, 'store']);
         add_action('wp_ajax_delete_agency', [$this, 'delete']);
         add_action('wp_ajax_validate_agency_access', [$this, 'validateAgencyAccess']);
@@ -1314,6 +1323,93 @@ public function createPdfButton() {
             ]);
 
         } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Handle get_agency AJAX request from centralized panel handler
+     * Called by wp-app-core/assets/js/datatable/panel-handler.js
+     *
+     * @since 1.0.8 (TODO-1180)
+     * @return void Sends JSON response
+     */
+    public function handle_get_agency() {
+        try {
+            // Verify nonce from wp-app-core panel handler
+            check_ajax_referer('wpapp_panel_nonce', 'nonce');
+
+            $this->debug_log("=== handle_get_agency() START ===");
+
+            // Get and validate ID
+            $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+            if (!$id) {
+                throw new \Exception('Invalid agency ID');
+            }
+
+            $this->debug_log("Agency ID: " . $id);
+
+            // Validate access permission
+            $access = $this->validator->validateAccess($id);
+            if (!$access['has_access']) {
+                throw new \Exception('You do not have permission to view this agency');
+            }
+
+            $this->debug_log("Access validated: " . $access['access_type']);
+
+            // Try to get from cache first
+            $agency = $this->cache->get('agency', $id);
+
+            if ($agency !== null) {
+                $this->debug_log("Agency data loaded from cache");
+            } else {
+                // Get from database
+                $this->debug_log("Loading agency data from database");
+                $agency = $this->model->find($id);
+
+                // Cache it
+                if ($agency) {
+                    $this->cache->set('agency', $agency, $this->cache::getCacheExpiry(), $id);
+                }
+            }
+
+            if (!$agency) {
+                throw new \Exception('Agency not found');
+            }
+
+            // Get related counts for tabs
+            $division_count = $this->divisionModel->getByAgency($id) ? count($this->divisionModel->getByAgency($id)) : 0;
+            $employee_count = $this->employeeModel->getTotalCount($id);
+
+            $this->debug_log("Division count: " . $division_count);
+            $this->debug_log("Employee count: " . $employee_count);
+
+            // Make agency data available to template
+            $agency_data = $agency;
+            $access_type = $access['access_type'];
+
+            // Render template with output buffering
+            ob_start();
+            include WP_AGENCY_PATH . 'src/Views/templates/agency-right-panel.php';
+            $html = ob_get_clean();
+
+            $this->debug_log("Template rendered successfully");
+
+            // Send response with HTML and data
+            wp_send_json_success([
+                'html' => $html,
+                'data' => [
+                    'agency' => $agency,
+                    'access_type' => $access_type,
+                    'division_count' => $division_count,
+                    'employee_count' => $employee_count
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            $this->debug_log("ERROR in handle_get_agency(): " . $e->getMessage());
             wp_send_json_error([
                 'message' => $e->getMessage()
             ]);

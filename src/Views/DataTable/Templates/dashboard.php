@@ -3,11 +3,11 @@
  * Agency Dashboard - Disnaker
  *
  * @package     WP_Agency
- * @subpackage  Views/Agency
- * @version     1.0.0
+ * @subpackage  Views/DataTable/Templates
+ * @version     1.0.1
  * @author      arisciwek
  *
- * Path: /wp-agency/src/Views/agency/dashboard.php
+ * Path: /wp-agency/src/Views/DataTable/Templates/dashboard.php
  *
  * Description: Agency dashboard menggunakan base panel system dari wp-app-core.
  *              ONLY 7 LINES! Base panel system handles everything else:
@@ -19,6 +19,10 @@
  *              - Close functionality
  *
  * Changelog:
+ * 1.0.1 - 2025-10-25
+ * - Moved from /Views/agency/ to /Views/DataTable/Templates/
+ * - Updated path to match DataTable structure
+ * - Updated subpackage to Views/DataTable/Templates
  * 1.0.0 - 2025-10-23
  * - Initial implementation (TODO-2071 Phase 4, Task 4.1)
  * - Uses DashboardTemplate from wp-app-core

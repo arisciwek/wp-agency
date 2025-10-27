@@ -17,14 +17,8 @@
  * - Moved from inline style to separate CSS file
  */
 
-/* Filter Wrapper */
-.agency-filter-wrapper {
-    padding: 0;
-    margin: 0;
-}
-
-/* Filter Group */
-.agency-filter-group {
+/* Status Filter Group */
+.agency-status-filter-group {
     display: flex;
     align-items: center;
     gap: 10px;

@@ -93,9 +93,10 @@ class AgencyDashboardController {
 
         // Page header hooks (scope local - echo HTML sendiri)
         add_action('wpapp_page_header_left', [$this, 'render_header_title'], 10, 2);
+        add_action('wpapp_page_header_right', [$this, 'render_header_buttons'], 10, 2);
 
-        // Stats cards hook - moved to navigation container to prevent scroll jump
-        add_action('wpapp_dashboard_before_stats', [$this, 'render_header_cards'], 10, 2);
+        // Stats cards hook - render inside wpapp-statistics-container
+        add_action('wpapp_statistics_cards_content', [$this, 'render_header_cards'], 10, 1);
 
         // Filter hooks (scope local - echo HTML sendiri)
         add_action('wpapp_dashboard_filters', [$this, 'render_filters'], 10, 2);
@@ -153,7 +154,7 @@ class AgencyDashboardController {
         }
 
         // Include DataTable view file
-        $datatable_file = WP_AGENCY_PATH . 'src/Views/agency/datatable.php';
+        $datatable_file = WP_AGENCY_PATH . 'src/Views/DataTable/Templates/datatable.php';
 // error_log('DataTable file path: ' . $datatable_file);
 // error_log('DataTable file exists: ' . (file_exists($datatable_file) ? 'YES' : 'NO'));
 
@@ -187,18 +188,55 @@ class AgencyDashboardController {
     }
 
     /**
-     * Render statistics header cards
+     * Render page header buttons
      *
-     * Hooked to: wpapp_dashboard_before_stats (action)
-     *
-     * Renders HTML cards dengan class agency-* (scope local)
-     * Cards now appear in navigation container (stats section) to prevent scroll jump
+     * Hooked to: wpapp_page_header_right (action)
      *
      * @param array $config Dashboard configuration
      * @param string $entity Entity name
      * @return void
      */
-    public function render_header_cards($config, $entity): void {
+    public function render_header_buttons($config, $entity): void {
+        if ($entity !== 'agency') {
+            return;
+        }
+
+        ?>
+        <div class="agency-header-buttons">
+            <?php if (current_user_can('view_agency_list')): ?>
+                <button type="button" class="button agency-print-btn" id="agency-print-btn">
+                    <span class="dashicons dashicons-printer"></span>
+                    Print
+                </button>
+
+                <button type="button" class="button agency-export-btn" id="agency-export-btn">
+                    <span class="dashicons dashicons-download"></span>
+                    Export
+                </button>
+            <?php endif; ?>
+
+            <?php if (current_user_can('add_agency')): ?>
+                <a href="#" class="button button-primary agency-add-btn">
+                    <span class="dashicons dashicons-plus-alt"></span>
+                    Tambah Disnaker
+                </a>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render statistics header cards
+     *
+     * Hooked to: wpapp_statistics_cards_content (action)
+     *
+     * Renders HTML cards inside wpapp-statistics-container (global scope wrapper)
+     * Uses statistics-cards wrapper (global scope) with agency-card items (local scope)
+     *
+     * @param string $entity Entity name
+     * @return void
+     */
+    public function render_header_cards($entity): void {
         if ($entity !== 'agency') {
             return;
         }
@@ -212,37 +250,37 @@ class AgencyDashboardController {
         $inactive = $wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE status = 'inactive'");
 
         ?>
-        <div class="agency-header-cards">
+        <div class="agency-statistics-cards" id="agency-statistics">
             <!-- Total Card -->
-            <div class="agency-card agency-card-blue" data-card-id="total-agencies">
-                <div class="agency-card-icon">
+            <div class="agency-stat-card agency-theme-blue" data-card-id="total-agencies">
+                <div class="agency-stat-icon">
                     <span class="dashicons dashicons-building"></span>
                 </div>
-                <div class="agency-card-content">
-                    <div class="agency-card-value"><?php echo esc_html($total ?: '0'); ?></div>
-                    <div class="agency-card-label">Total Disnaker</div>
+                <div class="agency-stat-content">
+                    <div class="agency-stat-number"><?php echo esc_html($total ?: '0'); ?></div>
+                    <div class="agency-stat-label">Total Disnaker</div>
                 </div>
             </div>
 
             <!-- Active Card -->
-            <div class="agency-card agency-card-green" data-card-id="active-agencies">
-                <div class="agency-card-icon">
+            <div class="agency-stat-card agency-theme-green" data-card-id="active-agencies">
+                <div class="agency-stat-icon">
                     <span class="dashicons dashicons-yes-alt"></span>
                 </div>
-                <div class="agency-card-content">
-                    <div class="agency-card-value"><?php echo esc_html($active ?: '0'); ?></div>
-                    <div class="agency-card-label">Active</div>
+                <div class="agency-stat-content">
+                    <div class="agency-stat-number"><?php echo esc_html($active ?: '0'); ?></div>
+                    <div class="agency-stat-label">Active</div>
                 </div>
             </div>
 
             <!-- Inactive Card -->
-            <div class="agency-card agency-card-orange" data-card-id="inactive-agencies">
-                <div class="agency-card-icon">
+            <div class="agency-stat-card agency-theme-orange" data-card-id="inactive-agencies">
+                <div class="agency-stat-icon">
                     <span class="dashicons dashicons-dismiss"></span>
                 </div>
-                <div class="agency-card-content">
-                    <div class="agency-card-value"><?php echo esc_html($inactive ?: '0'); ?></div>
-                    <div class="agency-card-label">Inactive</div>
+                <div class="agency-stat-content">
+                    <div class="agency-stat-number"><?php echo esc_html($inactive ?: '0'); ?></div>
+                    <div class="agency-stat-label">Inactive</div>
                 </div>
             </div>
         </div>
@@ -266,7 +304,7 @@ class AgencyDashboardController {
         }
 
         // Include status filter partial
-        $filter_file = \WP_AGENCY_PATH . 'src/Views/agency/partials/status-filter.php';
+        $filter_file = \WP_AGENCY_PATH . 'src/Views/DataTable/Templates/partials/status-filter.php';
 
         if (file_exists($filter_file)) {
             include $filter_file;
