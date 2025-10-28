@@ -229,14 +229,17 @@ class PermissionModel {
                 $employee_capabilities = [
                     // Agency capabilities
                     'view_agency_list' => true,
+                    'view_agency_detail' => true,       // Added: Required for agency detail page access
                     'view_own_agency' => true,
 
                     // Division capabilities
                     'view_division_list' => true,
+                    'view_division_detail' => true,     // Added: Required for division detail page access
                     'view_own_division' => true,
 
                     // Employee capabilities
                     'view_employee_list' => true,
+                    'view_employee_detail' => true,     // Added: Required for employee detail page access
                     'view_own_employee' => true,
 
                     // WP Customer Plugin - View Access
