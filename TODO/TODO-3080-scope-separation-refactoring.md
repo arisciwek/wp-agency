@@ -444,14 +444,14 @@ User corrected my understanding:
 │     'wpapp_statistics_content'      │
 │   ); ?>                             │
 │                                     │
-│   ┌───────────────────────────┐    │
-│   │ wp-agency (Local Scope)   │    │
-│   │                           │    │
-│   │ <div class="agency-       │    │ ← Full HTML
-│   │   statistics-cards">      │    │
-│   │   <div class="agency-     │    │ ← Full control
-│   │     stat-card">           │    │
-│   └───────────────────────────┘    │
+│   ┌───────────────────────────┐     │
+│   │ wp-agency (Local Scope)   │     │
+│   │                           │     │
+│   │ <div class="agency-       │     │ ← Full HTML
+│   │   statistics-cards">      │     │
+│   │   <div class="agency-     │     │ ← Full control
+│   │     stat-card">           │     │
+│   └───────────────────────────┘     │
 └─────────────────────────────────────┘
 ```
 
@@ -856,9 +856,9 @@ Easy to mix scopes "just this once", but slippery slope.
 ## 🔗 Related Documentation
 
 **wp-app-core TODO**:
-- TODO-1183: Scroll jump fix
-- TODO-1184: Flicker fix
-- TODO-1185: Inline scripts removal
+- TODO-001: Scroll jump fix
+- TODO-002: Flicker fix
+- TODO-003: Inline scripts removal
 - TODO-004: Scope separation Phase 1
 - TODO-005: Scope separation Phase 2 (PENDING)
 

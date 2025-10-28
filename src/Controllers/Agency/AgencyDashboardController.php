@@ -107,6 +107,9 @@ class AgencyDashboardController {
         // Tabs hook
         add_filter('wpapp_datatable_tabs', [$this, 'register_tabs'], 10, 2);
 
+        // Tab content injection hook (allows cross-plugin extensibility)
+        add_action('wpapp_tab_view_content', [$this, 'render_tab_view_content'], 10, 3);
+
         // AJAX handlers
         add_action('wp_ajax_get_agencies_datatable', [$this, 'handle_datatable_ajax']);
         add_action('wp_ajax_get_agency_details', [$this, 'handle_get_details']);
@@ -119,11 +122,6 @@ class AgencyDashboardController {
         // DataTable AJAX handlers for lazy-loaded tabs
         add_action('wp_ajax_get_divisions_datatable', [$this, 'handle_divisions_datatable']);
         add_action('wp_ajax_get_employees_datatable', [$this, 'handle_employees_datatable']);
-
-        // Tab content rendering hooks
-        add_action('wpapp_tab_content_agency_info', [$this, 'render_info_tab'], 10, 1);
-        add_action('wpapp_tab_content_agency_divisions', [$this, 'render_divisions_tab'], 10, 1);
-        add_action('wpapp_tab_content_agency_employees', [$this, 'render_employees_tab'], 10, 1);
     }
 
     /**
@@ -181,10 +179,7 @@ class AgencyDashboardController {
             return;
         }
 
-        ?>
-        <h1 class="agency-page-title">Daftar Disnaker</h1>
-        <p class="agency-page-subtitle">Kelola data dinas tenaga kerja</p>
-        <?php
+        $this->render_partial('header-title', [], 'agency');
     }
 
     /**
@@ -201,28 +196,7 @@ class AgencyDashboardController {
             return;
         }
 
-        ?>
-        <div class="agency-header-buttons">
-            <?php if (current_user_can('view_agency_list')): ?>
-                <button type="button" class="button agency-print-btn" id="agency-print-btn">
-                    <span class="dashicons dashicons-printer"></span>
-                    Print
-                </button>
-
-                <button type="button" class="button agency-export-btn" id="agency-export-btn">
-                    <span class="dashicons dashicons-download"></span>
-                    Export
-                </button>
-            <?php endif; ?>
-
-            <?php if (current_user_can('add_agency')): ?>
-                <a href="#" class="button button-primary agency-add-btn">
-                    <span class="dashicons dashicons-plus-alt"></span>
-                    Tambah Disnaker
-                </a>
-            <?php endif; ?>
-        </div>
-        <?php
+        $this->render_partial('header-buttons', [], 'agency');
     }
 
     /**
@@ -249,42 +223,8 @@ class AgencyDashboardController {
         $active = $wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE status = 'active'");
         $inactive = $wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE status = 'inactive'");
 
-        ?>
-        <div class="agency-statistics-cards" id="agency-statistics">
-            <!-- Total Card -->
-            <div class="agency-stat-card agency-theme-blue" data-card-id="total-agencies">
-                <div class="agency-stat-icon">
-                    <span class="dashicons dashicons-building"></span>
-                </div>
-                <div class="agency-stat-content">
-                    <div class="agency-stat-number"><?php echo esc_html($total ?: '0'); ?></div>
-                    <div class="agency-stat-label">Total Disnaker</div>
-                </div>
-            </div>
-
-            <!-- Active Card -->
-            <div class="agency-stat-card agency-theme-green" data-card-id="active-agencies">
-                <div class="agency-stat-icon">
-                    <span class="dashicons dashicons-yes-alt"></span>
-                </div>
-                <div class="agency-stat-content">
-                    <div class="agency-stat-number"><?php echo esc_html($active ?: '0'); ?></div>
-                    <div class="agency-stat-label">Active</div>
-                </div>
-            </div>
-
-            <!-- Inactive Card -->
-            <div class="agency-stat-card agency-theme-orange" data-card-id="inactive-agencies">
-                <div class="agency-stat-icon">
-                    <span class="dashicons dashicons-dismiss"></span>
-                </div>
-                <div class="agency-stat-content">
-                    <div class="agency-stat-number"><?php echo esc_html($inactive ?: '0'); ?></div>
-                    <div class="agency-stat-label">Inactive</div>
-                </div>
-            </div>
-        </div>
-        <?php
+        // Render using partial template (context: 'agency' not 'tab')
+        $this->render_partial('stat-cards', compact('total', 'active', 'inactive'), 'agency');
     }
 
     /**
@@ -384,7 +324,7 @@ class AgencyDashboardController {
         $agency_tabs = [
             'info' => [
                 'title' => __('Data Disnaker', 'wp-agency'),
-                'template' => WP_AGENCY_PATH . 'src/Views/agency/tabs/info.php',
+                'template' => WP_AGENCY_PATH . 'src/Views/agency/tabs/details.php',
                 'priority' => 10
             ],
             'divisions' => [
@@ -401,6 +341,66 @@ class AgencyDashboardController {
 
 // error_log('Returning agency tabs: ' . print_r($agency_tabs, true));
         return $agency_tabs;
+    }
+
+    /**
+     * Render tab content via hook (Hook-Based Content Injection Pattern)
+     *
+     * Hooked to: wpapp_tab_view_content
+     * Priority: 10 (renders first, before other plugins)
+     *
+     * This hook-based approach enables cross-plugin extensibility:
+     * - wp-agency responds at priority 10 → renders core content
+     * - wp-customer can respond at priority 20 → injects customer stats
+     * - Other plugins can inject content at priority 30+
+     *
+     * Pattern Benefits:
+     * - ✅ Pure view templates (no controller logic in view files)
+     * - ✅ Multiple plugins can inject content into same tab
+     * - ✅ Priority-based content ordering
+     * - ✅ WordPress standard hook pattern
+     * - ✅ Clean separation of concerns
+     *
+     * @param string $entity Entity type (e.g., 'agency')
+     * @param string $tab_id Tab identifier (e.g., 'info', 'divisions', 'employees')
+     * @param array  $data   Data passed to tab (contains $agency object)
+     * @return void
+     */
+    public function render_tab_view_content($entity, $tab_id, $data): void {
+        // Only respond to agency entity
+        if ($entity !== 'agency') {
+            return;
+        }
+
+        // Extract $agency from $data for view files
+        $agency = $data['agency'] ?? null;
+
+        if (!$agency) {
+            echo '<p>' . __('Data not available', 'wp-agency') . '</p>';
+            return;
+        }
+
+        // Route to appropriate tab view (pure HTML templates)
+        switch ($tab_id) {
+            case 'info':
+                // Main info tab - comprehensive agency information
+                include WP_AGENCY_PATH . 'src/Views/agency/tabs/details.php';
+                break;
+
+            case 'divisions':
+                // Divisions tab - lazy-loaded DataTable
+                include WP_AGENCY_PATH . 'src/Views/agency/tabs/divisions.php';
+                break;
+
+            case 'employees':
+                // Employees tab - lazy-loaded DataTable
+                include WP_AGENCY_PATH . 'src/Views/agency/tabs/employees.php';
+                break;
+
+            default:
+                // Unknown tab - do nothing (other plugins might handle it)
+                break;
+        }
     }
 
     /**
@@ -652,50 +652,9 @@ class AgencyDashboardController {
         }
 
         try {
-            // Generate divisions DataTable HTML
+            // Generate divisions DataTable HTML using template
             ob_start();
-            ?>
-            <table id="divisions-datatable" class="wpapp-datatable" style="width:100%">
-                <thead>
-                    <tr>
-                        <th><?php esc_html_e('Code', 'wp-agency'); ?></th>
-                        <th><?php esc_html_e('Name', 'wp-agency'); ?></th>
-                        <th><?php esc_html_e('Type', 'wp-agency'); ?></th>
-                        <th><?php esc_html_e('Status', 'wp-agency'); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- DataTable will populate via AJAX -->
-                </tbody>
-            </table>
-
-            <script>
-            jQuery(document).ready(function($) {
-                if (!$.fn.DataTable.isDataTable('#divisions-datatable')) {
-                    $('#divisions-datatable').DataTable({
-                        processing: true,
-                        serverSide: true,
-                        ajax: {
-                            url: wpAppConfig.ajaxUrl,
-                            type: 'POST',
-                            data: function(d) {
-                                d.action = 'get_divisions_datatable';
-                                d.agency_id = <?php echo esc_js($agency_id); ?>;
-                                d.nonce = wpAppConfig.nonce;
-                                return d;
-                            }
-                        },
-                        columns: [
-                            { data: 'code' },
-                            { data: 'name' },
-                            { data: 'type' },
-                            { data: 'status' }
-                        ]
-                    });
-                }
-            });
-            </script>
-            <?php
+            $this->render_partial('ajax-divisions-datatable', compact('agency_id'), 'agency');
             $html = ob_get_clean();
 
             wp_send_json_success(['html' => $html]);
@@ -743,52 +702,9 @@ class AgencyDashboardController {
         }
 
         try {
-            // Generate employees DataTable HTML
+            // Generate employees DataTable HTML using template
             ob_start();
-            ?>
-            <table id="employees-datatable" class="wpapp-datatable" style="width:100%">
-                <thead>
-                    <tr>
-                        <th><?php esc_html_e('Name', 'wp-agency'); ?></th>
-                        <th><?php esc_html_e('Position', 'wp-agency'); ?></th>
-                        <th><?php esc_html_e('Email', 'wp-agency'); ?></th>
-                        <th><?php esc_html_e('Phone', 'wp-agency'); ?></th>
-                        <th><?php esc_html_e('Status', 'wp-agency'); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- DataTable will populate via AJAX -->
-                </tbody>
-            </table>
-
-            <script>
-            jQuery(document).ready(function($) {
-                if (!$.fn.DataTable.isDataTable('#employees-datatable')) {
-                    $('#employees-datatable').DataTable({
-                        processing: true,
-                        serverSide: true,
-                        ajax: {
-                            url: wpAppConfig.ajaxUrl,
-                            type: 'POST',
-                            data: function(d) {
-                                d.action = 'get_employees_datatable';
-                                d.agency_id = <?php echo esc_js($agency_id); ?>;
-                                d.nonce = wpAppConfig.nonce;
-                                return d;
-                            }
-                        },
-                        columns: [
-                            { data: 'name' },
-                            { data: 'position' },
-                            { data: 'email' },
-                            { data: 'phone' },
-                            { data: 'status' }
-                        ]
-                    });
-                }
-            });
-            </script>
-            <?php
+            $this->render_partial('ajax-employees-datatable', compact('agency_id'), 'agency');
             $html = ob_get_clean();
 
             wp_send_json_success(['html' => $html]);
@@ -801,99 +717,6 @@ class AgencyDashboardController {
             wp_send_json_error([
                 'message' => __('Error loading employees', 'wp-agency')
             ]);
-        }
-    }
-
-    /**
-     * Render info tab content
-     *
-     * Hooked to: wpapp_tab_content_agency_info
-     *
-     * Displays agency detail information
-     *
-     * @param array $data Agency data from panel manager
-     */
-    public function render_info_tab($data): void {
-        error_log('=== render_info_tab called ===');
-        error_log('Data received: ' . print_r($data, true));
-
-        // Extract agency data (already an object from database)
-        $agency = isset($data['agency']) ? $data['agency'] : null;
-
-        if (!$agency) {
-            echo '<p>' . __('Data not available', 'wp-agency') . '</p>';
-            return;
-        }
-
-        // Include info tab view
-        $info_tab_file = WP_AGENCY_PATH . 'src/Views/agency/tabs/info.php';
-
-        if (file_exists($info_tab_file)) {
-            include $info_tab_file;
-        } else {
-            echo '<p>' . __('View file not found', 'wp-agency') . '</p>';
-        }
-    }
-
-    /**
-     * Render divisions tab content
-     *
-     * Hooked to: wpapp_tab_content_agency_divisions
-     *
-     * Displays lazy-loaded divisions tab
-     *
-     * @param array $data Agency data from panel manager
-     */
-    public function render_divisions_tab($data): void {
-        error_log('=== render_divisions_tab called ===');
-        error_log('Data received: ' . print_r($data, true));
-
-        // Extract agency ID from object
-        $agency_id = isset($data['agency']->id) ? (int) $data['agency']->id : 0;
-
-        if (!$agency_id) {
-            echo '<p>' . __('Invalid agency ID', 'wp-agency') . '</p>';
-            return;
-        }
-
-        // Include divisions tab view
-        $divisions_tab_file = WP_AGENCY_PATH . 'src/Views/agency/tabs/divisions.php';
-
-        if (file_exists($divisions_tab_file)) {
-            include $divisions_tab_file;
-        } else {
-            echo '<p>' . __('View file not found', 'wp-agency') . '</p>';
-        }
-    }
-
-    /**
-     * Render employees tab content
-     *
-     * Hooked to: wpapp_tab_content_agency_employees
-     *
-     * Displays lazy-loaded employees tab
-     *
-     * @param array $data Agency data from panel manager
-     */
-    public function render_employees_tab($data): void {
-        error_log('=== render_employees_tab called ===');
-        error_log('Data received: ' . print_r($data, true));
-
-        // Extract agency ID from object
-        $agency_id = isset($data['agency']->id) ? (int) $data['agency']->id : 0;
-
-        if (!$agency_id) {
-            echo '<p>' . __('Invalid agency ID', 'wp-agency') . '</p>';
-            return;
-        }
-
-        // Include employees tab view
-        $employees_tab_file = WP_AGENCY_PATH . 'src/Views/agency/tabs/employees.php';
-
-        if (file_exists($employees_tab_file)) {
-            include $employees_tab_file;
-        } else {
-            echo '<p>' . __('View file not found', 'wp-agency') . '</p>';
         }
     }
 
@@ -964,15 +787,23 @@ class AgencyDashboardController {
     }
 
     /**
-     * Render all tab contents as HTML
+     * Render tab contents using Hook-Based Content Injection Pattern
      *
-     * Used by handle_get_details to populate panel tabs
+     * This method triggers the wpapp_tab_view_content hook, allowing:
+     * - wp-agency to render core content (priority 10)
+     * - Other plugins to inject additional content (priority 20+)
      *
-     * @param object $agency Agency data object
-     * @return array Array of tab_id => html_content
+     * Pattern Flow:
+     * 1. Prepare data array with $agency object
+     * 2. Start output buffering
+     * 3. Trigger hook → Multiple plugins can respond
+     * 4. Capture combined output
+     *
+     * @param object $agency Agency object to render
+     * @return array Array of tab_id => content_html
      */
     private function render_tab_contents($agency): array {
-        error_log('=== RENDER TAB CONTENTS START ===');
+        error_log('=== RENDER TAB CONTENTS START (HOOK-BASED PATTERN) ===');
         $tabs = [];
 
         // Get registered tabs
@@ -982,17 +813,21 @@ class AgencyDashboardController {
         foreach ($registered_tabs as $tab_id => $tab_config) {
             error_log("Processing tab: {$tab_id}");
 
+            // Start output buffering
             ob_start();
 
-            // Set $agency variable for template
-            $GLOBALS['agency_temp'] = $agency;
+            // Prepare data for hook
+            $data = [
+                'agency' => $agency,
+                'tab_config' => $tab_config
+            ];
 
-            // Trigger tab content action
-            $action_name = "wpapp_tab_content_agency_{$tab_id}";
-            error_log("Triggering action: {$action_name}");
+            // Trigger hook - allows multiple plugins to inject content
+            // Priority 10: wp-agency core content
+            // Priority 20+: Other plugins (wp-customer, etc.)
+            do_action('wpapp_tab_view_content', 'agency', $tab_id, $data);
 
-            do_action($action_name, ['agency' => $agency]);
-
+            // Capture combined output from all hooked functions
             $content = ob_get_clean();
             $content_length = strlen($content);
 
@@ -1000,14 +835,52 @@ class AgencyDashboardController {
             error_log("Tab {$tab_id} content preview: " . substr($content, 0, 100));
 
             $tabs[$tab_id] = $content;
-
-            // Clean up
-            unset($GLOBALS['agency_temp']);
         }
 
         error_log('Total tabs rendered: ' . count($tabs));
         error_log('=== RENDER TAB CONTENTS END ===');
 
         return $tabs;
+    }
+
+    /**
+     * Render partial template file
+     *
+     * Helper method to include partial template files with extracted variables.
+     * Used for non-tab partials like headers, stats, ajax-datatables.
+     *
+     * NOTE: Tab partials are NO LONGER used (merged into tab files).
+     * This method is only for:
+     * - Header partials (header-title, header-buttons)
+     * - Stats partials (stat-cards)
+     * - AJAX partials (ajax-divisions-datatable, ajax-employees-datatable)
+     *
+     * Template locations:
+     * - General partials: src/Views/agency/partials/{$partial}.php
+     *
+     * @param string $partial Partial template name (without .php extension)
+     * @param array  $data    Variables to extract and pass to template
+     * @param string $context Template context (default 'agency')
+     * @return void
+     * @since 2.0.0
+     */
+    private function render_partial($partial, $data = [], $context = 'agency'): void {
+        // Extract variables for template
+        if (!empty($data)) {
+            extract($data);
+        }
+
+        // Determine template path - only 'agency' context now
+        $template = WP_AGENCY_PATH . "src/Views/agency/partials/{$partial}.php";
+
+        // Include template if exists
+        if (file_exists($template)) {
+            include $template;
+        } else {
+            error_log("Template not found: {$template}");
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                echo '<p>' . sprintf(__('Template "%s" not found', 'wp-agency'), esc_html($partial)) . '</p>';
+            }
+        }
     }
 }

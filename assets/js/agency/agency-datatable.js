@@ -3,7 +3,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Assets/JS/Agency
- * @version     2.0.0
+ * @version     2.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/assets/js/agency/agency-datatable.js
@@ -13,6 +13,11 @@
  *              Menangani server-side processing dan event handling.
  *
  * Changelog:
+ * 2.1.0 - 2025-10-27
+ * - Added lazy-load DataTable initialization (Review-01 task-1185)
+ * - Handles divisions and employees DataTables
+ * - Event-driven pattern using data-* attributes
+ * - Removes inline JavaScript from PHP templates
  * 2.0.0 - 2025-10-25
  * - Migrated from inline script in datatable.php (TODO-3077)
  * - Integrated with wp-app-core base panel system
@@ -79,6 +84,7 @@
 
             this.initDataTable();
             this.bindEvents();
+            this.watchForLazyTables();
 
             this.initialized = true;
             console.log('[AgencyDataTable] Initialized successfully');
@@ -218,6 +224,152 @@
             });
 
             console.log('[AgencyDataTable] Events bound');
+        },
+
+        /**
+         * Watch for lazy-load tables being added to DOM
+         *
+         * Uses MutationObserver to detect when AJAX content containing
+         * .agency-lazy-datatable tables is loaded into the page.
+         */
+        watchForLazyTables() {
+            const self = this;
+
+            // Create observer to watch for lazy-load tables
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    // Check if new nodes were added
+                    if (mutation.addedNodes.length > 0) {
+                        mutation.addedNodes.forEach(function(node) {
+                            // Only process element nodes
+                            if (node.nodeType === 1) {
+                                const $node = $(node);
+
+                                // Check if the node itself is a lazy table
+                                if ($node.hasClass('agency-lazy-datatable')) {
+                                    console.log('[AgencyDataTable] Lazy table detected in DOM');
+                                    self.initLazyDataTables($node.parent());
+                                }
+                                // Or if it contains lazy tables
+                                else if ($node.find('.agency-lazy-datatable').length > 0) {
+                                    console.log('[AgencyDataTable] Container with lazy table(s) detected in DOM');
+                                    self.initLazyDataTables($node);
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+
+            // Start observing the document body for changes
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            console.log('[AgencyDataTable] Watching for lazy-load tables');
+        },
+
+        /**
+         * Initialize lazy-load DataTables (divisions, employees)
+         *
+         * Called when AJAX content is loaded into tab panels.
+         * Uses data-* attributes for configuration instead of inline scripts.
+         *
+         * @param {jQuery} $container - Container element to search within
+         */
+        initLazyDataTables($container) {
+            const self = this;
+            const $lazyTables = $container.find('.agency-lazy-datatable');
+
+            if ($lazyTables.length === 0) {
+                return;
+            }
+
+            console.log('[AgencyDataTable] Found ' + $lazyTables.length + ' lazy-load table(s)');
+
+            $lazyTables.each(function() {
+                const $table = $(this);
+                const tableId = $table.attr('id');
+
+                // Skip if already initialized
+                if ($.fn.DataTable.isDataTable('#' + tableId)) {
+                    console.log('[AgencyDataTable] Table already initialized:', tableId);
+                    return;
+                }
+
+                // Read configuration from data-* attributes
+                const entity = $table.data('entity');
+                const agencyId = $table.data('agency-id');
+                const ajaxAction = $table.data('ajax-action');
+
+                console.log('[AgencyDataTable] Initializing lazy table:', {
+                    tableId: tableId,
+                    entity: entity,
+                    agencyId: agencyId,
+                    ajaxAction: ajaxAction
+                });
+
+                // Get column configuration based on entity type
+                const columns = self.getLazyTableColumns(entity);
+
+                // Initialize DataTable
+                $table.DataTable({
+                    processing: true,
+                    serverSide: true,
+                    ajax: {
+                        url: wpAgencyDataTable.ajaxurl,
+                        type: 'POST',
+                        data: function(d) {
+                            d.action = ajaxAction;
+                            d.agency_id = agencyId;
+                            d.nonce = wpAgencyDataTable.nonce;
+                            return d;
+                        },
+                        error: function(xhr, error, code) {
+                            console.error('[AgencyDataTable] AJAX Error for ' + tableId + ':', error, code);
+                            console.error('[AgencyDataTable] Response:', xhr.responseText);
+                        }
+                    },
+                    columns: columns,
+                    pageLength: 10,
+                    lengthMenu: [[10, 25, 50], [10, 25, 50]],
+                    language: wpAgencyDataTable.i18n || {}
+                });
+
+                console.log('[AgencyDataTable] Lazy table initialized:', tableId);
+            });
+        },
+
+        /**
+         * Get column configuration for lazy-load tables
+         *
+         * @param {string} entity - Entity type (division, employee)
+         * @return {Array} Column configuration for DataTable
+         */
+        getLazyTableColumns(entity) {
+            switch(entity) {
+                case 'division':
+                    return [
+                        { data: 'code' },
+                        { data: 'name' },
+                        { data: 'type' },
+                        { data: 'status' }
+                    ];
+
+                case 'employee':
+                    return [
+                        { data: 'name' },
+                        { data: 'position' },
+                        { data: 'email' },
+                        { data: 'phone' },
+                        { data: 'status' }
+                    ];
+
+                default:
+                    console.warn('[AgencyDataTable] Unknown entity type:', entity);
+                    return [];
+            }
         },
 
         /**

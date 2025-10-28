@@ -1,0 +1,227 @@
+/**
+ * WP Agency - Detail Panel Styles (LOCAL SCOPE ONLY)
+ *
+ * Description: Agency-specific styles for detail tabs (info.php, details.php)
+ *              with STRICT local scope - ALL classes use prefix: agency-
+ *
+ * RULES:
+ * ✅ DO: Use prefix agency- for all classes
+ * ✅ DO: Agency-specific detail layouts
+ * ✅ DO: Entity-specific enhancements
+ * ❌ DON'T: Use wpapp- prefix (that's global scope)
+ * ❌ DON'T: Add layout/structure (that's wp-app-core)
+ * ❌ DON'T: Mix global and local scopes
+ *
+ * Version: 1.0.0
+ * Author: arisciwek
+ * Created: 2025-10-27
+ *
+ * Changelog:
+ * 1.0.0 - 2025-10-27
+ * - Initial creation (extracted from details.php inline styles)
+ * - Strict local scope (agency-* prefix)
+ * - Styles for info.php and details.php tabs
+ */
+
+/* ===================================================================
+   AGENCY DETAILS GRID (details.php)
+   =================================================================== */
+
+.agency-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.agency-detail-section {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.agency-detail-section h3 {
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #0073aa;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #0073aa;
+}
+
+.agency-detail-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.agency-detail-row:last-child {
+    border-bottom: none;
+}
+
+.agency-detail-row label {
+    font-weight: 600;
+    color: #555;
+}
+
+.agency-detail-row span {
+    color: #333;
+}
+
+/* ===================================================================
+   AGENCY INFO LAYOUT (info.php)
+   =================================================================== */
+
+.agency-info-container {
+    padding: 20px;
+}
+
+.agency-info-section {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.agency-info-section:last-child {
+    margin-bottom: 0;
+}
+
+.agency-info-section h3 {
+    margin: 0 0 20px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #0073aa;
+    font-size: 16px;
+    font-weight: 600;
+    color: #0073aa;
+}
+
+.agency-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.agency-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.agency-info-label {
+    font-weight: 600;
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.agency-info-value {
+    font-size: 14px;
+    color: #333;
+    padding: 8px 0;
+}
+
+/* ===================================================================
+   AGENCY NO DATA STATE
+   =================================================================== */
+
+.agency-no-data {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666;
+}
+
+.agency-no-data p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* ===================================================================
+   RESPONSIVE DESIGN
+   =================================================================== */
+
+@media screen and (max-width: 768px) {
+    .agency-details-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        padding: 15px;
+    }
+
+    .agency-detail-section {
+        padding: 12px;
+    }
+
+    .agency-detail-row {
+        grid-template-columns: 100px 1fr;
+        gap: 8px;
+        padding: 6px 0;
+    }
+
+    .agency-info-container {
+        padding: 15px;
+    }
+
+    .agency-info-section {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .agency-info-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .agency-details-grid {
+        padding: 10px;
+    }
+
+    .agency-detail-section {
+        padding: 10px;
+    }
+
+    .agency-detail-section h3 {
+        font-size: 12px;
+    }
+
+    .agency-detail-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .agency-detail-row label {
+        font-size: 11px;
+    }
+
+    .agency-detail-row span {
+        font-size: 13px;
+    }
+
+    .agency-info-container {
+        padding: 10px;
+    }
+
+    .agency-info-section {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
+    .agency-info-section h3 {
+        font-size: 14px;
+    }
+
+    .agency-info-label {
+        font-size: 11px;
+    }
+
+    .agency-info-value {
+        font-size: 13px;
+    }
+}

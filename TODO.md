@@ -1,5 +1,396 @@
 # TODO List for WP Agency Plugin
 
+## TODO-3084: TabViewTemplate Architecture - Hook-Based Extensibility ✅ COMPLETED
+
+**Status**: ✅ COMPLETED (All 4 Phases Done)
+**Created**: 2025-10-28
+**Last Updated**: 2025-10-28
+**Priority**: HIGH
+**Category**: Architecture, Extensibility, Cross-Plugin Integration
+**Related**: task-3084.md, wp-app-core TODO-1186
+
+**Summary**: Evolution of tab system architecture to achieve extensibility while maintaining clean MVC View pattern. Final goal: Allow cross-plugin content injection (e.g., wp-customer can add stats to agency tabs).
+
+**Problem Evolution**:
+- **Initial**: Mixed OLD/NEW patterns
+- **Review-01**: Empty tabs after removing OLD hooks
+- **Review-02**: Too complex (2 files per tab, controller logic in views)
+- **Review-03**: ❌ No extensibility - other plugins can't inject content!
+
+**Solution (4 Phases)**:
+
+**Phase 1: Migration (v2.0.0)** ✅ COMPLETED
+- ✅ Migrated to TabViewTemplate pattern
+- ✅ Removed OLD PATTERN hooks and methods
+- ❌ Still complex (wrapper + partial files)
+
+**Phase 2: Review-01 Fix** ✅ COMPLETED
+- ❌ **Issue**: Tabs rendered empty
+- ✅ **Fix**: Updated render_tab_contents() for direct template inclusion
+- ✅ **Result**: Tabs render correctly
+
+**Phase 3: Review-02 Simplification (v3.0.0 - Option A)** ✅ COMPLETED
+- ✅ Merged 4 tab files with their partials (info+details → details.php)
+- ✅ Removed hook registration (`wpapp_tab_view_content`)
+- ✅ Removed 5 tab-related controller methods (~102 lines)
+- ✅ Deleted /tabs/partials/ folder (4 files)
+- ✅ Kept `render_partial()` for non-tab partials (headers, stats, ajax-datatables)
+- ✅ Pure HTML templates (no controller logic)
+- ✅ True MVC View pattern
+- ❌ **Side Effect**: Lost extensibility - no hook points!
+
+**Phase 4: Review-03 Extensibility Restoration (v4.0.0)** ✅ COMPLETED
+- ✅ **Goal**: Restore hook-based extensibility WITHOUT losing pure view benefits
+- ✅ **Strategy**: Hook-Based Content Injection Pattern
+- ✅ Restored `render_tab_view_content()` method in controller (58 lines)
+- ✅ Restored hook registration `wpapp_tab_view_content`
+- ✅ Updated `render_tab_contents()` to trigger hook (67 lines)
+- ✅ Kept view files as Pure HTML (NO changes to view files!)
+- ✅ Enabled cross-plugin integration (wp-customer, etc.)
+
+**Achieved Architecture (Review-03)**:
+```
+TabViewTemplate → do_action('wpapp_tab_view_content', $entity, $tab_id, $data)
+  ├─> [Priority 10] wp-agency responds → include details.php (Pure HTML)
+  ├─> [Priority 20] wp-customer responds → inject customer stats
+  └─> [Priority 30+] Other plugins can inject content
+```
+
+**Files Modified (Review-03)** ✅ COMPLETED:
+- ✅ AgencyDashboardController.php:
+  - Added hook registration line (line 111)
+  - Restored render_tab_view_content() method (58 lines, lines 346-404)
+  - Updated render_tab_contents() to trigger hook (67 lines, lines 789-855)
+  - Total: ~125 lines added/modified
+- ✅ tabs/details.php → NO CHANGES (kept pure HTML)
+- ✅ tabs/divisions.php → NO CHANGES (kept pure HTML)
+- ✅ tabs/employees.php → NO CHANGES (kept pure HTML)
+
+**Final Metrics (Review-03)**:
+- Files: 4 tabs (pure HTML) + 1 controller
+- Lines added: ~125
+- Controller methods: 1 method restored (render_tab_view_content)
+- Hooks registered: 1 (wpapp_tab_view_content) ✅ WORKING
+- Extensibility: ✅ Full cross-plugin support ACHIEVED
+- View file changes: 0 (pure view pattern maintained!)
+
+**Benefits Achieved (Review-03)**:
+- ✅ Keep pure view pattern (no changes to view files)
+- ✅ Enable cross-plugin content injection
+- ✅ wp-customer can add customer stats to agency tabs
+- ✅ Priority-based content ordering
+- ✅ WordPress standard hook pattern
+- ✅ No breaking changes to existing functionality
+
+**See**:
+- Main doc: `TODO/TODO-3084-tabview-template-migration.md`
+- Review-03: `TODO/TODO-3084-Review-03-restore-extensibility.md` (FULL IMPLEMENTATION PLAN)
+
+---
+
+## TODO-3083: Remove Inline JavaScript from PHP Templates ✅ COMPLETED
+
+**Status**: ✅ COMPLETED
+**Created**: 2025-10-27
+**Completed**: 2025-10-27
+**Priority**: HIGH
+**Category**: Code Quality, Separation of Concerns, Best Practices
+**Dependencies**: TODO-3082, wp-app-core TODO-1185
+**Related**: task-1185.md Review-01
+
+**Summary**: Remove ALL inline `<script>` tags and CSS from PHP template files. Implement event-driven DataTable initialization pattern using data-* attributes and MutationObserver for automatic detection of lazy-loaded tables.
+
+**User Requirement (Review-01)**: "saya tidak mau ada CSS, JS, di kode php. kita pindahkan ke agency-datatable.js"
+
+**Problem**: Inline JavaScript in templates
+- ajax-divisions-datatable.php: 26 lines inline `<script>`
+- ajax-employees-datatable.php: 27 lines inline `<script>`
+- Violates separation of concerns
+- Not CSP-compliant
+- Difficult to maintain
+
+**Solution**: Event-Driven DataTable Pattern
+
+**Architecture**:
+```
+PHP Template (Pure HTML):
+  <table class="agency-lazy-datatable"
+         data-entity="division"
+         data-agency-id="1"
+         data-ajax-action="get_divisions_datatable">
+  </table>
+         ↓ (MutationObserver detects)
+agency-datatable.js:
+  - watchForLazyTables() → Automatic detection
+  - initLazyDataTables() → Reads data-*, initializes
+  - getLazyTableColumns() → Entity-specific config
+```
+
+**Files Modified**:
+
+1. **ajax-divisions-datatable.php** (v1.0.0 → v1.1.0)
+   - REMOVED: 26 lines inline `<script>` tag
+   - ADDED: data-* attributes (entity, agency-id, ajax-action)
+   - Result: Pure HTML template (67 lines, -15%)
+
+2. **ajax-employees-datatable.php** (v1.0.0 → v1.1.0)
+   - REMOVED: 27 lines inline `<script>` tag
+   - ADDED: data-* attributes (entity, agency-id, ajax-action)
+   - Result: Pure HTML template (67 lines, -17%)
+
+3. **agency-datatable.js** (v2.0.0 → v2.1.0)
+   - ADDED: watchForLazyTables() method (43 lines)
+     - MutationObserver for automatic table detection
+   - ADDED: initLazyDataTables($container) method (62 lines)
+     - Reads data-* attributes for configuration
+     - Initializes DataTable with proper AJAX settings
+   - ADDED: getLazyTableColumns(entity) method (23 lines)
+     - Entity-specific column configuration
+   - Total: +128 lines centralized logic
+
+**Benefits Achieved**:
+- ✅ 100% Separation: PHP=HTML, JS=External files
+- ✅ CSP Compliant: No inline scripts
+- ✅ Maintainable: Single source of truth (agency-datatable.js)
+- ✅ Reusable: Pattern works for any lazy-load table
+- ✅ Automatic: MutationObserver detects tables in DOM
+- ✅ Testable: JavaScript methods can be unit tested
+- ✅ Clean Templates: View source shows pure HTML
+
+**Code Quality Metrics**:
+- Inline JS in templates: 53 lines → 0 lines (-100%) ✅
+- Template size: -26 lines total
+- JavaScript centralized: +128 lines in single file
+- Separation of concerns: 100% achieved ✅
+
+**Testing Checklist**:
+- ✅ Divisions tab loads DataTable automatically
+- ✅ Employees tab loads DataTable automatically
+- ✅ No inline scripts in view source
+- ✅ Console shows proper initialization logs
+- ✅ No JavaScript errors
+- ✅ Cache cleared and tested
+
+**Pattern Established**: Configuration via Data Attributes + MutationObserver
+- Can be applied to: forms, modals, widgets, any lazy-loaded component
+
+See: [TODO/TODO-3083-remove-inline-js-from-templates.md](TODO/TODO-3083-remove-inline-js-from-templates.md)
+
+---
+
+## TODO-3082: Template Separation Refactoring - Complete Architecture Cleanup ✅ COMPLETED
+
+**Status**: ✅ COMPLETED
+**Created**: 2025-10-27
+**Completed**: 2025-10-27
+**Priority**: HIGH
+**Category**: Architecture, Code Quality, Best Practices
+**Dependencies**: TODO-3081, wp-app-core TODO-1186
+
+**Summary**: Complete refactoring untuk memisahkan SEMUA HTML dari Controller ke template files terpisah. Menerapkan naming convention `{context}-{identifier}.php` untuk semua partial templates. **Controller = Logic Only, Templates = Presentation Only**.
+
+**Problem**: Controller dengan 460+ lines HTML mixed dengan business logic (maintenance nightmare, not designer-friendly, violates SRP).
+
+**Solution**: Template Separation dengan Naming Convention
+
+**Naming Convention Pattern**:
+```
+Format: {context}-{identifier}[-{subtype}].php
+
+Contexts:
+- stat-       : Statistics/cards
+- header-     : Header components
+- tab-        : Tab content
+- ajax-       : AJAX responses
+- filter-     : Filters (future)
+- form-       : Forms (future)
+```
+
+**Templates Created (9 Files)**:
+
+**General Partials** (`partials/`):
+1. `stat-cards.php` (62 lines) - Statistics cards
+2. `header-title.php` (32 lines) - Page title & subtitle
+3. `header-buttons.php` (47 lines) - Action buttons
+4. `ajax-divisions-datatable.php` (77 lines) - Divisions DataTable
+5. `ajax-employees-datatable.php` (79 lines) - Employees DataTable
+
+**Tab Partials** (`tabs/partials/`):
+6. `tab-info-content.php` (109 lines) - Info tab HTML
+7. `tab-details-content.php` (153 lines) - Details tab HTML
+8. `tab-divisions-content.php` (55 lines) - Divisions placeholder
+9. `tab-employees-content.php` (55 lines) - Employees placeholder
+
+**Helper Method Created**:
+```php
+private function render_partial($partial, $data = [], $context = 'tab'): void {
+    // Extracts variables, determines path, includes template
+}
+```
+
+**Controller Methods Refactored (9 Methods)**:
+
+| Method | Before | After | Lines Removed |
+|--------|--------|-------|---------------|
+| render_header_title() | 9 lines | 1 line | -8 |
+| render_header_buttons() | 33 lines | 1 line | -32 |
+| render_header_cards() | 52 lines | 3 lines | -49 |
+| render_info_content() | 75 lines | 1 line | -74 |
+| render_details_content() | 125 lines | 1 line | -124 |
+| render_divisions_content() | 35 lines | 2 lines | -33 |
+| render_employees_content() | 35 lines | 2 lines | -33 |
+| handle_load_divisions_tab() | 47 lines | 3 lines | -44 |
+| handle_load_employees_tab() | 49 lines | 3 lines | -46 |
+| **Total** | **460 lines** | **17 lines** | **-443 lines** |
+
+**Code Quality Metrics**:
+- Controller size: 1400 → 960 lines (**-31%**)
+- HTML in Controller: 460 → **0 lines** (**-100%**)
+- Separation of concerns: Mixed → **100% separated** ✅
+- Maintainability: Difficult → **Easy** ✅
+- Testability: Hard → **Simple** ✅
+
+**Architecture Benefits**:
+1. ✅ **Controller = Pure Logic**: No HTML, only business logic
+2. ✅ **Templates = Pure Presentation**: Clean HTML, minimal PHP
+3. ✅ **DRY Principle**: Reusable `render_partial()` helper
+4. ✅ **Designer-Friendly**: Edit HTML without touching Controller
+5. ✅ **Testable**: Clear separation, easy to mock
+
+**Integration with wp-app-core**:
+- Uses `TabViewTemplate` for tab system (TODO-1186)
+- Tab files minimal (call `TabViewTemplate::render()`)
+- Content rendered via `wpapp_tab_view_content` hook
+- Controller handles hook, routes to template files
+
+**Search-Friendly Organization**:
+```bash
+find . -name "stat-*.php"      # All statistics templates
+find . -name "header-*.php"    # All header templates
+find . -name "tab-*.php"       # All tab templates
+find . -name "ajax-*.php"      # All AJAX templates
+```
+
+**Files Modified**:
+- `src/Controllers/Agency/AgencyDashboardController.php` (9 methods refactored)
+- `src/Views/agency/tabs/info.php` (v1.1.0 → v2.0.0)
+- `src/Views/agency/tabs/details.php` (v1.1.0 → v2.0.0)
+
+**Files Created**:
+- 9 template files (669 total lines)
+- `/TODO/TODO-3082-template-separation-refactoring.md` (785 lines)
+
+**Impact**:
+- Code Quality: **Enterprise-grade** ✅
+- Maintainability: **Significantly improved** ✅
+- Developer Experience: **Easier to understand & modify** ✅
+- Designer-Friendly: **Can edit templates directly** ✅
+
+See: [TODO/TODO-3082-template-separation-refactoring.md](TODO/TODO-3082-template-separation-refactoring.md)
+
+---
+
+## TODO-3081: Scope Separation Phase 2 - Right Panel Tabs ✅ COMPLETED
+
+**Status**: ✅ COMPLETED
+**Created**: 2025-10-27
+**Completed**: 2025-10-27
+**Priority**: HIGH
+**Category**: Architecture, Code Quality
+**Dependencies**: TODO-3080 (Phase 1)
+
+**Summary**: Phase 2 scope separation untuk right panel tabs. Refactor info.php dan details.php untuk menggunakan LOCAL scope (agency-*) instead of GLOBAL scope (wpapp-*). Remove inline CSS dan move ke external file.
+
+**Audit Results**:
+
+| File | Lines | Status | wpapp-* Usage | Issues |
+|------|-------|--------|---------------|--------|
+| divisions.php | 57 | ✅ CLEAN | Structure only | Phase 1 clean |
+| employees.php | 57 | ✅ CLEAN | Structure only | Phase 1 clean |
+| **info.php** | 102 | ❌ MIXED | 8 classes | Content using wpapp-* |
+| **details.php** | 215 | ❌❌ VIOLATIONS | 7 classes + 52 lines inline CSS | Double violation |
+
+**Problems Solved**:
+
+**Problem 1: info.php - Mixed Scope (8 classes)** ✅
+- Changed: `wpapp-info-*` → `agency-info-*`
+- Kept: `wpapp-badge` (global component)
+- Result: 100% local scope for content
+
+**Problem 2: details.php - Double Violation** ✅
+- Changed: `wpapp-detail-*` → `agency-detail-*` (7 classes)
+- Removed: 52 lines inline `<style>` tag
+- Moved: All styles to agency-detail.css
+- Result: Clean HTML, external CSS
+
+**Changes Implemented**:
+
+**1. Refactored info.php** (v1.0.0 → v1.1.0):
+```
+Classes Changed (6):
+- wpapp-info-container → agency-info-container
+- wpapp-info-section → agency-info-section
+- wpapp-info-grid → agency-info-grid
+- wpapp-info-item → agency-info-item
+- wpapp-info-label → agency-info-label
+- wpapp-info-value → agency-info-value
+```
+
+**2. Refactored details.php** (v1.0.0 → v1.1.0):
+```
+Classes Changed (5):
+- wpapp-details-grid → agency-details-grid
+- wpapp-detail-section → agency-detail-section
+- wpapp-detail-row → agency-detail-row
+- wpapp-no-data → agency-no-data
+
+Inline CSS Removed:
+- Before: 215 lines (52 inline CSS)
+- After: 169 lines (pure HTML)
+- Reduction: -21%
+```
+
+**3. Created agency-detail.css** (NEW):
+- File: `assets/css/agency/agency-detail.css`
+- Lines: 219 (organized, responsive)
+- Scope: Strict agency-* prefix
+- Features: Grid layouts, responsive (3 breakpoints), clean styling
+
+**4. Enqueued agency-detail.css**:
+- File: `includes/class-dependencies.php` (lines 237-240)
+- Order: After agency-style.css, before division-style.css
+
+**Code Quality Metrics**:
+- Mixed scopes in right panel: 15 classes → 0 classes (100% clean) ✅
+- Inline CSS: 52 lines → 0 lines (100% removed) ✅
+- details.php file size: 215 lines → 169 lines (-21%) ✅
+- Separation of concerns: Poor → Excellent ✅
+
+**Files Modified**:
+1. `src/Views/agency/tabs/info.php` (v1.1.0) - 6 classes changed
+2. `src/Views/agency/tabs/details.php` (v1.1.0) - 5 classes changed, inline CSS removed
+3. `assets/css/agency/agency-detail.css` (NEW) - 219 lines
+4. `includes/class-dependencies.php` - Enqueued new CSS
+
+**Architecture Principles**:
+- ✅ Strict scope separation (wpapp-* vs agency-*)
+- ✅ Separation of concerns (PHP = HTML, CSS = external)
+- ✅ Maintainability (single source of truth)
+- ✅ Performance (cacheable, minifiable)
+- ✅ Testability (clear boundaries)
+
+**Benefits**:
+- ✅ 100% scope separation in right panel
+- ✅ No inline CSS (all externalized)
+- ✅ Cacheable assets (better performance)
+- ✅ Maintainable (organized by entity)
+- ✅ Responsive (mobile-friendly)
+- ✅ Testable (clear class ownership)
+
+See: [TODO/TODO-3081-scope-separation-phase2-right-panel.md](TODO/TODO-3081-scope-separation-phase2-right-panel.md)
+
+---
+
 ## TODO-3080: Scope Separation Refactoring & UX Improvements ✅ COMPLETED
 
 **Status**: ✅ COMPLETED
@@ -639,431 +1030,3 @@ public function render_header_cards($entity): void
 - `src/Controllers/Agency/AgencyDashboardController.php`
 
 See: [TODO/TODO-3071-fix-stats-cards-container-position.md](TODO/TODO-3071-fix-stats-cards-container-position.md)
-
----
-
-## TODO-2071: Implement Agency Dashboard with Panel System 🔵 READY TO START
-
-**Status**: 🔵 READY TO START
-**Created**: 2025-10-23
-**Dependencies**: TODO-2179 (Base Panel System Phase 1-7) ✅, TODO-2178 ✅, TODO-2174 ✅
-**Priority**: HIGH (Critical for TODO-2179 Phase 8 completion)
-**Complexity**: High (Full dashboard + cross-plugin integration)
-
-**Summary**: Implement Agency Dashboard ("Disnaker") using base panel system from wp-app-core (TODO-2179). Serves as **Phase 8 integration testing** for base panel system. Features 3-tab layout with lazy loading, cross-plugin permission filtering, and hook-based access control.
-
-**SQL Query**: ✅ VERIFIED (2025-10-23)
-```sql
--- User → CustomerEmployee → Branch → Agency
-SELECT a.* FROM wp_app_agencies a
-INNER JOIN wp_app_customer_branches b ON a.id = b.agency_id
-INNER JOIN wp_app_customer_employees ce ON b.id = ce.branch_id
-WHERE ce.user_id = ? AND a.status = 'active'
-GROUP BY a.id;
-```
-
-**Test Results**: user_id=2 can access 1 agency (Disnaker Provinsi Maluku)
-
-**Current Status**:
-- ✅ **Action Hooks**: 9/9 implemented (Agency, Division, Employee lifecycle)
-- ⏳ **Filter Hooks**: 0/8 implemented (documented but not in code)
-
-**Filter Hooks to Implement**:
-
-**Permission Filters (3 hooks)**:
-- [ ] `wp_agency_can_create_employee` - Override employee creation permission
-  - Parameters: `($can_create, $agency_id, $division_id, $user_id)`
-  - Return: `bool`
-  - Location: `AgencyEmployeeController.php` or `AgencyEmployeeValidator.php`
-
-- [ ] `wp_agency_can_create_division` - Override division creation permission
-  - Parameters: `($can_create, $agency_id, $user_id)`
-  - Return: `bool`
-  - Location: `DivisionController.php` or `DivisionValidator.php`
-
-- [ ] `wp_agency_max_inspector_assignments` - Maximum inspector assignments
-  - Parameters: none
-  - Return: `int`
-  - Location: Inspector assignment logic (future feature)
-
-**UI/UX Filters (2 hooks)**:
-- [ ] `wp_agency_enable_export` - Enable/disable export button
-  - Parameters: none
-  - Return: `bool`
-  - Location: DataTable templates (agency-list.php, division-list.php, employee-list.php)
-
-- [ ] `wp_company_detail_tabs` - Add/remove company detail tabs
-  - Parameters: `($tabs)`
-  - Return: `array`
-  - Location: Company detail view template
-
-**System Filters (1 hook)**:
-- [ ] `wp_agency_debug_mode` - Enable debug logging
-  - Parameters: none
-  - Return: `bool`
-  - Location: Logger class or utility functions
-
-**External Integration Filters (2 hooks)**:
-- [ ] `wilayah_indonesia_get_province_options` - Get province dropdown options
-  - Parameters: `($options)`
-  - Return: `array`
-  - Location: Form templates or AJAX handlers
-
-- [ ] `wilayah_indonesia_get_regency_options` - Get regency dropdown options
-  - Parameters: `($options, $province_id)`
-  - Return: `array`
-  - Location: Form templates or AJAX handlers
-
-**Implementation Plan**:
-
-**Phase 1: Permission Filters**
-- [ ] Implement `wp_agency_can_create_employee` in AgencyEmployeeController
-  - Add filter before validation in create() method
-  - Default: check current capability, allow override
-  - Return false to prevent creation
-
-- [ ] Implement `wp_agency_can_create_division` in DivisionController
-  - Add filter before validation in create() method
-  - Default: check current capability, allow override
-
-- [ ] Document `wp_agency_max_inspector_assignments` for future use
-  - Skip implementation (feature not yet built)
-
-**Phase 2: UI/UX Filters**
-- [ ] Implement `wp_agency_enable_export` in DataTable templates
-  - Add filter check before rendering export button
-  - Default: true (enabled)
-  - Hide button if filter returns false
-
-- [ ] Implement `wp_company_detail_tabs` in company detail template
-  - Add filter to tabs array before rendering
-  - Allow adding/removing/reordering tabs
-  - Default: existing tabs structure
-
-**Phase 3: System Filters**
-- [ ] Implement `wp_agency_debug_mode` globally
-  - Add filter in error_log calls or Logger class
-  - Default: false (production mode)
-  - Enable verbose logging when true
-
-**Phase 4: External Integration Filters**
-- [ ] Implement wilayah filters in form rendering
-  - Add filters when building province/regency dropdowns
-  - Allow external plugins to modify options
-  - Maintain compatibility with wilayah-indonesia plugin
-
-**Implementation Example**:
-```php
-// In AgencyEmployeeController::create()
-$can_create = current_user_can('add_agency_employee');
-$can_create = apply_filters('wp_agency_can_create_employee', $can_create, $agency_id, $division_id, $user_id);
-
-if (!$can_create) {
-    wp_send_json_error(['message' => 'Permission denied by custom filter']);
-    return;
-}
-```
-
-**Files to Modify**:
-- `/src/Controllers/Employee/AgencyEmployeeController.php` (permission filter)
-- `/src/Controllers/Division/DivisionController.php` (permission filter)
-- `/src/Views/templates/agency-list.php` (export filter)
-- `/src/Views/templates/division-list.php` (export filter)
-- `/src/Views/templates/employee-list.php` (export filter)
-- `/src/Views/templates/company-detail.php` (tabs filter)
-- Form templates with wilayah dropdowns (integration filters)
-- Logger or debug utility class (debug mode filter)
-
-**Success Criteria**:
-- ✅ All 8 filter hooks implemented in code
-- ✅ Filters applied at correct locations
-- ✅ Default behavior preserved (backward compatible)
-- ✅ Filter parameters match documentation
-- ✅ Examples created for each filter
-- ✅ Updated hooks documentation with implementation notes
-
-**Testing Plan**:
-```php
-// Test permission filter
-add_filter('wp_agency_can_create_employee', function($can, $agency_id, $division_id, $user_id) {
-    // Block creation outside business hours
-    return $can && (current_time('H') >= 8 && current_time('H') <= 17);
-}, 10, 4);
-
-// Test UI filter
-add_filter('wp_agency_enable_export', '__return_false'); // Disable export
-
-// Test debug mode
-add_filter('wp_agency_debug_mode', '__return_true'); // Enable debug logs
-```
-
-**Benefits**:
-- ✅ Complete hook system (9 actions + 8 filters = 17 hooks)
-- ✅ External extensibility via filters
-- ✅ Custom business logic without core modifications
-- ✅ Consistent with WordPress hook standards
-- ✅ Developer-friendly with comprehensive documentation
-
-**Documentation Reference**:
-- `/docs/hooks/README.md` - Main hooks documentation
-- `/docs/hooks/filters/permission-filters.md` - Permission filters
-- `/docs/hooks/filters/ui-filters.md` - UI/UX filters
-- `/docs/hooks/filters/system-filters.md` - System filters
-- `/docs/hooks/examples/` - Real-world examples
-
-**Notes**:
-- Action hooks (9) already implemented in TODO-2066 ✅
-- Filter hooks (8) documented but need implementation ⏳
-- Some filters (like inspector assignments) are for future features
-- Maintain backward compatibility (filters should enhance, not break)
-
----
-
-## TODO-2070: Employee Generator Runtime Flow Migration ✅ COMPLETED
-
-**Status**: ✅ COMPLETED
-**Created**: 2025-01-22
-**Completed**: 2025-01-22
-**Dependencies**: TODO-2067 (Agency Runtime Flow) ✅, TODO-2069 (Division Runtime Flow) ✅, wp-customer TODO-2170 (Employee Runtime Flow) ✅
-**Priority**: HIGH
-**Complexity**: Medium (refactoring demo generator to use production code)
-
-**Summary**: Migrated Employee demo data generation from bulk generation to runtime flow pattern following wp-customer Employee pattern. Removed demo code from production files and implemented full validation + hooks.
-
-**Results**:
-- **Total Employees**: 87 (target: 90, gap: 3 due to missing division in Agency 15)
-  - 29 admin employees PRESERVED (from wp_agency_division_created hook)
-  - 58 staff employees CREATED (from AgencyEmployeeUsersData, ID 170-229)
-- ✅ Zero production pollution (removed `createDemoEmployee()` from AgencyEmployeeController)
-- ✅ Full validation via AgencyEmployeeValidator (no bypasses)
-- ✅ Hook `wp_agency_employee_created` registered and firing
-- ✅ Dynamic division mapping handles varying IDs
-- ✅ WordPress cache properly cleared after user ID changes
-
-**Implementation Complete**:
-- ✅ Remove ALL demo code from production files
-- ✅ Create user via WPUserGenerator (static ID 170-229)
-- ✅ Build dynamic division mapping (index → actual ID)
-- ✅ Use AgencyEmployeeValidator for validation
-- ✅ Trigger wp_agency_employee_created hook
-- ✅ Preserve 29 admin employees from division hook
-
-**Pattern Consistency**:
-- ✅ Agency: User first → Validator → Model → Hook
-- ✅ Division: User first → Validator → Model → Hook
-- ✅ Customer (wp-customer): User first → Validator → Model → Hook
-- ✅ **Employee**: User first → Validator → Model → Hook
-
-**Files Modified**:
-- ✅ `/src/Controllers/Employee/AgencyEmployeeController.php` (removed createDemoEmployee)
-- ✅ `/src/Database/Demo/AgencyEmployeeDemoData.php` (runtime flow + mapping)
-- ✅ `/src/Models/Employee/AgencyEmployeeModel.php` (hook trigger)
-- ✅ `/src/Validators/Employee/AgencyEmployeeValidator.php` (enhanced email validation)
-- ✅ `/src/Database/Demo/WPUserGenerator.php` (cache clearing)
-- ✅ `/src/Database/Demo/Data/AgencyEmployeeUsersData.php` (fixed duplicates)
-- ✅ `/wp-agency.php` (registered wp_agency_employee_created hook)
-
-**Issues Fixed**:
-1. Duplicate usernames - renamed 20 users by swapping name order
-2. Validation rejection - enhanced validator to allow existing WP users
-3. WordPress cache stale data - added comprehensive cache clearing
-
-**Reference**: `/TODO/TODO-2070-employee-runtime-flow.md` (detailed completion summary)
-
----
-
-## TODO-2069: Division Generator Runtime Flow Migration 🔄 IN PROGRESS
-
-**Status**: 🔄 IN PROGRESS
-**Created**: 2025-01-22
-**Dependencies**: TODO-2067 (Agency Runtime Flow), TODO-2068 (Division User Auto-Creation), wp-customer TODO-2167 (Branch Runtime Flow)
-**Priority**: HIGH
-**Complexity**: Medium (refactoring demo generator to use production code)
-
-**Summary**: Migrate Division demo data generation from bulk generation to runtime flow pattern following wp-customer Branch pattern. Remove demo code from production files and use full validation + hooks.
-
-**Problem**:
-- Production code pollution (`createDemoDivision()` in DivisionController) ❌
-- Bulk insert bypasses validation & hooks ❌
-- Inconsistent with Agency & Branch patterns ❌
-- Manual employee creation (no hook) ❌
-
-**Solution (Runtime Flow)**:
-- ✅ Remove ALL demo code from production files
-- ⏳ Create user via WPUserGenerator (static ID)
-- ⏳ Use DivisionController->create() via runtime flow
-- ⏳ Hook auto-creates employee (wp_agency_division_created)
-- ⏳ Cleanup via Model delete (cascade)
-
-**Implementation Plan**:
-```
-DivisionDemoData::generate()
-  → Step 1: WPUserGenerator->generateUser() (static ID)
-  → Step 2: createDivisionViaRuntimeFlow()
-    → Step 3: Validate via DivisionValidator
-    → Step 4: Create via DivisionModel->create()
-      → Step 5: Hook wp_agency_division_created fires
-        → Step 6: AutoEntityCreator->handleDivisionCreated()
-          → Step 7: Employee auto-created
-```
-
-**Files to Modify**:
-- `/src/Controllers/Division/DivisionController.php` (remove createDemoDivision)
-- `/src/Database/Demo/DivisionDemoData.php` (add runtime flow method)
-
-**Pattern Consistency**:
-- ✅ Agency: User first → Controller → Hook creates division+employee
-- ⏳ **Division**: User first → Controller → Hook creates employee
-- ✅ Branch (wp-customer): User first → Controller → Hook creates employee
-
-**Progress**: Step 1/9 - Created TODO file
-
-**Reference**: `/TODO/TODO-2069-division-runtime-flow.md`
-
----
-
-## TODO-2067: Agency Generator Runtime Flow Migration 🚧 IN PROGRESS
-
-**Status**: 🚧 IN PROGRESS
-**Created**: 2025-01-22
-**Dependencies**: Task-2066 (HOOK system), wp-customer TODO-2168, TODO-2167
-**Priority**: HIGH
-**Complexity**: Medium-High (refactoring demo generator to use production code)
-
-**Summary**: Migrate demo data generation from bulk generation approach to runtime flow pattern following wp-customer. Transform demo generator from simple data creation tool into automated testing tool for production code.
-
-**Problem**:
-- Production code pollution (demo methods in Controller/Model)
-- Validation bypass (no AgencyValidator usage)
-- HOOK system untested (auto-create not triggered)
-- Manual user creation (direct DB INSERT vs wp_insert_user)
-
-**Solution (Phase 1: Agency Only)**:
-- ✅ Delete demo methods from production code
-- ⏳ Update WPUserGenerator to use wp_insert_user()
-- ⏳ Create runtime flow method in AgencyDemoData
-- ⏳ Test full HOOK chain (agency → division → employee)
-- ⏳ Implement HOOK-based cleanup
-
-**Implementation Plan**:
-```
-AgencyDemoData::generate()
-  → 1. Create user via wp_insert_user()
-  → 2. Update ID to static value (FOREIGN_KEY_CHECKS=0)
-  → 3. Validate via AgencyValidator::validateForm()
-  → 4. Create via AgencyModel::create()
-    → HOOK: wp_agency_agency_created
-      → Division pusat auto-created
-        → HOOK: wp_agency_division_created
-          → Employee auto-created
-```
-
-**Files to Modify**:
-- `/src/Controllers/AgencyController.php` (DELETE createDemoAgency method)
-- `/src/Database/Demo/WPUserGenerator.php` (use wp_insert_user)
-- `/src/Database/Demo/AgencyDemoData.php` (runtime flow methods)
-
-**Success Criteria**:
-- ✅ Zero demo code in production namespace
-- ✅ Full validation via AgencyValidator
-- ✅ User creation via wp_insert_user() with static ID
-- ✅ HOOK cascade fully tested
-- ✅ Cleanup via Model with cascade delete
-
-**Reference**: `/TODO/TODO-2067-agency-generator-runtime-flow.md`
-
----
-
-## TODO-2066: Auto Entity Creation & Lifecycle Hooks ✅ COMPLETED
-
-**Status**: ✅ COMPLETED
-**Created**: 2025-01-22
-**Completed**: 2025-01-22
-**Dependencies**: wp-customer (reference pattern), wp-customer TODO-2169 (naming convention)
-**Priority**: High
-**Complexity**: Medium (hook implementation + handler + delete hooks)
-
-**Summary**: Implementasi complete hook system untuk entity lifecycle di wp-agency mengikuti pattern wp-customer dengan naming convention yang benar (`wp_{plugin}_{entity}_{action}`). Includes creation hooks for auto entity creation AND deletion hooks for cascade cleanup.
-
-**Problem**:
-- Manual entity creation required after agency/division creation
-- No lifecycle hooks for deletion (cascade cleanup, external sync)
-- Inconsistent data structure across agencies
-- No soft delete support
-
-**Solution:**
-
-**Creation Hooks:**
-- ✅ Added `wp_agency_agency_created` hook in AgencyModel (fixed naming)
-- ✅ Added `wp_agency_division_created` hook in DivisionModel
-- ✅ Created AutoEntityCreator handler class
-- ✅ Registered creation hooks in main plugin file
-- ✅ Added findByUserAndDivision() method in AgencyEmployeeModel
-
-**Deletion Hooks:**
-- ✅ Added `wp_agency_agency_before_delete` hook in AgencyModel
-- ✅ Added `wp_agency_agency_deleted` hook in AgencyModel
-- ✅ Added `wp_agency_division_before_delete` hook in DivisionModel
-- ✅ Added `wp_agency_division_deleted` hook in DivisionModel
-- ✅ Implemented soft delete support (status='inactive')
-- ✅ Implemented hard delete option (via settings)
-
-**Hook Flow**:
-```
-Creation:
-Agency Created → wp_agency_agency_created hook fires
-               → AutoEntityCreator::handleAgencyCreated()
-               → Division Pusat auto-created
-               → wp_agency_division_created hook fires
-               → AutoEntityCreator::handleDivisionCreated()
-               → Employee auto-created
-
-Deletion:
-Agency Delete → wp_agency_agency_before_delete (validation)
-              → Soft/Hard delete based on settings
-              → wp_agency_agency_deleted (cascade cleanup)
-```
-
-**Files Created**:
-- `/src/Handlers/AutoEntityCreator.php` - Main handler class
-
-**Files Modified**:
-- `/src/Models/Agency/AgencyModel.php` (v2.0.0 → v2.1.0)
-- `/src/Models/Division/DivisionModel.php` (v1.0.0 → v1.1.0)
-- `/src/Models/Employee/AgencyEmployeeModel.php` (v1.0.0 → v1.1.0)
-- `/wp-agency.php` (v1.0.0 → v1.1.0)
-- `/TODO/TODO-2066-auto-entity-creation.md` - Complete documentation
-
-**Hooks Implemented:**
-- **2 Creation hooks** (agency_created, division_created)
-- **4 Deletion hooks** (2x before_delete, 2x deleted)
-- **Total: 6 lifecycle hooks**
-
-**Features**:
-- ✅ Automatic division pusat creation when agency created
-- ✅ Automatic employee creation when division created
-- ✅ Soft delete support (status='inactive', data recoverable)
-- ✅ Hard delete option (actual DELETE from database)
-- ✅ Before delete hooks for validation/prevention
-- ✅ After delete hooks for cascade cleanup
-- ✅ Duplicate prevention (checks before creating)
-- ✅ Comprehensive error handling and logging
-- ✅ Cache-aware implementation
-- ✅ Follows wp-customer pattern with correct naming convention
-
-**Naming Convention**: `wp_{plugin}_{entity}_{action}`
-- Entity name ALWAYS explicit (wp_agency_**agency**_created)
-- Consistent with wp-customer TODO-2169 standard
-- Scalable and predictable
-
-**Benefits**:
-- ✅ Automation reduces manual work
-- ✅ Consistent data structure across agencies
-- ✅ Extensible via WordPress hook system
-- ✅ Cascade cleanup for data integrity
-- ✅ Soft delete for data recovery
-- ✅ Easy to debug with detailed logging
-
-**Reference**: `/TODO/TODO-2066-auto-entity-creation.md`
-
----

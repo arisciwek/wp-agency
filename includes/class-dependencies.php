@@ -234,6 +234,11 @@ public function enqueue_frontend_assets() {
             // This file contains agency-specific enhancements (hover effects, colors, etc.)
             wp_enqueue_style('wp-agency-agency', WP_AGENCY_URL . 'assets/css/agency/agency-style.css', [], $this->version);
 
+            // Agency detail panel styles - LOCAL SCOPE ONLY
+            // Styles for info.php and details.php tabs in right panel
+            // All classes use agency-* prefix (strict scope separation)
+            wp_enqueue_style('wp-agency-detail', WP_AGENCY_URL . 'assets/css/agency/agency-detail.css', [], $this->version);
+
             // Division styles
             wp_enqueue_style('wp-agency-division', WP_AGENCY_URL . 'assets/css/division/division-style.css', [], $this->version);
 
