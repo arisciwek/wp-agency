@@ -154,10 +154,50 @@
                         next: 'Next',
                         last: 'Last'
                     }
+                },
+
+                /**
+                 * Callback after DataTable draw
+                 * Updates statistics cards with real count from DataTable response
+                 */
+                drawCallback: function(settings) {
+                    const json = settings.json;
+
+                    if (json) {
+                        // Update statistics from DataTable response (no duplicate query!)
+                        self.updateStatistics(json);
+                    }
                 }
             });
 
             console.log('[AgencyDataTable] DataTable initialized');
+        },
+
+        /**
+         * Update statistics cards from DataTable response
+         *
+         * Reuses count from DataTable instead of separate COUNT query
+         *
+         * @param {Object} json - DataTable AJAX response
+         * @param {number} json.recordsTotal - Total records (unfiltered)
+         * @param {number} json.recordsFiltered - Filtered records (with access control)
+         */
+        updateStatistics(json) {
+            console.log('[AgencyDataTable] Updating statistics from DataTable response');
+            console.log('[AgencyDataTable] Records Total:', json.recordsTotal);
+            console.log('[AgencyDataTable] Records Filtered:', json.recordsFiltered);
+
+            // Update "Total Disnaker" card with filtered count
+            // This reflects actual accessible records for current user
+            const $totalCard = $('.agency-stat-card[data-card-id="total-agencies"] .agency-stat-number');
+            if ($totalCard.length) {
+                $totalCard.text(json.recordsFiltered || 0);
+                console.log('[AgencyDataTable] Updated Total card:', json.recordsFiltered);
+            }
+
+            // Note: Active/Inactive counts would need additional data from response
+            // For now, we only update total count to avoid inconsistency
+            // TODO: Add status breakdown in DataTable response if needed
         },
 
         /**
