@@ -219,9 +219,29 @@ class AgencyDashboardController {
         global $wpdb;
         $table = $wpdb->prefix . 'app_agencies';
 
-        $total = $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
-        $active = $wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE status = 'active'");
-        $inactive = $wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE status = 'inactive'");
+        /**
+         * Filter: Allow filtering statistics WHERE clause
+         *
+         * Enables access control for statistics (e.g., customer employees only see accessible agencies)
+         *
+         * @param array $where WHERE conditions
+         * @param string $context Statistics context (total, active, inactive)
+         * @return array Modified WHERE conditions
+         *
+         * @since 1.0.0
+         */
+        $where_total = apply_filters('wpapp_agency_statistics_where', [], 'total');
+        $where_active = apply_filters('wpapp_agency_statistics_where', ['status' => 'active'], 'active');
+        $where_inactive = apply_filters('wpapp_agency_statistics_where', ['status' => 'inactive'], 'inactive');
+
+        // Build WHERE clause
+        $where_total_sql = $this->build_where_clause($where_total);
+        $where_active_sql = $this->build_where_clause($where_active);
+        $where_inactive_sql = $this->build_where_clause($where_inactive);
+
+        $total = $wpdb->get_var("SELECT COUNT(*) FROM {$table} {$where_total_sql}");
+        $active = $wpdb->get_var("SELECT COUNT(*) FROM {$table} {$where_active_sql}");
+        $inactive = $wpdb->get_var("SELECT COUNT(*) FROM {$table} {$where_inactive_sql}");
 
         // Render using partial template (context: 'agency' not 'tab')
         $this->render_partial('stat-cards', compact('total', 'active', 'inactive'), 'agency');
@@ -882,5 +902,37 @@ class AgencyDashboardController {
                 echo '<p>' . sprintf(__('Template "%s" not found', 'wp-agency'), esc_html($partial)) . '</p>';
             }
         }
+    }
+
+    /**
+     * Build WHERE clause from conditions array
+     *
+     * Converts array of WHERE conditions to SQL WHERE clause string.
+     * Supports both associative array (column => value) and indexed array (raw SQL conditions).
+     *
+     * @param array $conditions WHERE conditions
+     * @return string WHERE clause SQL (with WHERE keyword, or empty string)
+     *
+     * @since 1.0.0
+     */
+    private function build_where_clause(array $conditions): string {
+        if (empty($conditions)) {
+            return '';
+        }
+
+        global $wpdb;
+        $where_parts = [];
+
+        foreach ($conditions as $key => $value) {
+            if (is_numeric($key)) {
+                // Indexed array - raw SQL condition (already escaped by filter)
+                $where_parts[] = $value;
+            } else {
+                // Associative array - column => value
+                $where_parts[] = $wpdb->prepare("{$key} = %s", $value);
+            }
+        }
+
+        return 'WHERE ' . implode(' AND ', $where_parts);
     }
 }
