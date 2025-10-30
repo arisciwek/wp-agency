@@ -70,7 +70,7 @@ class MenuManager {
         // Submenu Settings - tetap menggunakan manage_options untuk admin only
         add_submenu_page(
             'wp-agency',
-            __('Pengaturan', 'wp-agency'),
+            __('Pengaturan Disnaker', 'wp-agency'),
             __('Pengaturan', 'wp-agency'),
             'manage_options',
             'wp-agency-settings',

@@ -174,11 +174,10 @@ public function enqueue_frontend_assets() {
         }
 
 
-        // Settings page styles// Settings page styles
+        // Settings page styles
         if ($screen->id === 'wp-agency_page_wp-agency-settings') {
-           // Common styles for settings page
-           wp_enqueue_style('wp-agency-common', WP_AGENCY_URL . 'assets/css/settings/common-style.css', [], $this->version);
-           wp_enqueue_style('wp-agency-settings', WP_AGENCY_URL . 'assets/css/settings/settings-style.css', ['wp-agency-common'], $this->version);
+           // Main settings styles (includes common styles)
+           wp_enqueue_style('wp-agency-settings', WP_AGENCY_URL . 'assets/css/settings/settings-style.css', [], $this->version);
            wp_enqueue_style('wp-agency-modal', WP_AGENCY_URL . 'assets/css/agency/confirmation-modal.css', [], $this->version);
 
            // Get current tab and permission tab

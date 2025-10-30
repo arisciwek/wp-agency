@@ -7,7 +7,7 @@
  * @version     4.0.0
  * @author      arisciwek
  *
- * Path: /wp-agency/src/Views/agency/tabs/details.php
+ * Path: /wp-agency/src/Views/agency/tabs/info.php
  *
  * Description: Pure HTML view for comprehensive agency information tab.
  *              Direct template - no controller logic, no hooks, no partials.

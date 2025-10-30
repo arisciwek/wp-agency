@@ -196,7 +196,6 @@ class WPAgency {
 
                 try {
                     $self->dashboard_controller = new \WPAgency\Controllers\Agency\AgencyDashboardController();
-                    error_log('AgencyDashboardController initialized successfully');
                 } catch (\Exception $e) {
                     error_log('ERROR initializing AgencyDashboardController: ' . $e->getMessage());
                 } catch (\Error $e) {

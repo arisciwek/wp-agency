@@ -151,7 +151,6 @@ class AgencyCacheManager {
      */
     public function get(string $type, ...$keyComponents) {
         $key = $this->generateKey($type, ...$keyComponents);
-         error_log("Cache key generated: " . $key);
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log("Cache attempt - Key: {$key}, Type: {$type}");

@@ -20,6 +20,31 @@
  * - AgencyModel untuk CRUD operations
  *
  * Changelog:
+ * 1.4.0 - 2025-10-29 (TODO-3087 Pembahasan-03)
+ * - RESTORED: wpapp_tab_view_after_content hook in render_tab_contents()
+ * - REASON: Tab files use pure HTML pattern (not TabViewTemplate::render())
+ * - DECISION: Entity controller provides extension hook directly
+ * - BENEFIT: Extension content works, no dependency on TabViewTemplate
+ *
+ * 1.3.0 - 2025-10-29 (TODO-3087 Pembahasan-01)
+ * - REMOVED: Duplicate wpapp_tab_view_after_content hook from render_tab_contents()
+ * - REASON: TabViewTemplate already provides this hook (wp-app-core TODO-1188)
+ * - BENEFIT: Eliminate duplication, single source of truth
+ * - PATTERN: Consistent with wp-app-core framework design
+ *
+ * 1.2.0 - 2025-10-29 (TODO-3086 Review-01)
+ * - REFACTORED: Per-tab hook registration (removed switch-case pattern)
+ * - ADDED: render_info_tab(), render_divisions_tab(), render_employees_tab()
+ * - REMOVED: render_tab_view_content() with switch-case
+ * - BENEFIT: Better decoupling, each tab independently registered
+ * - RENAMED: details.php → info.php (consistency with tab_id)
+ *
+ * 1.1.0 - 2025-10-29 (TODO-3086)
+ * - ADDED: wpapp_tab_view_after_content hook in render_tab_contents()
+ * - PATTERN: Separate core content from extension content injection
+ * - BENEFIT: Consistent with TabViewTemplate pattern (wp-app-core TODO-1188)
+ * - FIX: Prevents duplicate rendering from wp-customer statistics injection
+ *
  * 1.0.0 - 2025-10-23
  * - Initial implementation (TODO-2071 Phase 2, Task 2.2)
  * - Register hooks for dashboard components
@@ -107,8 +132,10 @@ class AgencyDashboardController {
         // Tabs hook
         add_filter('wpapp_datatable_tabs', [$this, 'register_tabs'], 10, 2);
 
-        // Tab content injection hook (allows cross-plugin extensibility)
-        add_action('wpapp_tab_view_content', [$this, 'render_tab_view_content'], 10, 3);
+        // Tab content injection hooks (per-tab registration for better decoupling)
+        add_action('wpapp_tab_view_content', [$this, 'render_info_tab'], 10, 3);
+        add_action('wpapp_tab_view_content', [$this, 'render_divisions_tab'], 10, 3);
+        add_action('wpapp_tab_view_content', [$this, 'render_employees_tab'], 10, 3);
 
         // AJAX handlers
         add_action('wp_ajax_get_agencies_datatable', [$this, 'handle_datatable_ajax']);
@@ -323,9 +350,24 @@ class AgencyDashboardController {
      * Hooked to: wpapp_datatable_tabs
      *
      * Registers 3 tabs:
-     * - agency-details: Immediate load
-     * - divisions: Lazy load on click
-     * - employees: Lazy load on click
+     * - info: Agency information (immediate load)
+     * - divisions: Divisions DataTable (lazy load on click)
+     * - employees: Employees DataTable (lazy load on click)
+     *
+     * Pattern: Hook-based content injection (entity-owned)
+     * - register_tabs() defines tab metadata (title, priority)
+     * - render_tab_contents() triggers hooks (Line 933, 938)
+     * - render_info_tab() / render_divisions_tab() / render_employees_tab()
+     *   respond to hooks and include template files
+     *
+     * Hook flow:
+     * 1. wpapp_tab_view_content (Priority 10) - Core content rendering
+     * 2. wpapp_tab_view_after_content (Priority 20+) - Extension content injection
+     *
+     * @see render_tab_contents() Line 910-948
+     * @see render_info_tab() Line 683-704
+     * @see render_divisions_tab() Line 732-752
+     * @see render_employees_tab() Line 780-800
      *
      * @param array $tabs Existing tabs
      * @param string $entity Entity type
@@ -344,17 +386,14 @@ class AgencyDashboardController {
         $agency_tabs = [
             'info' => [
                 'title' => __('Data Disnaker', 'wp-agency'),
-                'template' => WP_AGENCY_PATH . 'src/Views/agency/tabs/details.php',
                 'priority' => 10
             ],
             'divisions' => [
                 'title' => __('Unit Kerja', 'wp-agency'),
-                'template' => WP_AGENCY_PATH . 'src/Views/agency/tabs/divisions.php',
                 'priority' => 20
             ],
             'employees' => [
                 'title' => __('Staff', 'wp-agency'),
-                'template' => WP_AGENCY_PATH . 'src/Views/agency/tabs/employees.php',
                 'priority' => 30
             ]
         ];
@@ -364,35 +403,34 @@ class AgencyDashboardController {
     }
 
     /**
-     * Render tab content via hook (Hook-Based Content Injection Pattern)
+     * Render info tab HTML content
      *
-     * Hooked to: wpapp_tab_view_content
-     * Priority: 10 (renders first, before other plugins)
+     * Hook handler for wpapp_tab_view_content (info tab).
+     * Renders the actual HTML content for the info tab.
      *
-     * This hook-based approach enables cross-plugin extensibility:
-     * - wp-agency responds at priority 10 → renders core content
-     * - wp-customer can respond at priority 20 → injects customer stats
-     * - Other plugins can inject content at priority 30+
+     * Entity-owned hook implementation pattern:
+     * - render_tab_contents() triggers wpapp_tab_view_content hook
+     * - This method responds to that hook for 'agency' entity, 'info' tab
+     * - Priority 10: Core content rendering
+     * - Priority 20+: Extension plugins use wpapp_tab_view_after_content
      *
-     * Pattern Benefits:
-     * - ✅ Pure view templates (no controller logic in view files)
-     * - ✅ Multiple plugins can inject content into same tab
-     * - ✅ Priority-based content ordering
-     * - ✅ WordPress standard hook pattern
-     * - ✅ Clean separation of concerns
+     * Hook Flow:
+     * 1. render_tab_contents() → do_action('wpapp_tab_view_content')
+     * 2. This method → Includes info.php template
+     * 3. Extension hooks fire after (wp-customer can inject statistics)
      *
      * @param string $entity Entity type (e.g., 'agency')
-     * @param string $tab_id Tab identifier (e.g., 'info', 'divisions', 'employees')
+     * @param string $tab_id Tab identifier (should be 'info')
      * @param array  $data   Data passed to tab (contains $agency object)
      * @return void
      */
-    public function render_tab_view_content($entity, $tab_id, $data): void {
-        // Only respond to agency entity
-        if ($entity !== 'agency') {
+    public function render_info_tab($entity, $tab_id, $data): void {
+        // Only respond to agency entity and info tab
+        if ($entity !== 'agency' || $tab_id !== 'info') {
             return;
         }
 
-        // Extract $agency from $data for view files
+        // Extract $agency from $data for view file
         $agency = $data['agency'] ?? null;
 
         if (!$agency) {
@@ -400,27 +438,88 @@ class AgencyDashboardController {
             return;
         }
 
-        // Route to appropriate tab view (pure HTML templates)
-        switch ($tab_id) {
-            case 'info':
-                // Main info tab - comprehensive agency information
-                include WP_AGENCY_PATH . 'src/Views/agency/tabs/details.php';
-                break;
+        // Include pure HTML view template
+        include WP_AGENCY_PATH . 'src/Views/agency/tabs/info.php';
+    }
 
-            case 'divisions':
-                // Divisions tab - lazy-loaded DataTable
-                include WP_AGENCY_PATH . 'src/Views/agency/tabs/divisions.php';
-                break;
-
-            case 'employees':
-                // Employees tab - lazy-loaded DataTable
-                include WP_AGENCY_PATH . 'src/Views/agency/tabs/employees.php';
-                break;
-
-            default:
-                // Unknown tab - do nothing (other plugins might handle it)
-                break;
+    /**
+     * Render divisions tab content
+     *
+     * Hook handler for wpapp_tab_view_content (divisions tab).
+     * Each tab independently registered for better decoupling.
+     *
+     * Entity-owned hook implementation pattern:
+     * - render_tab_contents() triggers wpapp_tab_view_content hook
+     * - This method responds to that hook for 'agency' entity, 'divisions' tab
+     * - Priority 10: Core content rendering
+     * - Priority 20+: Extension plugins use wpapp_tab_view_after_content
+     *
+     * Hook Flow:
+     * 1. render_tab_contents() → do_action('wpapp_tab_view_content')
+     * 2. This method → Includes divisions.php template (DataTable)
+     * 3. Extension hooks fire after (other plugins can inject additional content)
+     *
+     * @param string $entity Entity type (e.g., 'agency')
+     * @param string $tab_id Tab identifier (should be 'divisions')
+     * @param array  $data   Data passed to tab (contains $agency object)
+     * @return void
+     */
+    public function render_divisions_tab($entity, $tab_id, $data): void {
+        // Only respond to agency entity and divisions tab
+        if ($entity !== 'agency' || $tab_id !== 'divisions') {
+            return;
         }
+
+        // Extract $agency from $data for view file
+        $agency = $data['agency'] ?? null;
+
+        if (!$agency) {
+            echo '<p>' . __('Data not available', 'wp-agency') . '</p>';
+            return;
+        }
+
+        // Include lazy-loaded DataTable view
+        include WP_AGENCY_PATH . 'src/Views/agency/tabs/divisions.php';
+    }
+
+    /**
+     * Render employees tab content
+     *
+     * Hook handler for wpapp_tab_view_content (employees tab).
+     * Each tab independently registered for better decoupling.
+     *
+     * Entity-owned hook implementation pattern:
+     * - render_tab_contents() triggers wpapp_tab_view_content hook
+     * - This method responds to that hook for 'agency' entity, 'employees' tab
+     * - Priority 10: Core content rendering
+     * - Priority 20+: Extension plugins use wpapp_tab_view_after_content
+     *
+     * Hook Flow:
+     * 1. render_tab_contents() → do_action('wpapp_tab_view_content')
+     * 2. This method → Includes employees.php template (DataTable)
+     * 3. Extension hooks fire after (other plugins can inject additional content)
+     *
+     * @param string $entity Entity type (e.g., 'agency')
+     * @param string $tab_id Tab identifier (should be 'employees')
+     * @param array  $data   Data passed to tab (contains $agency object)
+     * @return void
+     */
+    public function render_employees_tab($entity, $tab_id, $data): void {
+        // Only respond to agency entity and employees tab
+        if ($entity !== 'agency' || $tab_id !== 'employees') {
+            return;
+        }
+
+        // Extract $agency from $data for view file
+        $agency = $data['agency'] ?? null;
+
+        if (!$agency) {
+            echo '<p>' . __('Data not available', 'wp-agency') . '</p>';
+            return;
+        }
+
+        // Include lazy-loaded DataTable view
+        include WP_AGENCY_PATH . 'src/Views/agency/tabs/employees.php';
     }
 
     /**
@@ -432,10 +531,10 @@ class AgencyDashboardController {
      * Applies filter hooks for cross-plugin integration
      */
     public function handle_datatable_ajax(): void {
-        error_log('=== DATATABLE AJAX REQUEST DEBUG ===');
-        error_log('Action: get_agencies_datatable');
-        error_log('User ID: ' . get_current_user_id());
-        error_log('POST data: ' . print_r($_POST, true));
+        // error_log('=== DATATABLE AJAX REQUEST DEBUG ===');
+        // error_log('Action: get_agencies_datatable');
+        // error_log('User ID: ' . get_current_user_id());
+        // error_log('POST data: ' . print_r($_POST, true));
 
         // Verify nonce - use base panel system nonce
         if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
@@ -443,7 +542,7 @@ class AgencyDashboardController {
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
-        error_log('Nonce verified successfully');
+        // error_log('Nonce verified successfully');
 
         // Check permission (filtered by wp-customer via hooks)
         $can_access = current_user_can('view_agency_list');
@@ -489,8 +588,8 @@ class AgencyDashboardController {
      * Returns agency data for right panel display
      */
     public function handle_get_details(): void {
-        error_log('=== handle_get_details called ===');
-        error_log('POST data: ' . print_r($_POST, true));
+        // error_log('=== handle_get_details called ===');
+        // error_log('POST data: ' . print_r($_POST, true));
 
         // Verify nonce - use base panel system nonce
         if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
@@ -498,10 +597,10 @@ class AgencyDashboardController {
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
-        error_log('Nonce verification OK');
+        // error_log('Nonce verification OK');
 
         $agency_id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
-        error_log('Agency ID: ' . $agency_id);
+        // error_log('Agency ID: ' . $agency_id);
 
         if (!$agency_id) {
             error_log('Invalid agency ID');
@@ -513,7 +612,7 @@ class AgencyDashboardController {
         // If user can view the list page, they can view details
         $can_view = current_user_can('view_agency_list');
         $can_view = apply_filters('wp_agency_can_view_agency', $can_view, $agency_id);
-        error_log('Permission check (view_agency_list): ' . ($can_view ? 'OK' : 'DENIED'));
+        // error_log('Permission check (view_agency_list): ' . ($can_view ? 'OK' : 'DENIED'));
 
         if (!$can_view) {
             wp_send_json_error(['message' => __('Permission denied', 'wp-agency')]);
@@ -521,9 +620,9 @@ class AgencyDashboardController {
         }
 
         try {
-            error_log('Calling model->find(' . $agency_id . ')');
+            // error_log('Calling model->find(' . $agency_id . ')');
             $agency = $this->model->find($agency_id);
-            error_log('Model result: ' . print_r($agency, true));
+            // error_log('Model result: ' . print_r($agency, true));
 
             if (!$agency) {
                 error_log('Agency not found in database');
@@ -540,23 +639,23 @@ class AgencyDashboardController {
                 'agency' => $agency // Keep for backward compatibility
             ];
 
-            error_log('=== FINAL RESPONSE DEBUG ===');
-            error_log('Response title: ' . $response['title']);
-            error_log('Response tabs count: ' . count($response['tabs']));
-            error_log('Response tabs keys: ' . print_r(array_keys($response['tabs']), true));
-            foreach ($response['tabs'] as $tab_id => $content) {
-                error_log("Tab {$tab_id} final length: " . strlen($content));
-            }
-            error_log('Response agency: ' . print_r($agency, true));
-            error_log('Full response structure: ' . print_r([
-                'success' => true,
-                'data' => [
-                    'title' => $response['title'],
-                    'tabs_count' => count($response['tabs']),
-                    'agency_id' => $agency->id ?? 'N/A'
-                ]
-            ], true));
-            error_log('=== END FINAL RESPONSE DEBUG ===');
+            // error_log('=== FINAL RESPONSE DEBUG ===');
+            // error_log('Response title: ' . $response['title']);
+            // error_log('Response tabs count: ' . count($response['tabs']));
+            // error_log('Response tabs keys: ' . print_r(array_keys($response['tabs']), true));
+            // foreach ($response['tabs'] as $tab_id => $content) {
+            //     error_log("Tab {$tab_id} final length: " . strlen($content));
+            // }
+            // error_log('Response agency: ' . print_r($agency, true));
+            // error_log('Full response structure: ' . print_r([
+            //     'success' => true,
+            //     'data' => [
+            //         'title' => $response['title'],
+            //         'tabs_count' => count($response['tabs']),
+            //         'agency_id' => $agency->id ?? 'N/A'
+            //     ]
+            // ], true));
+            // error_log('=== END FINAL RESPONSE DEBUG ===');
 
             wp_send_json_success($response);
 
@@ -822,16 +921,17 @@ class AgencyDashboardController {
      * @param object $agency Agency object to render
      * @return array Array of tab_id => content_html
      */
+    
     private function render_tab_contents($agency): array {
-        error_log('=== RENDER TAB CONTENTS START (HOOK-BASED PATTERN) ===');
+        // error_log('=== RENDER TAB CONTENTS START (HOOK-BASED PATTERN) ===');
         $tabs = [];
 
         // Get registered tabs
         $registered_tabs = apply_filters('wpapp_datatable_tabs', [], 'agency');
-        error_log('Registered tabs: ' . print_r(array_keys($registered_tabs), true));
+        // error_log('Registered tabs: ' . print_r(array_keys($registered_tabs), true));
 
         foreach ($registered_tabs as $tab_id => $tab_config) {
-            error_log("Processing tab: {$tab_id}");
+            // error_log("Processing tab: {$tab_id}");
 
             // Start output buffering
             ob_start();
@@ -842,26 +942,32 @@ class AgencyDashboardController {
                 'tab_config' => $tab_config
             ];
 
-            // Trigger hook - allows multiple plugins to inject content
-            // Priority 10: wp-agency core content
-            // Priority 20+: Other plugins (wp-customer, etc.)
+            // Trigger hooks - allows multiple plugins to inject content
+            // Priority 10: wp-agency core content (wpapp_tab_view_content)
+            // Priority 20+: wp-customer extension content (wpapp_tab_view_after_content)
             do_action('wpapp_tab_view_content', 'agency', $tab_id, $data);
+
+            // Extension hook for additional content injection
+            // This hook is provided here (not from TabViewTemplate) because
+            // tab files use pure HTML pattern, not TabViewTemplate::render()
+            do_action('wpapp_tab_view_after_content', 'agency', $tab_id, $data);
 
             // Capture combined output from all hooked functions
             $content = ob_get_clean();
-            $content_length = strlen($content);
+            // $content_length = strlen($content);
 
-            error_log("Tab {$tab_id} content length: {$content_length} bytes");
-            error_log("Tab {$tab_id} content preview: " . substr($content, 0, 100));
+            // error_log("Tab {$tab_id} content length: {$content_length} bytes");
+            // error_log("Tab {$tab_id} content preview: " . substr($content, 0, 100));
 
             $tabs[$tab_id] = $content;
         }
 
-        error_log('Total tabs rendered: ' . count($tabs));
-        error_log('=== RENDER TAB CONTENTS END ===');
+        // error_log('Total tabs rendered: ' . count($tabs));
+        // error_log('=== RENDER TAB CONTENTS END ===');
 
         return $tabs;
     }
+    
 
     /**
      * Render partial template file
