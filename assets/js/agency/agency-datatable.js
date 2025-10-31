@@ -338,10 +338,10 @@
                     return;
                 }
 
-                // Read configuration from data-* attributes
-                const entity = $table.data('entity');
-                const agencyId = $table.data('agency-id');
-                const ajaxAction = $table.data('ajax-action');
+                // Read configuration from data-* attributes (use .attr() to avoid jQuery caching)
+                const entity = $table.attr('data-entity');
+                const agencyId = $table.attr('data-agency-id');
+                const ajaxAction = $table.attr('data-ajax-action');
 
                 console.log('[AgencyDataTable] Initializing lazy table:', {
                     tableId: tableId,
@@ -354,7 +354,7 @@
                 const columns = self.getLazyTableColumns(entity);
 
                 // Initialize DataTable
-                $table.DataTable({
+                const dataTable = $table.DataTable({
                     processing: true,
                     serverSide: true,
                     ajax: {
@@ -364,11 +364,30 @@
                             d.action = ajaxAction;
                             d.agency_id = agencyId;
                             d.nonce = wpAgencyDataTable.nonce;
+
+                            // Include status filter for divisions table
+                            if (entity === 'division') {
+                                const $statusFilter = $('#division-status-filter');
+                                if ($statusFilter.length > 0) {
+                                    d.status_filter = $statusFilter.val();
+                                }
+                            }
+
                             return d;
                         },
                         error: function(xhr, error, code) {
                             console.error('[AgencyDataTable] AJAX Error for ' + tableId + ':', error, code);
                             console.error('[AgencyDataTable] Response:', xhr.responseText);
+                        },
+                        dataSrc: function(json) {
+                            console.log('[AgencyDataTable] DataTable Response for ' + tableId + ':', json);
+                            console.log('[AgencyDataTable] Records Total:', json.recordsTotal);
+                            console.log('[AgencyDataTable] Records Filtered:', json.recordsFiltered);
+                            console.log('[AgencyDataTable] Data rows:', json.data ? json.data.length : 0);
+                            if (json.data && json.data.length > 0) {
+                                console.log('[AgencyDataTable] First row sample:', json.data[0]);
+                            }
+                            return json.data;
                         }
                     },
                     columns: columns,
@@ -378,6 +397,34 @@
                 });
 
                 console.log('[AgencyDataTable] Lazy table initialized:', tableId);
+
+                // Initialize status filter handler for divisions
+                if (entity === 'division') {
+                    self.initStatusFilter(dataTable);
+                }
+            });
+        },
+
+        /**
+         * Initialize status filter for divisions table
+         *
+         * @param {DataTable} dataTable DataTable instance
+         */
+        initStatusFilter(dataTable) {
+            const $filter = $('#division-status-filter');
+
+            if ($filter.length === 0) {
+                return;
+            }
+
+            console.log('[AgencyDataTable] Initializing status filter');
+
+            $filter.on('change', function() {
+                const status = $(this).val();
+                console.log('[AgencyDataTable] Status filter changed:', status);
+
+                // Reload table with new status filter
+                dataTable.ajax.reload();
             });
         },
 
@@ -391,10 +438,9 @@
             switch(entity) {
                 case 'division':
                     return [
-                        { data: 'code' },
-                        { data: 'name' },
-                        { data: 'type' },
-                        { data: 'status' }
+                        { data: 'code', width: '15%' },
+                        { data: 'name', width: '40%' },
+                        { data: 'wilayah_kerja', width: '45%' }
                     ];
 
                 case 'employee':

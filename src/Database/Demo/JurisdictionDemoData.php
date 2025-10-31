@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Database/Demo
- * @version     1.0.7
+ * @version     2.0.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Database/Demo/JurisdictionDemoData.php
@@ -12,7 +12,8 @@
  * Description: Generate jurisdiction demo data dari static array JurisdictionData.
  *              Membuat relasi antara divisions dan regencies untuk wilayah kerja.
  *              is_primary = true untuk regency yang sama dengan division.regency_code.
- *              Data diambil dari array dan divalidasi terhadap tabel divisions dan regencies.
+ *              Uses agency index pattern (1-10) like DivisionUsersData.
+ *              Works with runtime generated division IDs from DivisionDemoData.
  *
  * Dependencies:
  * - AbstractDemoData                : Base class untuk demo data generation
@@ -41,13 +42,19 @@
  * 4. Insert jurisdiction relations with is_primary flag
  *
  * Changelog:
- * 1.0.0 - 2024-01-27
- * - Initial version
- * - CSV parsing and validation
- * - is_primary logic implementation
+ * 2.0.0 - 2025-10-31 (TODO-3093)
+ * - RESTRUCTURE: Changed to use agency index pattern (like DivisionDemoData)
+ * - FIX: Works with runtime generated division IDs
+ * - PATTERN: Loop agencies, query divisions by agency_id and type
+ * - DATA: Uses JurisdictionData v2.0.0 with agency index structure
+ * - FIX: Properly maps database type 'cabang' to JurisdictionData keys 'cabang1'/'cabang2'
+ * - REFACTOR: Extract logic to validateJurisdictionData() and createJurisdictionsForDivision()
+ * - TESTED: Successfully generates jurisdictions for both pusat (13) and cabang (24) divisions
  * 1.1.0 - 2024-12-XX
  * - Changed to use static array instead of CSV
  * - Added JurisdictionData dependency
+ * 1.0.0 - 2024-01-27
+ * - Initial version (now deprecated)
  */
 
 namespace WPAgency\Database\Demo;
@@ -100,28 +107,61 @@ class JurisdictionDemoData extends AbstractDemoData {
                 throw new \Exception('No jurisdiction data found');
             }
 
-            // 5. Validasi divisions dan regencies exist di database
-            foreach ($this->jurisdiction_data as $division_id => $data) {
-                // Cek division exists
-                $division = $this->wpdb->get_row($this->wpdb->prepare(
-                    "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions WHERE id = %d",
-                    $division_id
+            // 5. Validasi agencies dan divisions exist di database
+            // Loop agencies 1-10 (maps to agency_id 21-30)
+            for ($agency_index = 1; $agency_index <= 10; $agency_index++) {
+                $agency_id = $agency_index + 20;
+
+                // Cek agency exists
+                $agency = $this->wpdb->get_row($this->wpdb->prepare(
+                    "SELECT * FROM {$this->wpdb->prefix}app_agencies WHERE id = %d",
+                    $agency_id
                 ));
-                if (!$division) {
-                    throw new \Exception("Division not found: {$division_id}");
+                if (!$agency) {
+                    throw new \Exception("Agency not found: {$agency_id}");
                 }
 
-                // Get regency codes directly
-                $jurisdiction_codes = JurisdictionData::getRegencyCodesForDivision($division_id);
+                // Cek data untuk agency index ini
+                if (!isset($this->jurisdiction_data[$agency_index])) {
+                    $this->debug("No jurisdiction data for agency index {$agency_index}, skipping validation");
+                    continue;
+                }
 
-                // Cek semua regencies exist
-                foreach ($jurisdiction_codes as $jurisdiction_code) {
-                    $regency = $this->wpdb->get_row($this->wpdb->prepare(
-                        "SELECT * FROM {$this->wpdb->prefix}wi_regencies WHERE code = %s",
-                        $jurisdiction_code
-                    ));
-                    if (!$regency) {
-                        throw new \Exception("Regency not found: {$jurisdiction_code}");
+                // VALIDATE PUSAT DIVISION
+                $pusat_division = $this->wpdb->get_row($this->wpdb->prepare(
+                    "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions
+                     WHERE agency_id = %d AND type = 'pusat'",
+                    $agency_id
+                ));
+
+                if (!$pusat_division) {
+                    throw new \Exception("Pusat division not found for agency {$agency_id}");
+                }
+
+                // Validate pusat jurisdiction data
+                $pusat_data = JurisdictionData::getForDivision($agency_index, 'pusat');
+                if ($pusat_data) {
+                    $this->validateJurisdictionData($pusat_division, $pusat_data);
+                }
+
+                // VALIDATE CABANG DIVISIONS
+                $cabang_divisions = $this->wpdb->get_results($this->wpdb->prepare(
+                    "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions
+                     WHERE agency_id = %d AND type = 'cabang'
+                     ORDER BY id ASC",
+                    $agency_id
+                ));
+
+                if ($cabang_divisions) {
+                    foreach ($cabang_divisions as $idx => $cabang_division) {
+                        $cabang_key = 'cabang' . ($idx + 1);
+                        $cabang_data = JurisdictionData::getForDivision($agency_index, $cabang_key);
+
+                        if ($cabang_data) {
+                            $this->validateJurisdictionData($cabang_division, $cabang_data);
+                        } else {
+                            $this->debug("No jurisdiction data for agency {$agency_index}, {$cabang_key}");
+                        }
                     }
                 }
             }
@@ -154,73 +194,57 @@ class JurisdictionDemoData extends AbstractDemoData {
         $generated_count = 0;
 
         try {
-            foreach ($this->jurisdiction_data as $division_id => $data) {
-                // Get division to determine primary regency
-                $division = $this->wpdb->get_row($this->wpdb->prepare(
-                    "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions WHERE id = %d",
-                    $division_id
-                ));
+            // Loop agencies 1-10 (maps to agency_id 21-30)
+            for ($agency_index = 1; $agency_index <= 10; $agency_index++) {
+                $agency_id = $agency_index + 20;
 
-                if (!$division) {
-                    $this->debug("Division not found: {$division_id}, skipping...");
+                // Cek data untuk agency index ini
+                if (!isset($this->jurisdiction_data[$agency_index])) {
+                    $this->debug("No jurisdiction data for agency index {$agency_index}, skipping");
                     continue;
                 }
 
-                $primary_jurisdiction_code = $division->regency_code;
-                // Get regency codes directly
-                $jurisdiction_codes = JurisdictionData::getRegencyCodesForDivision($division_id);
-                $created_by = $data['created_by'];
+                // PROCESS PUSAT DIVISION
+                $pusat_division = $this->wpdb->get_row($this->wpdb->prepare(
+                    "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions
+                     WHERE agency_id = %d AND type = 'pusat'",
+                    $agency_id
+                ));
 
-                // Ensure primary regency is included in the regencies list
-                if (!in_array($primary_jurisdiction_code, $jurisdiction_codes)) {
-                    $jurisdiction_codes[] = $primary_jurisdiction_code;
-                    $this->debug("Added primary regency {$primary_jurisdiction_code} to division {$division_id} regencies list");
+                if ($pusat_division) {
+                    $jurisdiction_data = JurisdictionData::getForDivision($agency_index, 'pusat');
+                    if ($jurisdiction_data) {
+                        $generated_count += $this->createJurisdictionsForDivision(
+                            $pusat_division,
+                            $jurisdiction_data
+                        );
+                    }
                 }
 
-                foreach ($jurisdiction_codes as $jurisdiction_code) {
-                    $is_primary = ($jurisdiction_code == $primary_jurisdiction_code) ? 1 : 0;
+                // PROCESS CABANG DIVISIONS
+                // Get all cabang divisions for this agency (ordered by ID for consistent mapping)
+                $cabang_divisions = $this->wpdb->get_results($this->wpdb->prepare(
+                    "SELECT * FROM {$this->wpdb->prefix}app_agency_divisions
+                     WHERE agency_id = %d AND type = 'cabang'
+                     ORDER BY id ASC",
+                    $agency_id
+                ));
 
-                    // Skip if already exists for this division
-                    $exists = $this->wpdb->get_var($this->wpdb->prepare(
-                        "SELECT id FROM {$this->wpdb->prefix}app_agency_jurisdictions
-                         WHERE division_id = %d AND jurisdiction_code = %s",
-                        $division_id, $jurisdiction_code
-                    ));
+                if ($cabang_divisions) {
+                    foreach ($cabang_divisions as $idx => $cabang_division) {
+                        // Map first cabang to cabang1, second to cabang2, etc.
+                        $cabang_key = 'cabang' . ($idx + 1);
 
-                    if ($exists) {
-                        $this->debug("Jurisdiction already exists: division {$division_id}, regency {$jurisdiction_code}");
-                        continue;
+                        $jurisdiction_data = JurisdictionData::getForDivision($agency_index, $cabang_key);
+                        if ($jurisdiction_data) {
+                            $generated_count += $this->createJurisdictionsForDivision(
+                                $cabang_division,
+                                $jurisdiction_data
+                            );
+                        } else {
+                            $this->debug("No jurisdiction data for agency {$agency_index}, {$cabang_key}");
+                        }
                     }
-
-                    // Check if jurisdiction_code is already assigned to another division
-                    $regency_exists = $this->wpdb->get_var($this->wpdb->prepare(
-                        "SELECT id FROM {$this->wpdb->prefix}app_agency_jurisdictions
-                         WHERE jurisdiction_code = %s",
-                        $jurisdiction_code
-                    ));
-
-                    if ($regency_exists) {
-                        $this->debug("Regency {$jurisdiction_code} already assigned to another division, skipping for division {$division_id}");
-                        continue;
-                    }
-
-                    $result = $this->wpdb->insert(
-                        $this->wpdb->prefix . 'app_agency_jurisdictions',
-                        [
-                            'division_id' => $division_id,
-                            'jurisdiction_code' => $jurisdiction_code,
-                            'is_primary' => $is_primary,
-                            'created_by' => $created_by
-                        ],
-                        ['%d', '%s', '%d', '%d']
-                    );
-
-                    if ($result === false) {
-                        throw new \Exception("Failed to insert jurisdiction: division {$division_id}, regency {$jurisdiction_code}");
-                    }
-
-                    $generated_count++;
-                    $this->debug("Created jurisdiction: division {$division_id}, regency {$jurisdiction_code}, primary: {$is_primary}");
                 }
             }
 
@@ -234,6 +258,105 @@ class JurisdictionDemoData extends AbstractDemoData {
             $this->debug("Error in jurisdiction generation: " . $e->getMessage());
             throw $e;
         }
+    }
+
+    /**
+     * Validate jurisdiction data for a division
+     *
+     * @param object $division Division object from database
+     * @param array $jurisdiction_data Jurisdiction data (regencies, created_by)
+     * @throws \Exception If validation fails
+     */
+    private function validateJurisdictionData($division, $jurisdiction_data): void {
+        $regency_codes = $jurisdiction_data['regencies'];
+
+        // Validasi regencies exist
+        foreach ($regency_codes as $regency_code) {
+            $regency = $this->wpdb->get_row($this->wpdb->prepare(
+                "SELECT * FROM {$this->wpdb->prefix}wi_regencies WHERE code = %s",
+                $regency_code
+            ));
+            if (!$regency) {
+                throw new \Exception("Regency not found: {$regency_code}");
+            }
+        }
+
+        // Validasi primary regency (dari division.regency_code)
+        $primary_regency = $this->wpdb->get_row($this->wpdb->prepare(
+            "SELECT * FROM {$this->wpdb->prefix}wi_regencies WHERE code = %s",
+            $division->regency_code
+        ));
+        if (!$primary_regency) {
+            throw new \Exception("Primary regency not found: {$division->regency_code}");
+        }
+    }
+
+    /**
+     * Create jurisdictions for a specific division
+     *
+     * @param object $division Division object from database
+     * @param array $jurisdiction_data Jurisdiction data (regencies, created_by)
+     * @return int Number of jurisdictions created
+     */
+    private function createJurisdictionsForDivision($division, $jurisdiction_data): int {
+        $count = 0;
+        $primary_jurisdiction_code = $division->regency_code;
+        $jurisdiction_codes = $jurisdiction_data['regencies'];
+        $created_by = $jurisdiction_data['created_by'];
+
+        // Ensure primary regency is included in the regencies list
+        if (!in_array($primary_jurisdiction_code, $jurisdiction_codes)) {
+            $jurisdiction_codes[] = $primary_jurisdiction_code;
+            $this->debug("Added primary regency {$primary_jurisdiction_code} to division {$division->id} regencies list");
+        }
+
+        foreach ($jurisdiction_codes as $jurisdiction_code) {
+            $is_primary = ($jurisdiction_code == $primary_jurisdiction_code) ? 1 : 0;
+
+            // Skip if already exists for this division
+            $exists = $this->wpdb->get_var($this->wpdb->prepare(
+                "SELECT id FROM {$this->wpdb->prefix}app_agency_jurisdictions
+                 WHERE division_id = %d AND jurisdiction_code = %s",
+                $division->id, $jurisdiction_code
+            ));
+
+            if ($exists) {
+                $this->debug("Jurisdiction already exists: division {$division->id}, regency {$jurisdiction_code}");
+                continue;
+            }
+
+            // Check if jurisdiction_code is already assigned to another division
+            $regency_exists = $this->wpdb->get_var($this->wpdb->prepare(
+                "SELECT id FROM {$this->wpdb->prefix}app_agency_jurisdictions
+                 WHERE jurisdiction_code = %s",
+                $jurisdiction_code
+            ));
+
+            if ($regency_exists) {
+                $this->debug("Regency {$jurisdiction_code} already assigned to another division, skipping for division {$division->id}");
+                continue;
+            }
+
+            $result = $this->wpdb->insert(
+                $this->wpdb->prefix . 'app_agency_jurisdictions',
+                [
+                    'division_id' => $division->id,
+                    'jurisdiction_code' => $jurisdiction_code,
+                    'is_primary' => $is_primary,
+                    'created_by' => $created_by
+                ],
+                ['%d', '%s', '%d', '%d']
+            );
+
+            if ($result === false) {
+                throw new \Exception("Failed to insert jurisdiction: division {$division->id}, regency {$jurisdiction_code}");
+            }
+
+            $count++;
+            $this->debug("Created jurisdiction: division {$division->id}, regency {$jurisdiction_code}, primary: {$is_primary}");
+        }
+
+        return $count;
     }
 
 

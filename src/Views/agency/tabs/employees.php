@@ -1,26 +1,32 @@
 <?php
 /**
- * Agency Employees Tab - Pure View Pattern
+ * Agency Employees Tab - Pure View Pattern (Inner Content Only)
  *
  * @package     WP_Agency
  * @subpackage  Views/Agency/Tabs
- * @version     3.0.0
+ * @version     3.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Views/agency/tabs/employees.php
  *
- * Description: Pure HTML view for lazy-loaded employees tab.
- *              Direct template - no controller logic, no hooks, no partials.
- *              Actual DataTable content loaded via AJAX.
- *              Uses wpapp-* structure classes (GLOBAL) for autoload system.
+ * Description: Pure HTML inner content for lazy-loaded employees tab.
+ *              Outer wrapper provided by TabSystemTemplate.
+ *              This template only provides INNER content (no outer div).
+ *              Classes/attributes added directly to outer div via JS.
  *
- * Pattern: Simple and Direct (Lazy-Load)
- * - This file: Pure HTML placeholder template
- * - Variables: $agency passed directly from controller
- * - Lazy-load: Content loaded by wpapp-tab-manager.js
- * - Scope: MIXED (wpapp-* for structure, agency-* for custom)
+ * Pattern: Inner Content Only (TODO-3092 Fix)
+ * - Outer wrapper: Created by TabSystemTemplate (wp-app-core)
+ * - This file: Only inner HTML content
+ * - Classes: Added via JS after content inject
+ * - Lazy-load: Triggered by wpapp-tab-manager.js
  *
  * Changelog:
+ * 3.1.0 - 2025-10-31 (TODO-3092)
+ * - FIX: Removed outer div wrapper
+ * - REASON: Prevents class duplication when .html() replaces inner content
+ * - PATTERN: Outer div provided by TabSystemTemplate, classes added via JS
+ * - Classes moved to JS: wpapp-tab-autoload, data-attributes
+ *
  * 3.0.0 - 2025-10-28 (TODO-3084 Review-02)
  * - SIMPLIFIED: Merged with tab-employees-content.php
  * - REMOVED: TabViewTemplate wrapper (controller-like logic)
@@ -54,9 +60,13 @@ if (!$agency_id) {
     echo '<p>' . __('Agency ID not available', 'wp-agency') . '</p>';
     return;
 }
-?>
 
-<div class="wpapp-tab-content wpapp-employees-tab wpapp-tab-autoload"
+// Note: This template provides INNER content only
+// Outer <div id="employees" class="wpapp-tab-content"> is created by TabSystemTemplate
+// Classes and data attributes are added via JavaScript after content injection
+?>
+<!-- Inner content for employees tab (TODO-3092) -->
+<div class="wpapp-employees-tab wpapp-tab-autoload"
      data-agency-id="<?php echo esc_attr($agency_id); ?>"
      data-load-action="load_employees_tab"
      data-content-target=".wpapp-employees-content"

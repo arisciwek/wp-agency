@@ -848,26 +848,61 @@ class AgencyDashboardController {
      * for server-side processing
      */
     public function handle_divisions_datatable(): void {
+        error_log('=== DIVISIONS DATATABLE AJAX HANDLER CALLED ===');
+        error_log('POST agency_id: ' . ($_POST['agency_id'] ?? 'NOT SET'));
+        error_log('POST status_filter: ' . ($_POST['status_filter'] ?? 'NOT SET'));
+        error_log('POST action: ' . ($_POST['action'] ?? 'NOT SET'));
+
         // Verify nonce
         if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+            error_log('ERROR: Nonce verification failed');
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
+        error_log('Nonce verified OK');
 
         // Check permission
         $can_view = current_user_can('view_agency_list');
+        error_log('User has view_agency_list: ' . ($can_view ? 'YES' : 'NO'));
+
         $can_view = apply_filters('wp_agency_can_view_agency', $can_view, 0);
+        error_log('After filter, can_view: ' . ($can_view ? 'YES' : 'NO'));
 
         if (!$can_view) {
+            error_log('ERROR: Permission denied');
             wp_send_json_error(['message' => __('Permission denied', 'wp-agency')]);
             return;
         }
 
         try {
+            error_log('Creating DivisionDataTableModel...');
             $model = new DivisionDataTableModel();
+
+            error_log('Calling get_datatable_data...');
             $response = $model->get_datatable_data($_POST);
+
+            error_log('Total records: ' . ($response['recordsTotal'] ?? 'N/A'));
+            error_log('Filtered records: ' . ($response['recordsFiltered'] ?? 'N/A'));
+            error_log('Data rows: ' . count($response['data'] ?? []));
+
+            // Log first 3 rows with wilayah_kerja data
+            if (isset($response['data']) && is_array($response['data'])) {
+                $sample_rows = array_slice($response['data'], 0, 3);
+                foreach ($sample_rows as $index => $row) {
+                    error_log(sprintf(
+                        'Row %d: code=%s, name=%s, wilayah_kerja=%s',
+                        $index,
+                        $row['code'] ?? 'N/A',
+                        $row['name'] ?? 'N/A',
+                        $row['wilayah_kerja'] ?? 'N/A'
+                    ));
+                }
+            }
+
             wp_send_json($response);
         } catch (\Exception $e) {
+            error_log('EXCEPTION in handle_divisions_datatable: ' . $e->getMessage());
+            error_log('Stack trace: ' . $e->getTraceAsString());
             wp_send_json_error(['message' => __('Error loading divisions', 'wp-agency')]);
         }
     }
