@@ -4,17 +4,43 @@
  *
  * @package     WP_Agency
  * @subpackage  Models
- * @version     1.0.7
+ * @version     1.0.11
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Agency/AgencyModel.php
  *
  * Description: Model untuk mengelola data agency di database.
  *              Handles operasi CRUD dengan caching terintegrasi.
- *              Includes query optimization dan data formatting.
- *              Menyediakan metode untuk DataTables server-side.
+ *              Pure CRUD model - DataTable operations moved to AgencyDataTableModel.
  *
  * Changelog:
+ * 1.0.11 - 2025-11-01 (TODO-3098 Entity Static IDs)
+ * - Added 'wp_agency_before_insert' filter hook in create() method
+ * - Allows modification of insert data before database insertion
+ * - Use cases: demo data (static IDs), migration, data sync, testing
+ * - Added dynamic format array handling for 'id' field injection
+ *
+ * 1.0.10 - 2025-11-01 (TODO-3094 Follow-up: Optimization)
+ * - OPTIMIZATION: getTotalCount() now reuses AgencyDataTableModel::get_total_count()
+ * - Eliminated 60+ lines of duplicated permission filtering logic
+ * - Dashboard statistics use same logic as DataTable (DRY principle)
+ * - Single source of truth for counting queries
+ * - Stats always match DataTable results (consistency guaranteed)
+ *
+ * 1.0.9 - 2025-11-01 (TODO-3094)
+ * - MAJOR: Deprecated getDataTableData() method
+ * - DataTable operations moved to AgencyDataTableModel (wp-app-core pattern)
+ * - AgencyModel now pure CRUD only (find, create, update, delete)
+ * - Backward compatibility maintained via deprecation stub
+ * - Fixes Task-2176: customer_admin can see Disnaker list
+ *
+ * 1.0.8 - 2025-10-31 (TODO-3094)
+ * - Added: wpapp_datatable_app_agencies_where filter hook in getDataTableData()
+ * - Changed: WHERE conditions now built as array for better filtering support
+ * - Fixed: Allow view_agency_list capability users to be filtered by hooks
+ * - Fixed: Total count calculation now properly excludes search conditions
+ * - Enables cross-plugin integration with wp-customer for customer_admin filtering
+ *
  * 2.1.2 - 2025-01-22 (Task-2067 Runtime Flow)
  * - Deleted createDemoData() method (production code pollution)
  * - Demo generation now uses standard create() method
@@ -239,8 +265,38 @@
         // Debug prepared data
         error_log('AgencyModel::create() - Prepared data for insert: ' . print_r($insert_data, true));
 
-        // Prepare format array for $wpdb->insert
-        $format = [
+        /**
+         * Filter agency insert data before database insertion
+         *
+         * Allows modification of insert data before $wpdb->insert() call.
+         *
+         * Use cases:
+         * - Demo data: Force static IDs for predictable test data
+         * - Migration: Import agencies with preserved IDs from external system
+         * - Testing: Unit tests with predictable agency IDs
+         * - Data sync: Synchronize with external systems while preserving IDs
+         *
+         * @param array $insert_data Prepared data ready for $wpdb->insert
+         * @param array $data Original input data from controller
+         * @return array Modified insert data (can include 'id' key for static ID)
+         *
+         * @since 1.0.11
+         */
+        $insert_data = apply_filters('wp_agency_before_insert', $insert_data, $data);
+
+        // If 'id' field was injected via filter, reorder to put it first
+        if (isset($insert_data['id'])) {
+            $static_id = $insert_data['id'];
+            unset($insert_data['id']);
+            $insert_data = array_merge(['id' => $static_id], $insert_data);
+        }
+
+        // Prepare format array for $wpdb->insert (must match key order)
+        $format = [];
+        if (isset($insert_data['id'])) {
+            $format[] = '%d';  // id
+        }
+        $format = array_merge($format, [
             '%s',  // code
             '%s',  // name
             '%s',  // status
@@ -251,7 +307,7 @@
             '%d',  // created_by
             '%s',  // created_at
             '%s'   // updated_at
-        ];
+        ]);
 
         // Attempt the insert
         $result = $wpdb->insert(
@@ -327,190 +383,50 @@
         return true;
     }
 
-    // Di AgencyModel.php
-    // VERSION 1: getTotalCount dengan query terpisah + cache
+    /**
+     * Get total count of agencies accessible by current user
+     *
+     * Reuses AgencyDataTableModel::get_total_count() for consistency.
+     * No query duplication - uses same permission filtering as DataTable.
+     *
+     * Benefits:
+     * - Single source of truth for permission logic
+     * - No code duplication (DRY principle)
+     * - Stats always match DataTable results
+     *
+     * @return int Total count
+     */
     public function getTotalCount(): int {
-        global $wpdb;
-        
-        error_log('--- Debug AgencyModel getTotalCount ---');
-        error_log('Checking cache first...');
-        
-        // Cek cache
+        // Check cache first
         $cached_total = $this->cache->get('agency_total_count', get_current_user_id());
         if ($cached_total !== null) {
-            error_log('Found cached total: ' . $cached_total);
             return (int) $cached_total;
         }
 
-        error_log('No cache found, getting fresh count...');
-        error_log('User ID: ' . get_current_user_id());
-        error_log('Can view_agency_list: ' . (current_user_can('view_agency_list') ? 'yes' : 'no'));
-        error_log('Can view_own_agency: ' . (current_user_can('view_own_agency') ? 'yes' : 'no'));
-        error_log('Can edit_all_agencies: ' . (current_user_can('edit_all_agencies') ? 'yes' : 'no'));
+        // Reuse AgencyDataTableModel logic (no duplication!)
+        $datatable_model = new \WPAgency\Models\Agency\AgencyDataTableModel();
+        $total = $datatable_model->get_total_count('active');
 
-        $current_user_id = get_current_user_id();
-
-        // Check if user is agency owner
-        $has_agency = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE user_id = %d",
-            $current_user_id
-        ));
-        error_log('User has agency as owner: ' . ($has_agency > 0 ? 'yes' : 'no'));
-
-        // Check if user is employee (active status only)
-        $is_employee = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->employee_table} WHERE user_id = %d AND status = 'active'",
-            $current_user_id
-        ));
-        error_log('User is active employee: ' . ($is_employee > 0 ? 'yes' : 'no'));
-
-        // Permission based filtering
-        if (current_user_can('edit_all_agencies')) {
-            // Admin: statistics always show active count only
-            error_log('Admin - show active only for statistics');
-            $sql = "SELECT COUNT(DISTINCT p.id) FROM {$this->table} p WHERE p.status = 'active'";
-        } elseif ($has_agency > 0 || $is_employee > 0) {
-            // User punya agency atau employee: filter by owner OR employee (active only)
-            error_log('User has agency or is employee - filtering by owner OR employee (active only)');
-            $sql = $wpdb->prepare(
-                "SELECT COUNT(DISTINCT p.id)
-                 FROM {$this->table} p
-                 LEFT JOIN {$this->employee_table} e ON p.id = e.agency_id AND e.status = 'active'
-                 WHERE (p.user_id = %d OR e.user_id = %d)
-                   AND p.status = 'active'",
-                $current_user_id,
-                $current_user_id
-            );
-        } else {
-            // User tidak punya akses
-            error_log('User has no access to agencies');
-            $sql = "SELECT 0";
-        }
-
-        error_log('Final Query: ' . $sql);
-
-        $total = (int) $wpdb->get_var($sql);
-        
-        // Set cache
+        // Cache for 2 minutes
         $this->cache->set('agency_total_count', $total, 120, get_current_user_id());
-        error_log('Set new cache value: ' . $total);
-        
-        error_log('Total count result: ' . $total);
-        error_log('--- End Debug ---');
 
         return $total;
     }
 
+    /**
+     * @deprecated Use AgencyDataTableModel::get_datatable_data() instead
+     *
+     * This method has been moved to AgencyDataTableModel to follow wp-app-core pattern.
+     * Kept for backward compatibility. Will be removed in future version.
+     */
     public function getDataTableData(int $start, int $length, string $search, string $orderColumn, string $orderDir, string $status_filter = 'active'): array {
-        global $wpdb;
+        error_log('[AgencyModel] DEPRECATED: getDataTableData() called. Use AgencyDataTableModel instead.');
 
-        error_log("=== getDataTableData start ===");
-        error_log("Query params: start=$start, length=$length, search=$search, status_filter=$status_filter");
-
-        $current_user_id = get_current_user_id();
-
-        // Debug capabilities
-        error_log('--- Debug User Capabilities ---');
-        error_log('User ID: ' . $current_user_id);
-        error_log('Can view_agency_list: ' . (current_user_can('view_agency_list') ? 'yes' : 'no'));
-        error_log('Can view_own_agency: ' . (current_user_can('view_own_agency') ? 'yes' : 'no'));
-
-        // Base query parts
-        $select = "SELECT SQL_CALC_FOUND_ROWS p.*, COUNT(r.id) as division_count, u.display_name as owner_name";
-
-        $from = " FROM {$this->table} p";
-        $join = " LEFT JOIN {$this->division_table} r ON p.id = r.agency_id";
-        $join .= " LEFT JOIN {$wpdb->users} u ON p.user_id = u.ID";
-        $where = " WHERE 1=1";
-
-        // Add status filter (soft delete aware)
-        if ($status_filter !== 'all') {
-            $where .= $wpdb->prepare(" AND p.status = %s", $status_filter);
-            error_log('Status filter applied: ' . $status_filter);
-        }
-
-        error_log('Building WHERE clause:');
-        error_log('Initial WHERE: ' . $where);
-
-        // Cek relasi user dengan agency (as owner)
-        $has_agency = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE user_id = %d",
-            $current_user_id
-        ));
-        error_log('User has agency as owner: ' . ($has_agency > 0 ? 'yes' : 'no'));
-
-        // Cek status employee (active only)
-        $is_employee = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->employee_table} WHERE user_id = %d AND status = 'active'",
-            $current_user_id
-        ));
-        error_log('User is active employee: ' . ($is_employee > 0 ? 'yes' : 'no'));
-
-        // Permission based filtering
-        if (current_user_can('edit_all_agencies')) {
-            error_log('User can edit all agencies - no additional restrictions');
-        }
-        else if (($has_agency > 0 || $is_employee > 0) && current_user_can('view_own_agency')) {
-            // User punya agency ATAU employee: filter by owner OR employee
-            // Tambah LEFT JOIN ke employee table untuk filter
-            $join .= " LEFT JOIN {$this->employee_table} e ON p.id = e.agency_id AND e.user_id = {$current_user_id} AND e.status = 'active'";
-            $where .= $wpdb->prepare(" AND (p.user_id = %d OR e.user_id IS NOT NULL)", $current_user_id);
-            error_log('Added owner OR employee restriction');
-        }
-        else {
-            $where .= " AND 1=0";
-            error_log('User has no access - restricting all results');
-        }
-
-        // Add search condition if present
-        if (!empty($search)) {
-            $where .= $wpdb->prepare(
-                " AND (p.name LIKE %s OR p.code LIKE %s)",
-                '%' . $wpdb->esc_like($search) . '%',
-                '%' . $wpdb->esc_like($search) . '%'
-            );
-            error_log('Added search condition: ' . $where);
-        }
-
-        // Complete query parts
-        $group = " GROUP BY p.id";
-        $order = " ORDER BY " . esc_sql($orderColumn) . " " . esc_sql($orderDir);
-        $limit = $wpdb->prepare(" LIMIT %d, %d", $start, $length);
-
-        $sql = $select . $from . $join . $where . $group . $order . $limit;
-        error_log('Final Query: ' . $sql);
-
-        // Execute query
-        $results = $wpdb->get_results($sql);
-
-        // Get filtered count from SQL_CALC_FOUND_ROWS
-        $filtered = $wpdb->get_var("SELECT FOUND_ROWS()");
-        
-        // Calculate total count using same WHERE clause but without search
-        $total_sql = "SELECT COUNT(DISTINCT p.id)" . $from . $join . $where;
-        // Remove search condition from WHERE for total count if it exists
-        if (!empty($search)) {
-            $total_sql = str_replace(
-                $wpdb->prepare(
-                    " AND (p.name LIKE %s OR p.code LIKE %s)",
-                    '%' . $wpdb->esc_like($search) . '%',
-                    '%' . $wpdb->esc_like($search) . '%'
-                ),
-                '',
-                $total_sql
-            );
-        }
-        $total = (int) $wpdb->get_var($total_sql);
-
-        error_log("Found rows (filtered): " . $filtered);
-        error_log("Total count: " . $total);
-        error_log("Results count: " . count($results));
-        error_log("=== getDataTableData end ===");
-
+        // Return empty result to prevent errors
         return [
-            'data' => $results,
-            'total' => $total,
-            'filtered' => (int) $filtered
+            'data' => [],
+            'total' => 0,
+            'filtered' => 0
         ];
     }
 

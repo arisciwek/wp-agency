@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Controllers/Agency
- * @version     1.0.0
+ * @version     1.5.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Controllers/Agency/AgencyDashboardController.php
@@ -20,6 +20,14 @@
  * - AgencyModel untuk CRUD operations
  *
  * Changelog:
+ * 1.5.0 - 2025-11-01 (TODO-3097)
+ * - ADDED: New tab "Perusahaan Baru" (new-companies)
+ * - ADDED: render_new_companies_tab() method
+ * - ADDED: handle_load_new_companies_tab() AJAX handler
+ * - ADDED: handle_new_companies_datatable() AJAX handler
+ * - Shows branches without inspector (inspector_id IS NULL)
+ * - Following centralization pattern from TODO-3094/3095/3096
+ *
  * 1.4.0 - 2025-10-29 (TODO-3087 Pembahasan-03)
  * - RESTORED: wpapp_tab_view_after_content hook in render_tab_contents()
  * - REASON: Tab files use pure HTML pattern (not TabViewTemplate::render())
@@ -136,6 +144,7 @@ class AgencyDashboardController {
         add_action('wpapp_tab_view_content', [$this, 'render_info_tab'], 10, 3);
         add_action('wpapp_tab_view_content', [$this, 'render_divisions_tab'], 10, 3);
         add_action('wpapp_tab_view_content', [$this, 'render_employees_tab'], 10, 3);
+        add_action('wpapp_tab_view_content', [$this, 'render_new_companies_tab'], 10, 3);
 
         // AJAX handlers
         add_action('wp_ajax_get_agencies_datatable', [$this, 'handle_datatable_ajax']);
@@ -145,10 +154,12 @@ class AgencyDashboardController {
         // Lazy loading tab handlers
         add_action('wp_ajax_load_divisions_tab', [$this, 'handle_load_divisions_tab']);
         add_action('wp_ajax_load_employees_tab', [$this, 'handle_load_employees_tab']);
+        add_action('wp_ajax_load_new_companies_tab', [$this, 'handle_load_new_companies_tab']);
 
         // DataTable AJAX handlers for lazy-loaded tabs
         add_action('wp_ajax_get_divisions_datatable', [$this, 'handle_divisions_datatable']);
         add_action('wp_ajax_get_employees_datatable', [$this, 'handle_employees_datatable']);
+        add_action('wp_ajax_get_new_companies_datatable', [$this, 'handle_new_companies_datatable']);
     }
 
     /**
@@ -395,6 +406,10 @@ class AgencyDashboardController {
             'employees' => [
                 'title' => __('Staff', 'wp-agency'),
                 'priority' => 30
+            ],
+            'new-companies' => [
+                'title' => __('Perusahaan Baru', 'wp-agency'),
+                'priority' => 40
             ]
         ];
 
@@ -520,6 +535,47 @@ class AgencyDashboardController {
 
         // Include lazy-loaded DataTable view
         include WP_AGENCY_PATH . 'src/Views/agency/tabs/employees.php';
+    }
+
+    /**
+     * Render new companies tab HTML content
+     *
+     * Hook handler for wpapp_tab_view_content (new-companies tab).
+     * Renders the actual HTML content for the new companies tab.
+     * Shows branches without inspector (inspector_id IS NULL).
+     *
+     * Entity-owned hook implementation pattern:
+     * - render_tab_contents() triggers wpapp_tab_view_content hook
+     * - This method responds to that hook for 'agency' entity, 'new-companies' tab
+     * - Priority 10: Core content rendering
+     * - Priority 20+: Extension plugins use wpapp_tab_view_after_content
+     *
+     * Hook Flow:
+     * 1. render_tab_contents() → do_action('wpapp_tab_view_content')
+     * 2. This method → Includes new-companies.php template
+     * 3. Extension hooks fire after
+     *
+     * @param string $entity Entity type (e.g., 'agency')
+     * @param string $tab_id Tab identifier (should be 'new-companies')
+     * @param array  $data   Data passed to tab (contains $agency object)
+     * @return void
+     */
+    public function render_new_companies_tab($entity, $tab_id, $data): void {
+        // Only respond to agency entity and new-companies tab
+        if ($entity !== 'agency' || $tab_id !== 'new-companies') {
+            return;
+        }
+
+        // Extract $agency from $data for view file
+        $agency = $data['agency'] ?? null;
+
+        if (!$agency) {
+            echo '<p>' . __('Data not available', 'wp-agency') . '</p>';
+            return;
+        }
+
+        // Include lazy-loaded DataTable view
+        include WP_AGENCY_PATH . 'src/Views/agency/tabs/new-companies.php';
     }
 
     /**
@@ -840,6 +896,57 @@ class AgencyDashboardController {
     }
 
     /**
+     * Handle load new companies tab AJAX request
+     *
+     * AJAX action: load_new_companies_tab
+     *
+     * Lazy loads new companies DataTable when tab is clicked
+     * Shows branches without inspector (inspector_id IS NULL)
+     * Implements Perfex CRM lazy loading pattern
+     */
+    public function handle_load_new_companies_tab(): void {
+        // Verify nonce - use base panel system nonce
+        if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
+            return;
+        }
+
+        $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
+
+        if (!$agency_id) {
+            wp_send_json_error(['message' => __('Invalid agency ID', 'wp-agency')]);
+            return;
+        }
+
+        // Check permission - view_own_agency based on agency_id
+        $can_view = current_user_can('view_agency_list');
+        $can_view = apply_filters('wp_agency_can_view_agency', $can_view, $agency_id);
+
+        if (!$can_view) {
+            wp_send_json_error(['message' => __('Permission denied', 'wp-agency')]);
+            return;
+        }
+
+        try {
+            // Generate new companies DataTable HTML using template
+            ob_start();
+            $this->render_partial('ajax-new-companies-datatable', compact('agency_id'), 'agency');
+            $html = ob_get_clean();
+
+            wp_send_json_success(['html' => $html]);
+
+        } catch (\Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Load New Companies Tab Error: ' . $e->getMessage());
+            }
+
+            wp_send_json_error([
+                'message' => __('Error loading new companies', 'wp-agency')
+            ]);
+        }
+    }
+
+    /**
      * Handle divisions DataTable AJAX request
      *
      * AJAX action: get_divisions_datatable
@@ -937,6 +1044,42 @@ class AgencyDashboardController {
             wp_send_json($response);
         } catch (\Exception $e) {
             wp_send_json_error(['message' => __('Error loading employees', 'wp-agency')]);
+        }
+    }
+
+    /**
+     * Handle new companies DataTable AJAX request
+     *
+     * AJAX action: get_new_companies_datatable
+     *
+     * Called by DataTable initialization in new-companies tab
+     * for server-side processing. Uses NewCompanyDataTableModel.
+     */
+    public function handle_new_companies_datatable(): void {
+        // Verify nonce
+        if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
+            return;
+        }
+
+        // Check permission - view_own_agency
+        $can_view = current_user_can('view_agency_list');
+        $can_view = apply_filters('wp_agency_can_view_agency', $can_view, 0);
+
+        if (!$can_view) {
+            wp_send_json_error(['message' => __('Permission denied', 'wp-agency')]);
+            return;
+        }
+
+        try {
+            $model = new \WPAgency\Models\Company\NewCompanyDataTableModel();
+            $response = $model->get_datatable_data($_POST);
+            wp_send_json($response);
+        } catch (\Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('New Companies DataTable Error: ' . $e->getMessage());
+            }
+            wp_send_json_error(['message' => __('Error loading new companies', 'wp-agency')]);
         }
     }
 

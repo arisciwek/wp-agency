@@ -7,7 +7,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Division
- * @version     1.3.0
+ * @version     1.4.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Division/DivisionDataTableModel.php
@@ -18,6 +18,12 @@
  *              Includes jurisdiction (wilayah kerja) data.
  *
  * Changelog:
+ * 1.4.0 - 2025-11-01 (TODO-3095)
+ * - Added get_total_count() method for dashboard statistics
+ * - Eliminates query duplication (DRY principle)
+ * - Dashboard stats now use same filtering logic as DataTable
+ * - Single source of truth for counting with filtering
+ *
  * 1.3.0 - 2025-10-31 (TODO-3092 Use QueryBuilder with GROUP BY)
  * - REVERT: Removed manual query override
  * - USE: Parent QueryBuilder with new GROUP BY support
@@ -189,6 +195,53 @@ class DivisionDataTableModel extends DataTableModel {
 
         error_log('[DivisionDataTableModel] Final WHERE conditions: ' . print_r($where_conditions, true));
         return $where_conditions;
+    }
+
+    /**
+     * Get total count with filtering
+     *
+     * Helper method for dashboard statistics.
+     * Reuses same filtering logic as DataTable.
+     *
+     * @param int $agency_id Agency ID to filter by
+     * @param string $status_filter Status to filter (active/inactive/all)
+     * @return int Total count
+     */
+    public function get_total_count(int $agency_id, string $status_filter = 'active'): int {
+        global $wpdb;
+
+        // Prepare request data for filtering
+        $request_data = [
+            'agency_id' => $agency_id,
+            'status_filter' => $status_filter
+        ];
+
+        // Temporarily set POST for filter_where() method
+        $original_post = $_POST;
+        $_POST['agency_id'] = $agency_id;
+        $_POST['status_filter'] = $status_filter;
+
+        // Build WHERE conditions using same logic as DataTable
+        $where_conditions = $this->filter_where([], $request_data, $this);
+
+        // Restore original POST
+        $_POST = $original_post;
+
+        // Build count query
+        $where_sql = '';
+        if (!empty($where_conditions)) {
+            $where_sql = ' WHERE ' . implode(' AND ', $where_conditions);
+        }
+
+        // Use DISTINCT COUNT with GROUP BY
+        $count_sql = "SELECT COUNT(DISTINCT d.id) as total
+                      FROM {$this->table}
+                      " . implode(' ', $this->base_joins) . "
+                      {$where_sql}";
+
+        error_log('[DivisionDataTableModel::get_total_count] Query: ' . $count_sql);
+
+        return (int) $wpdb->get_var($count_sql);
     }
 
 }

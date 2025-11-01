@@ -4,7 +4,7 @@
 *
 * @package     WP_Agency
 * @subpackage  Controllers
-* @version     1.0.8
+* @version     1.0.9
 * @author      arisciwek
 *
 * Path: /wp-agency/src/Controllers/AgencyController.php
@@ -16,6 +16,13 @@
 *              Menyediakan endpoints untuk DataTables server-side.
 *
 * Changelog:
+* 1.0.9 - 2025-11-01 (TODO-3094)
+* - MAJOR: Refactored to use AgencyDataTableModel instead of AgencyModel::getDataTableData()
+* - Updated handleDataTableRequest() to use wp-app-core pattern
+* - Simplified getAgencyTableData() method
+* - Removed manual data formatting (now handled by AgencyDataTableModel)
+* - Fixes Task-2176: customer_admin can see Disnaker list
+*
 * 1.0.8 - 2025-10-26 (TODO-1180)
 * - Added handle_get_agency() method for centralized panel handler
 * - Integrates with wp-app-core panel-handler.js
@@ -52,6 +59,7 @@
 namespace WPAgency\Controllers;
 
 use WPAgency\Models\Agency\AgencyModel;
+use WPAgency\Models\Agency\AgencyDataTableModel;
 use WPAgency\Models\Division\DivisionModel;
 use WPAgency\Models\Employee\AgencyEmployeeModel;
 use WPAgency\Validators\AgencyValidator;
@@ -513,9 +521,14 @@ public function createPdfButton() {
         error_log($log_message, 3, $this->log_file);
     }
 
-    private function getAgencyTableData($start = 0, $length = 10, $search = '', $orderColumn = 'code', $orderDir = 'asc', $status_filter = 'active') {
+    /**
+     * Get agency table data using wp-app-core DataTable pattern
+     *
+     * @param array $request_data DataTable request from $_POST
+     * @return array|null DataTable response or null on error
+     */
+    private function getAgencyTableData($request_data) {
         try {
-
             // Validasi permission yang sudah bekerja di handleDataTableRequest()
             $hasPermission = current_user_can('view_agency_list');
 
@@ -524,7 +537,7 @@ public function createPdfButton() {
 
             $this->logPermissionCheck(
                 'view_agency_list',
-                $access['access_type'],  // Langsung gunakan access_type yang sudah ada                0,
+                $access['access_type'],
                 null,
                 $hasPermission
             );
@@ -533,8 +546,9 @@ public function createPdfButton() {
                 return null;
             }
 
-            // Get data using model with status filter
-            $result = $this->model->getDataTableData($start, $length, $search, $orderColumn, $orderDir, $status_filter);
+            // Use AgencyDataTableModel (wp-app-core pattern)
+            $datatable_model = new AgencyDataTableModel();
+            $result = $datatable_model->get_datatable_data($request_data);
 
             return $result;
 
@@ -552,48 +566,34 @@ public function createPdfButton() {
                 throw new \Exception('Security check failed');
             }
 
-            // Get parameters with safe defaults
+            // Get draw parameter for DataTable
             $draw = isset($_POST['draw']) ? intval($_POST['draw']) : 1;
+
+            // Dapatkan role/capability user saat ini untuk cache
+            $access = $this->validator->validateAccess(0);
+
+            // Prepare cache key parameters
             $start = isset($_POST['start']) ? intval($_POST['start']) : 0;
             $length = isset($_POST['length']) ? intval($_POST['length']) : 10;
             $search = isset($_POST['search']['value']) ? sanitize_text_field($_POST['search']['value']) : '';
-            $status_filter = isset($_POST['status_filter']) ? sanitize_text_field($_POST['status_filter']) : 'active';
-
-            // Force active filter if user doesn't have delete_agency permission
-            if (!current_user_can('delete_agency')) {
-                $status_filter = 'active';
-            }
-
-            // Get order parameters
             $orderColumn = isset($_POST['order'][0]['column']) && isset($_POST['columns'][$_POST['order'][0]['column']]['data'])
                 ? sanitize_text_field($_POST['columns'][$_POST['order'][0]['column']]['data'])
                 : 'name';
             $orderDir = isset($_POST['order'][0]['dir']) ? sanitize_text_field($_POST['order'][0]['dir']) : 'asc';
+            $status_filter = isset($_POST['status_filter']) ? sanitize_text_field($_POST['status_filter']) : 'active';
 
-            // Additional parameters if needed
             $additionalParams = ['status_filter' => $status_filter];
-
-            // If filtering by specific parameters
-            if (isset($_POST['status'])) {
-                $additionalParams['status'] = sanitize_text_field($_POST['status']);
-            }
-            if (isset($_POST['type'])) {
-                $additionalParams['type'] = sanitize_text_field($_POST['type']);
-            }
-
-            // Dapatkan role/capability user saat ini
-            $access = $this->validator->validateAccess(0); 
 
             // Check cache first
             $cached_result = $this->cache->getDataTableCache(
-                'agency_list',          // Specific context for main agency listing
-                $access['access_type'],  // Langsung gunakan access_type yang sudah ada
+                'agency_list',
+                $access['access_type'],
                 $start,
                 $length,
                 $search,
                 $orderColumn,
                 $orderDir,
-                $additionalParams        // Additional filtering parameters if any
+                $additionalParams
             );
 
             if ($cached_result) {
@@ -601,46 +601,26 @@ public function createPdfButton() {
                 return;
             }
 
-            // Get fresh data if no cache
-            $result = $this->getAgencyTableData($start, $length, $search, $orderColumn, $orderDir, $status_filter);
+            // Get fresh data using wp-app-core DataTable pattern
+            $result = $this->getAgencyTableData($_POST);
             if (!$result) {
                 throw new \Exception('Failed to fetch agency data');
             }
 
-            // Format data for response
-            $data = [];
-            foreach ($result['data'] as $agency) {
-                $data[] = [
-                    'id' => $agency->id,
-                    'code' => esc_html($agency->code),
-                    'name' => esc_html($agency->name),
-                    'owner_name' => esc_html($agency->owner_name ?? '-'),
-                    'division_count' => intval($agency->division_count),
-                    'actions' => $this->generateActionButtons($agency)
-                ];
-            }
-
-            $response = [
-                'draw' => $draw,
-                'recordsTotal' => $result['total'],
-                'recordsFiltered' => $result['filtered'],
-                'data' => $data,
-            ];
-
-            // Dapatkan role/capability user saat ini
-            $access = $this->validator->validateAccess(0); 
+            // Add draw parameter to response
+            $response = array_merge(['draw' => $draw], $result);
 
             // Set cache
             $this->cache->setDataTableCache(
-                'agency_list',         // Same context as get
-                $access['access_type'],  // Langsung gunakan access_type yang sudah ada
+                'agency_list',
+                $access['access_type'],
                 $start,
                 $length,
                 $search,
                 $orderColumn,
                 $orderDir,
                 $response,
-                $additionalParams       // Same additional parameters
+                $additionalParams
             );
 
             wp_send_json($response);
@@ -733,11 +713,76 @@ public function createPdfButton() {
                     'role' => 'agency'
                 ];
 
+                /**
+                 * Filter user data before creating WordPress user for agency admin
+                 *
+                 * Allows modification of user data before wp_insert_user() call.
+                 *
+                 * Use cases:
+                 * - Demo data: Force static IDs for predictable test data
+                 * - Migration: Import users with preserved IDs from external system
+                 * - Testing: Unit tests with predictable user IDs
+                 * - Custom user data: Add custom fields or metadata
+                 *
+                 * @param array $user_data User data for wp_insert_user()
+                 * @param array $agency_data Original agency data from controller
+                 * @param string $context Context identifier ('agency_admin')
+                 * @return array Modified user data
+                 *
+                 * @since 1.0.0
+                 */
+                $agency_data = $_POST; // Pass original POST data for context
+                $user_data = apply_filters(
+                    'wp_agency_agency_user_before_insert',
+                    $user_data,
+                    $agency_data,
+                    'agency_admin'
+                );
+
+                // Handle static ID if requested
+                $static_user_id = null;
+                if (isset($user_data['ID'])) {
+                    $static_user_id = $user_data['ID'];
+                    unset($user_data['ID']); // wp_insert_user() doesn't accept ID
+                }
+
                 $user_id = wp_insert_user($user_data);
 
                 if (is_wp_error($user_id)) {
                     wp_send_json_error(['message' => $user_id->get_error_message()]);
                     return;
+                }
+
+                // Update to static ID if requested
+                if ($static_user_id !== null && $static_user_id != $user_id) {
+                    global $wpdb;
+
+                    // Check if static ID already exists
+                    $existing = $wpdb->get_var($wpdb->prepare(
+                        "SELECT ID FROM {$wpdb->users} WHERE ID = %d",
+                        $static_user_id
+                    ));
+
+                    if (!$existing) {
+                        // Update to static ID
+                        $wpdb->query('SET FOREIGN_KEY_CHECKS=0');
+                        $wpdb->update(
+                            $wpdb->users,
+                            ['ID' => $static_user_id],
+                            ['ID' => $user_id],
+                            ['%d'],
+                            ['%d']
+                        );
+                        $wpdb->update(
+                            $wpdb->usermeta,
+                            ['user_id' => $static_user_id],
+                            ['user_id' => $user_id],
+                            ['%d'],
+                            ['%d']
+                        );
+                        $wpdb->query('SET FOREIGN_KEY_CHECKS=1');
+                        $user_id = $static_user_id;
+                    }
                 }
 
                 // Add agency_admin_dinas role (dual-role pattern)

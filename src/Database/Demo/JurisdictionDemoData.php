@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Database/Demo
- * @version     2.0.0
+ * @version     2.0.1
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Database/Demo/JurisdictionDemoData.php
@@ -42,6 +42,12 @@
  * 4. Insert jurisdiction relations with is_primary flag
  *
  * Changelog:
+ * 2.0.1 - 2025-11-01 (BugFix: Agency ID Mismatch + Static ID Implementation)
+ * - CRITICAL FIX: Changed agency_id calculation from ($index + 20) to $index
+ * - AgencyDemoData now injects static IDs 1-10 via wp_agency_before_insert hook
+ * - JurisdictionDemoData correctly references agency IDs 1-10
+ * - Fixes "Agency not found: 21" error during jurisdiction generation
+ *
  * 2.0.0 - 2025-10-31 (TODO-3093)
  * - RESTRUCTURE: Changed to use agency index pattern (like DivisionDemoData)
  * - FIX: Works with runtime generated division IDs
@@ -108,9 +114,9 @@ class JurisdictionDemoData extends AbstractDemoData {
             }
 
             // 5. Validasi agencies dan divisions exist di database
-            // Loop agencies 1-10 (maps to agency_id 21-30)
+            // Loop agencies 1-10 (matches AgencyDemoData static IDs 1-10)
             for ($agency_index = 1; $agency_index <= 10; $agency_index++) {
-                $agency_id = $agency_index + 20;
+                $agency_id = $agency_index; // Agency IDs 1-10 from static ID injection
 
                 // Cek agency exists
                 $agency = $this->wpdb->get_row($this->wpdb->prepare(
@@ -194,9 +200,9 @@ class JurisdictionDemoData extends AbstractDemoData {
         $generated_count = 0;
 
         try {
-            // Loop agencies 1-10 (maps to agency_id 21-30)
+            // Loop agencies 1-10 (matches AgencyDemoData static IDs 1-10)
             for ($agency_index = 1; $agency_index <= 10; $agency_index++) {
-                $agency_id = $agency_index + 20;
+                $agency_id = $agency_index; // Agency IDs 1-10 from static ID injection
 
                 // Cek data untuk agency index ini
                 if (!isset($this->jurisdiction_data[$agency_index])) {

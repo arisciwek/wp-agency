@@ -4,12 +4,18 @@
  *
  * @package     WP_Agency
  * @subpackage  Database/Demo
- * @version     1.0.7
+ * @version     1.0.8
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Database/Demo/WPUserGenerator.php
  *
  * Changelog:
+ * 1.0.8 - 2025-11-01 (FIX: CLI/Script Execution)
+ * - CRITICAL FIX: Allow CLI and PHP script execution for demo data generation
+ * - validate() now returns true for CLI (WP_CLI) and script (PHP_SAPI === 'cli')
+ * - Fixes "cannot create users" error when running demo generation via script
+ * - Web requests still require 'create_users' capability
+ *
  * 2.0.0 - 2025-01-22 (Task-2067 Runtime Flow)
  * - BREAKING: Changed user creation to use wp_insert_user() instead of direct DB INSERT
  * - Uses WordPress hooks and validation for proper integration
@@ -42,6 +48,12 @@ class WPUserGenerator {
     }
 
     protected function validate(): bool {
+        // Allow CLI/script execution for demo data generation
+        if ((defined('WP_CLI') && WP_CLI) || (PHP_SAPI === 'cli')) {
+            return true; // CLI/script always allowed for demo data
+        }
+
+        // For web requests, check user capability
         if (!current_user_can('create_users')) {
             $this->debug('Current user cannot create users');
             return false;

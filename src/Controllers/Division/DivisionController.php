@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Controllers/Division
- * @version     1.0.7
+ * @version     2.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Controllers/Division/DivisionController.php
@@ -15,6 +15,12 @@
  *              dan response formatting untuk DataTables.
  *
  * Changelog:
+ * 2.1.0 - 2025-11-01 (TODO-3095)
+ * - MAJOR: Refactored handleDataTableRequest() to use DivisionDataTableModel
+ * - Removed legacy DivisionModel::getDataTableData() call
+ * - Simplified to use wp-app-core centralized pattern
+ * - Follows same pattern as AgencyController (TODO-3094)
+ *
  * 2.0.0 - 2025-01-22 (Task-2068 Division User Auto-Creation)
  * - BREAKING: Removed user creation logic from Controller
  * - User creation now handled by HOOK (AutoEntityCreator)
@@ -40,6 +46,7 @@ namespace WPAgency\Controllers\Division;
 
 use WPAgency\Models\Agency\AgencyModel;
 use WPAgency\Models\Division\DivisionModel;
+use WPAgency\Models\Division\DivisionDataTableModel;
 use WPAgency\Models\Division\JurisdictionModel;
 use WPAgency\Validators\Division\DivisionValidator;
 use WPAgency\Validators\Division\JurisdictionValidator;
@@ -374,6 +381,14 @@ class DivisionController {
         return $actions;
     }
     
+    /**
+     * Handle Division DataTable AJAX request
+     *
+     * Refactored to use DivisionDataTableModel (wp-app-core pattern).
+     * No more legacy DivisionModel::getDataTableData().
+     *
+     * @throws \Exception On validation or processing errors
+     */
     public function handleDataTableRequest() {
         try {
             check_ajax_referer('wp_agency_nonce', 'nonce');
@@ -383,85 +398,18 @@ class DivisionController {
                 throw new \Exception('Invalid agency ID');
             }
 
+            // Get draw parameter
             $draw = isset($_POST['draw']) ? intval($_POST['draw']) : 1;
-            $start = isset($_POST['start']) ? intval($_POST['start']) : 0;
-            $length = isset($_POST['length']) ? intval($_POST['length']) : 10;
-            $search = isset($_POST['search']['value']) ? sanitize_text_field($_POST['search']['value']) : '';
-            $status_filter = isset($_POST['status_filter']) ? sanitize_text_field($_POST['status_filter']) : 'active';
 
-            // Force active filter if user doesn't have delete_division permission
-            if (!current_user_can('delete_division')) {
-                $status_filter = 'active';
-            }
+            // Add agency_id to request data for DivisionDataTableModel filtering
+            $_POST['agency_id'] = $agency_id;
 
-            $orderColumn = isset($_POST['order'][0]['column']) ? intval($_POST['order'][0]['column']) : 0;
-            $orderDir = isset($_POST['order'][0]['dir']) ? sanitize_text_field($_POST['order'][0]['dir']) : 'asc';
+            // Use DivisionDataTableModel (wp-app-core pattern)
+            $datatable_model = new DivisionDataTableModel();
+            $result = $datatable_model->get_datatable_data($_POST);
 
-            $columns = ['code', 'name', 'admin_name', 'type', 'status', 'jurisdictions', 'actions'];
-            $orderBy = isset($columns[$orderColumn]) ? $columns[$orderColumn] : 'code';
-            if ($orderBy === 'actions') {
-                $orderBy = 'code';
-            }
-
-            // Dapatkan role/capability user saat ini
-            $access = $this->validator->validateAccess(0); 
-
-            // Get fresh data (disable caching for DataTable to ensure immediate updates)
-            $result = $this->model->getDataTableData(
-                $agency_id,
-                $start,
-                $length,
-                $search,
-                $orderBy,
-                $orderDir,
-                $status_filter
-            );
-
-            if (!$result) {
-                throw new \Exception('No data returned from model');
-            }
-
-            $data = [];
-            foreach ($result['data'] as $division) {
-                // Validate access
-                $relation = $this->validator->getUserRelation($division->id);
-                if (!$this->validator->canViewDivision($relation)) {
-                    continue;
-                }
-
-                // Get admin name
-                $admin_name = '-';
-                if (!empty($division->user_id)) {
-                    $user = get_userdata($division->user_id);
-                    if ($user) {
-                        $first_name = $user->first_name;
-                        $last_name = $user->last_name;
-                        if ($first_name || $last_name) {
-                            $admin_name = trim($first_name . ' ' . $last_name);
-                        } else {
-                            $admin_name = $user->display_name;
-                        }
-                    }
-                }
-
-                $data[] = [
-                    'id' => $division->id,
-                    'code' => esc_html($division->code),
-                    'name' => esc_html($division->name),
-                    'admin_name' => esc_html($admin_name),
-                    'type' => esc_html($division->type),
-                    'status' => esc_html($division->status ?? 'active'),
-                    'jurisdictions' => esc_html($division->jurisdictions ?? '-'),
-                    'actions' => $this->generateActionButtons($division)
-                ];
-            }
-
-            $response = [
-                'draw' => $draw,
-                'recordsTotal' => $result['total'],
-                'recordsFiltered' => $result['filtered'],
-                'data' => $data,
-            ];
+            // Add draw parameter to response
+            $response = array_merge(['draw' => $draw], $result);
 
             wp_send_json($response);
 
@@ -471,7 +419,6 @@ class DivisionController {
                 'code' => $e->getCode()
             ], 400);
         }
-
     }
 
     /**

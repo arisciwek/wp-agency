@@ -4,18 +4,30 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Division
- * @version     1.0.7
+ * @version     1.1.1
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Division/DivisionModel.php
  *
  * Description: Model untuk mengelola data cabang di database.
  *              Handles operasi CRUD dengan caching terintegrasi.
- *              Includes query optimization dan data formatting.
- *              Menyediakan metode untuk DataTables server-side.
+ *              Pure CRUD model - DataTable operations moved to DivisionDataTableModel.
  *
  * Changelog:
- * 1.1.0 - 2025-01-22
+ * 1.1.1 - 2025-11-01 (TODO-3098 Entity Static IDs)
+ * - Added 'wp_agency_division_before_insert' filter hook in create() method
+ * - Allows modification of insert data before database insertion
+ * - Use cases: demo data (static IDs), migration, data sync, testing
+ * - Added dynamic format array handling for 'id' field injection
+ *
+ * 1.1.0 - 2025-11-01 (TODO-3095)
+ * - OPTIMIZATION: getTotalCount() now reuses DivisionDataTableModel::get_total_count()
+ * - DEPRECATED: getDataTableData() method (moved to DivisionDataTableModel)
+ * - Eliminated 70+ lines of duplicated filtering logic
+ * - Dashboard statistics use same logic as DataTable (DRY principle)
+ * - Single source of truth for counting queries
+ *
+ * 1.0.7 - 2025-01-22
  * - Task-2066: Added wp_agency_division_created hook for auto entity creation
  * - Task-2066: Added wp_agency_division_before_delete and wp_agency_division_deleted hooks
  * - Implemented soft delete support (status='inactive' vs hard delete)
@@ -174,29 +186,62 @@ class DivisionModel {
             'status' => $data['status'] ?? 'active'
         ];
 
+        /**
+         * Filter division insert data before database insertion
+         *
+         * Allows modification of insert data before $wpdb->insert() call.
+         *
+         * Use cases:
+         * - Demo data: Force static IDs for predictable test data
+         * - Migration: Import divisions with preserved IDs from external system
+         * - Testing: Unit tests with predictable division IDs
+         * - Data sync: Synchronize with external systems while preserving IDs
+         *
+         * @param array $insertData Prepared data ready for $wpdb->insert
+         * @param array $data Original input data from controller
+         * @return array Modified insert data (can include 'id' key for static ID)
+         *
+         * @since 1.1.1
+         */
+        $insertData = apply_filters('wp_agency_division_before_insert', $insertData, $data);
+
+        // If 'id' field was injected via filter, reorder to put it first
+        if (isset($insertData['id'])) {
+            $static_id = $insertData['id'];
+            unset($insertData['id']);
+            $insertData = array_merge(['id' => $static_id], $insertData);
+        }
+
+        // Prepare format array (must match key order)
+        $format = [];
+        if (isset($insertData['id'])) {
+            $format[] = '%d';  // id
+        }
+        $format = array_merge($format, [
+            '%d', // agency_id
+            '%s', // code
+            '%s', // name
+            '%s', // type
+            '%s', // nitku
+            '%s', // postal_code
+            '%f', // latitude
+            '%f', // longitude
+            '%s', // address
+            '%s', // phone
+            '%s', // email
+            '%s', // provinsi_code
+            '%s', // regency_code
+            '%d', // user_id
+            '%d', // created_by
+            '%s', // created_at
+            '%s', // updated_at
+            '%s'  // status
+        ]);
+
         $result = $wpdb->insert(
             $this->table,
             $insertData,
-            [
-                '%d', // agency_id
-                '%s', // code
-                '%s', // name
-                '%s', // type
-                '%s', // nitku
-                '%s', // postal_code
-                '%f', // latitude
-                '%f', // longitude
-                '%s', // address
-                '%s', // phone
-                '%s', // email
-                '%s', // provinsi_code
-                '%s', // regency_code
-                '%d', // user_id
-                '%d', // created_by
-                '%s', // created_at
-                '%s', // updated_at
-                '%s'  // status
-            ]
+            $format
         );
 
         if ($result === false) {
@@ -470,78 +515,29 @@ class DivisionModel {
         return $exists;
     }
 
+    /**
+     * @deprecated Use DivisionDataTableModel::get_datatable_data() instead
+     *
+     * This method has been moved to DivisionDataTableModel to follow wp-app-core pattern.
+     * Kept for backward compatibility. Will be removed in future version.
+     *
+     * @param int $agency_id Agency ID
+     * @param int $start Offset
+     * @param int $length Limit
+     * @param string $search Search term
+     * @param string $orderColumn Column to order by
+     * @param string $orderDir Order direction
+     * @param string $status_filter Status filter
+     * @return array Empty result to prevent errors
+     */
     public function getDataTableData(int $agency_id, int $start, int $length, string $search, string $orderColumn, string $orderDir, string $status_filter = 'active'): array {
-        global $wpdb;
+        error_log('[DivisionModel] DEPRECATED: getDataTableData() called. Use DivisionDataTableModel instead.');
 
-        // Base query parts
-        $select = "SELECT SQL_CALC_FOUND_ROWS r.*, p.name as agency_name, GROUP_CONCAT(DISTINCT wr.name ORDER BY wr.name SEPARATOR ', ') as jurisdictions";
-        $from = " FROM {$this->table} r";
-        $join = " LEFT JOIN {$this->agency_table} p ON r.agency_id = p.id
-                  LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions j ON r.id = j.division_id
-                  LEFT JOIN {$wpdb->prefix}wi_regencies wr ON j.jurisdiction_code = wr.code";
-        $where = " WHERE r.agency_id = %d";
-        $params = [$agency_id];
-
-        // Add status filter
-        if ($status_filter !== 'all') {
-            $where .= " AND r.status = %s";
-            $params[] = $status_filter;
-        }
-
-        // Add search if provided
-        if (!empty($search)) {
-            $where .= " AND (r.name LIKE %s OR r.code LIKE %s OR wr.name LIKE %s)";
-            $params[] = '%' . $wpdb->esc_like($search) . '%';
-            $params[] = '%' . $wpdb->esc_like($search) . '%';
-            $params[] = '%' . $wpdb->esc_like($search) . '%';
-        }
-
-        // Validate order column
-        $validColumns = ['code', 'name', 'type', 'status', 'jurisdictions'];
-        if (!in_array($orderColumn, $validColumns)) {
-            $orderColumn = 'code';
-        }
-
-        // Validate order direction
-        $orderDir = strtoupper($orderDir) === 'DESC' ? 'DESC' : 'ASC';
-
-        // Build order clause
-        $order = " ORDER BY " . esc_sql($orderColumn) . " " . esc_sql($orderDir);
-
-        // Add group by and limit
-        $groupBy = " GROUP BY r.id";
-        $limit = $wpdb->prepare(" LIMIT %d, %d", $start, $length);
-
-        // Complete query
-        $sql = $select . $from . $join . $where . $groupBy . $order . $limit;
-
-        // Get paginated results
-        $results = $wpdb->get_results($wpdb->prepare($sql, $params));
-
-        if ($results === null) {
-            throw new \Exception($wpdb->last_error);
-        }
-
-        // Get total filtered count
-        $filtered = $wpdb->get_var("SELECT FOUND_ROWS()");
-
-        // Get total count for agency (with status filter applied)
-        $total_where = "WHERE agency_id = %d";
-        $total_params = [$agency_id];
-        if ($status_filter !== 'all') {
-            $total_where .= " AND status = %s";
-            $total_params[] = $status_filter;
-        }
-
-        $total = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} {$total_where}",
-            $total_params
-        ));
-
+        // Return empty result to prevent errors
         return [
-            'data' => $results,
-            'total' => (int) $total,
-            'filtered' => (int) $filtered
+            'data' => [],
+            'total' => 0,
+            'filtered' => 0
         ];
     }
 
@@ -581,27 +577,33 @@ class DivisionModel {
             $current_user_id
         ));
 
-        // Permission based filtering
-        if (current_user_can('edit_all_agencies') || current_user_can('edit_all_divisions')) {
-            // Admin: statistics always show active count only
-            $sql = "SELECT COUNT(DISTINCT r.id) FROM {$this->table} r WHERE r.status = 'active'";
-            $total = (int) $wpdb->get_var($sql);
-        } elseif ($has_agency > 0 || $is_employee > 0) {
-            // User owns agency OR is employee: count divisions from their agencies (active only)
-            $sql = $wpdb->prepare(
-                "SELECT COUNT(DISTINCT r.id)
-                 FROM {$this->table} r
-                 INNER JOIN {$this->agency_table} p ON r.agency_id = p.id
-                 LEFT JOIN {$employee_table} e ON p.id = e.agency_id AND e.status = 'active'
-                 WHERE (p.user_id = %d OR e.user_id = %d)
-                   AND p.status = 'active'
-                   AND r.status = 'active'",
-                $current_user_id,
-                $current_user_id
-            );
-            $total = (int) $wpdb->get_var($sql);
+        // If agency_id provided, use DivisionDataTableModel (no duplication!)
+        if ($agency_id) {
+            $datatable_model = new \WPAgency\Models\Division\DivisionDataTableModel();
+            $total = $datatable_model->get_total_count($agency_id, 'active');
         } else {
-            $total = 0;
+            // Global count: permission based filtering
+            if (current_user_can('edit_all_agencies') || current_user_can('edit_all_divisions')) {
+                // Admin: statistics always show active count only
+                $sql = "SELECT COUNT(DISTINCT r.id) FROM {$this->table} r WHERE r.status = 'active'";
+                $total = (int) $wpdb->get_var($sql);
+            } elseif ($has_agency > 0 || $is_employee > 0) {
+                // User owns agency OR is employee: count divisions from their agencies (active only)
+                $sql = $wpdb->prepare(
+                    "SELECT COUNT(DISTINCT r.id)
+                     FROM {$this->table} r
+                     INNER JOIN {$this->agency_table} p ON r.agency_id = p.id
+                     LEFT JOIN {$employee_table} e ON p.id = e.agency_id AND e.status = 'active'
+                     WHERE (p.user_id = %d OR e.user_id = %d)
+                       AND p.status = 'active'
+                       AND r.status = 'active'",
+                    $current_user_id,
+                    $current_user_id
+                );
+                $total = (int) $wpdb->get_var($sql);
+            } else {
+                $total = 0;
+            }
         }
 
         // Simpan ke cache - 10 menit

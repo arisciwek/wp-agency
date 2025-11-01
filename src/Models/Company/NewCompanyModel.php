@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Company
- * @version     1.0.7
+ * @version     1.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Company/NewCompanyModel.php
@@ -12,9 +12,15 @@
  * Description: Model untuk mengelola data company (branch) yang belum memiliki inspector.
  *              Handles operasi query dengan caching terintegrasi.
  *              Includes query optimization dan data formatting.
- *              Menyediakan metode untuk DataTables server-side.
+ *              Pure CRUD model - DataTable operations moved to NewCompanyDataTableModel.
  *
  * Changelog:
+ * 1.1.0 - 2025-11-01 (TODO-3097)
+ * - DEPRECATED: getDataTableData() method (moved to NewCompanyDataTableModel)
+ * - Following centralization pattern from TODO-3094/3095/3096
+ * - Method renamed to _LEGACY and made private
+ * - Public method returns empty result for backward compatibility
+ *
  * 1.0.0 - 2025-01-13
  * - Initial implementation
  * - Added DataTables integration
@@ -49,9 +55,35 @@ class NewCompanyModel {
     }
 
     /**
-     * Get DataTable data for branches without inspector
+     * @deprecated Use NewCompanyDataTableModel::get_datatable_data() instead
+     *
+     * This method has been moved to NewCompanyDataTableModel to follow wp-app-core pattern.
+     * Kept for backward compatibility. Will be removed in future version.
+     *
+     * @param int $agency_id Agency ID
+     * @param int $start Offset
+     * @param int $length Limit
+     * @param string $search Search term
+     * @param string $orderColumn Column to order by
+     * @param string $orderDir Order direction
+     * @return array Empty result to prevent errors
      */
     public function getDataTableData(int $agency_id, int $start, int $length, string $search, string $orderColumn, string $orderDir): array {
+        error_log('[NewCompanyModel] DEPRECATED: getDataTableData() called. Use NewCompanyDataTableModel instead.');
+
+        // Return empty result to prevent errors
+        return [
+            'data' => [],
+            'total' => 0,
+            'filtered' => 0
+        ];
+    }
+
+    /**
+     * Get DataTable data for branches without inspector (LEGACY - DO NOT USE)
+     * @deprecated
+     */
+    private function getDataTableData_LEGACY(int $agency_id, int $start, int $length, string $search, string $orderColumn, string $orderDir): array {
         global $wpdb;
 
         // Normalize orderDir for cache consistency

@@ -3,7 +3,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Assets/JS/Agency
- * @version     2.1.0
+ * @version     2.2.0
  * @author      arisciwek
  *
  * Path: /wp-agency/assets/js/agency/agency-datatable.js
@@ -13,6 +13,11 @@
  *              Menangani server-side processing dan event handling.
  *
  * Changelog:
+ * 2.2.0 - 2025-11-01 (TODO-3097)
+ * - Added support for new-company entity (Tab 4: Perusahaan Baru)
+ * - Added column configuration for branches without inspector
+ * - Columns: code, company_name, division_name, regency_name
+ * - Integrated with lazy-load DataTable pattern
  * 2.1.0 - 2025-10-27
  * - Added lazy-load DataTable initialization (Review-01 task-1185)
  * - Handles divisions and employees DataTables
@@ -431,7 +436,7 @@
         /**
          * Get column configuration for lazy-load tables
          *
-         * @param {string} entity - Entity type (division, employee)
+         * @param {string} entity - Entity type (division, employee, new-company)
          * @return {Array} Column configuration for DataTable
          */
         getLazyTableColumns(entity) {
@@ -450,6 +455,21 @@
                         { data: 'email' },
                         { data: 'phone' },
                         { data: 'status' }
+                    ];
+
+                case 'new-company':
+                    return [
+                        { data: 'code', width: '15%' },
+                        { data: 'company_name', width: '25%' },
+                        { data: 'division_name', width: '20%' },
+                        { data: 'regency_name', width: '25%' },
+                        {
+                            data: 'actions',
+                            width: '15%',
+                            orderable: false,
+                            searchable: false,
+                            className: 'text-center'
+                        }
                     ];
 
                 default:

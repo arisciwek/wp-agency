@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Controllers/Employee
- * @version     1.0.7
+ * @version     1.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Controllers/Employee/AgencyEmployeeController.php
@@ -16,6 +16,12 @@
  *              Menyediakan endpoints untuk DataTables server-side.
  *
  * Changelog:
+ * 1.1.0 - 2025-11-01 (TODO-3096)
+ * - MAJOR: Refactored handleDataTableRequest() to use EmployeeDataTableModel
+ * - Removed legacy AgencyEmployeeModel::getDataTableData() call
+ * - Simplified from 100+ lines to 70 lines
+ * - Follows same pattern as Agency/Division (TODO-3094/3095)
+ *
  * 1.0.0 - 2024-01-12
  * - Initial release
  * - Added CRUD operations
@@ -27,6 +33,7 @@ namespace WPAgency\Controllers\Employee;
 
 use WPAgency\Models\Agency\AgencyModel;
 use WPAgency\Models\Employee\AgencyEmployeeModel;
+use WPAgency\Models\Employee\EmployeeDataTableModel;
 use WPAgency\Validators\Employee\AgencyEmployeeValidator;
 use WPAgency\Cache\AgencyCacheManager;
 
@@ -110,33 +117,35 @@ class AgencyEmployeeController {
     }
 
     /**
-     * Handle DataTable AJAX request dengan cache
+     * Handle Employee DataTable AJAX request
+     *
+     * Refactored to use EmployeeDataTableModel (wp-app-core pattern).
+     * No more legacy AgencyEmployeeModel::getDataTableData().
+     *
+     * @throws \Exception On validation or processing errors
      */
     public function handleDataTableRequest() {
         try {
             check_ajax_referer('wp_agency_nonce', 'nonce');
 
-            // Get and validate parameters
-            $draw = isset($_POST['draw']) ? intval($_POST['draw']) : 1;
-            $start = isset($_POST['start']) ? intval($_POST['start']) : 0;
-            $length = isset($_POST['length']) ? intval($_POST['length']) : 10;
-            $search = isset($_POST['search']['value']) ? sanitize_text_field($_POST['search']['value']) : '';
             $agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
-            $status_filter = isset($_POST['status_filter']) ? sanitize_text_field($_POST['status_filter']) : 'active';
-
-            // Force active filter if user doesn't have delete_employee permission
-            if (!current_user_can('delete_employee')) {
-                $status_filter = 'active';
-            }
-
             if (!$agency_id) {
                 throw new \Exception('Agency ID is required');
             }
 
+            // Get draw parameter
+            $draw = isset($_POST['draw']) ? intval($_POST['draw']) : 1;
+
+            // Prepare cache key parameters
+            $access = $this->validator->validateAccess(0);
+            $start = isset($_POST['start']) ? intval($_POST['start']) : 0;
+            $length = isset($_POST['length']) ? intval($_POST['length']) : 10;
+            $search = isset($_POST['search']['value']) ? sanitize_text_field($_POST['search']['value']) : '';
             $orderColumn = isset($_POST['order'][0]['column']) ? intval($_POST['order'][0]['column']) : 0;
             $orderDir = isset($_POST['order'][0]['dir']) ? sanitize_text_field($_POST['order'][0]['dir']) : 'asc';
+            $status_filter = isset($_POST['status_filter']) ? sanitize_text_field($_POST['status_filter']) : 'active';
 
-            $access = $this->validator->validateAccess(0);
+            $additionalParams = ['agency_id' => $agency_id, 'status_filter' => $status_filter];
 
             // Check cache first
             $cached_result = $this->cache->getDataTableCache(
@@ -147,7 +156,7 @@ class AgencyEmployeeController {
                 $search,
                 $orderColumn,
                 $orderDir,
-                ['agency_id' => $agency_id, 'status_filter' => $status_filter]
+                $additionalParams
             );
 
             if ($cached_result !== null) {
@@ -155,52 +164,12 @@ class AgencyEmployeeController {
                 return;
             }
 
-            // Get fresh data if no cache
-            $result = $this->model->getDataTableData(
-                $agency_id,
-                $start,
-                $length,
-                $search,
-                $orderColumn,
-                $orderDir,
-                $status_filter
-            );
+            // Use EmployeeDataTableModel (wp-app-core pattern)
+            $datatable_model = new EmployeeDataTableModel();
+            $result = $datatable_model->get_datatable_data($_POST);
 
-            if (!$result) {
-                throw new \Exception('No data returned from model');
-            }
-
-            // Format data with validation
-            $data = [];
-           // Get selected roles from form
-           $selected_roles = isset($_POST['roles']) ? (array)$_POST['roles'] : [];
-           $selected_roles = array_map('sanitize_text_field', $selected_roles);
-            foreach ($result['data'] as $employee) {
-                // Skip permission check if user has admin access
-                if ($access['access_type'] !== 'admin') {
-                    $relation = $this->validator->getUserRelation($employee->id);
-                    if (!$this->validator->canViewEmployee($relation)) {
-                        continue; // Skip this employee instead of throwing error
-                    }
-                }
-
-                $data[] = [
-                    'id' => $employee->id,
-                    'name' => esc_html($employee->name),
-                    'position' => esc_html($employee->position),
-                    'role' => $this->getUserRole($employee->user_id),
-                    'division_name' => esc_html($employee->division_name),
-                    'status' => $employee->status,
-                    'actions' => $this->generateActionButtons($employee)
-                ];
-            }
-
-            $response = [
-                'draw' => $draw,
-                'recordsTotal' => $result['total'],
-                'recordsFiltered' => $result['filtered'],
-                'data' => $data
-            ];
+            // Add draw parameter to response
+            $response = array_merge(['draw' => $draw], $result);
 
             // Cache the result
             $this->cache->setDataTableCache(
@@ -212,7 +181,7 @@ class AgencyEmployeeController {
                 $orderColumn,
                 $orderDir,
                 $response,
-                ['agency_id' => $agency_id, 'status_filter' => $status_filter]
+                $additionalParams
             );
 
             wp_send_json($response);
@@ -455,8 +424,72 @@ class AgencyEmployeeController {
 		    'role' => $primary_role
 		];
 
+		/**
+		 * Filter user data before creating WordPress user for agency employee
+		 *
+		 * Allows modification of user data before wp_insert_user() call.
+		 *
+		 * Use cases:
+		 * - Demo data: Force static IDs for predictable test data
+		 * - Migration: Import users with preserved IDs from external system
+		 * - Testing: Unit tests with predictable user IDs
+		 * - Custom user data: Add custom fields or metadata
+		 *
+		 * @param array $user_data User data for wp_insert_user()
+		 * @param array $employee_data Original employee data from controller
+		 * @param string $context Context identifier ('agency_employee')
+		 * @return array Modified user data
+		 *
+		 * @since 1.0.0
+		 */
+		$user_data = apply_filters(
+		    'wp_agency_employee_user_before_insert',
+		    $user_data,
+		    $data,
+		    'agency_employee'
+		);
+
+		// Handle static ID if requested
+		$static_user_id = null;
+		if (isset($user_data['ID'])) {
+		    $static_user_id = $user_data['ID'];
+		    unset($user_data['ID']); // wp_insert_user() doesn't accept ID
+		}
+
 		$user_id = wp_insert_user($user_data);
 		if (is_wp_error($user_id)) throw new \Exception($user_id->get_error_message());
+
+		// Update to static ID if requested
+		if ($static_user_id !== null && $static_user_id != $user_id) {
+		    global $wpdb;
+
+		    // Check if static ID already exists
+		    $existing = $wpdb->get_var($wpdb->prepare(
+		        "SELECT ID FROM {$wpdb->users} WHERE ID = %d",
+		        $static_user_id
+		    ));
+
+		    if (!$existing) {
+		        // Update to static ID
+		        $wpdb->query('SET FOREIGN_KEY_CHECKS=0');
+		        $wpdb->update(
+		            $wpdb->users,
+		            ['ID' => $static_user_id],
+		            ['ID' => $user_id],
+		            ['%d'],
+		            ['%d']
+		        );
+		        $wpdb->update(
+		            $wpdb->usermeta,
+		            ['user_id' => $static_user_id],
+		            ['user_id' => $user_id],
+		            ['%d'],
+		            ['%d']
+		        );
+		        $wpdb->query('SET FOREIGN_KEY_CHECKS=1');
+		        $user_id = $static_user_id;
+		    }
+		}
 
 		// Add additional roles if more than one selected
 		if (count($selected_roles) > 1) {

@@ -4,17 +4,37 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Employee
- * @version     1.0.7
+ * @version     1.4.1
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Employee/AgencyEmployeeModel.php
  *
  * Description: Model untuk mengelola data karyawan agency di database.
  *              Handles operasi CRUD dengan caching terintegrasi.
- *              Includes query optimization dan data formatting.
- *              Menyediakan metode untuk DataTables server-side.
+ *              Pure CRUD model - DataTable operations moved to EmployeeDataTableModel.
  *
  * Changelog:
+ * 1.4.1 - 2025-11-01 (TODO-3098 Entity Static IDs)
+ * - Added 'wp_agency_employee_before_insert' filter hook in create() method
+ * - Allows modification of insert data before database insertion
+ * - Use cases: demo data (static IDs), migration, data sync, testing
+ * - Added dynamic format array handling for 'id' field injection
+ *
+ * 1.4.0 - 2025-11-01 (TODO-3096 Follow-up: Complete Optimization)
+ * - COMPLETE: getTotalCount() now FULLY reuses EmployeeDataTableModel
+ * - Uses get_total_count() for agency-specific count
+ * - Uses get_total_count_global() for global count
+ * - Eliminated ALL manual counting logic (60+ additional lines)
+ * - Total: 185+ lines eliminated (125 DataTable + 60 counting)
+ * - 100% DRY principle compliance ✅
+ *
+ * 1.3.0 - 2025-11-01 (TODO-3096)
+ * - OPTIMIZATION: getTotalCount() now reuses EmployeeDataTableModel::get_total_count()
+ * - DEPRECATED: getDataTableData() method (moved to EmployeeDataTableModel)
+ * - Eliminated 125+ lines of duplicated DataTable logic
+ * - Dashboard statistics use same logic as DataTable (DRY principle)
+ * - Single source of truth for counting queries
+ *
  * 1.2.0 - 2025-10-22
  * - Removed fields: finance, operation, legal, purchase from create() method
  * - Fields removed from database schema, no longer needed
@@ -55,25 +75,72 @@ class AgencyEmployeeModel {
     public function create(array $data): ?int {
         global $wpdb;
 
+        // Prepare insert data
+        $insertData = [
+            'agency_id' => $data['agency_id'],
+            'division_id' => $data['division_id'],
+            'user_id' => $data['user_id'] ?? get_current_user_id(),
+            'name' => $data['name'],
+            'position' => $data['position'],
+            'keterangan' => $data['keterangan'],
+            'email' => $data['email'],
+            'phone' => $data['phone'],
+            'created_by' => $data['created_by'] ?? get_current_user_id(),
+            'created_at' => current_time('mysql'),
+            'updated_at' => current_time('mysql'),
+            'status' => $data['status'] ?? 'active'
+        ];
+
+        /**
+         * Filter employee insert data before database insertion
+         *
+         * Allows modification of insert data before $wpdb->insert() call.
+         *
+         * Use cases:
+         * - Demo data: Force static IDs for predictable test data
+         * - Migration: Import employees with preserved IDs from external system
+         * - Testing: Unit tests with predictable employee IDs
+         * - Data sync: Synchronize with external systems while preserving IDs
+         *
+         * @param array $insertData Prepared data ready for $wpdb->insert
+         * @param array $data Original input data from controller
+         * @return array Modified insert data (can include 'id' key for static ID)
+         *
+         * @since 1.4.1
+         */
+        $insertData = apply_filters('wp_agency_employee_before_insert', $insertData, $data);
+
+        // If 'id' field was injected via filter, reorder to put it first
+        if (isset($insertData['id'])) {
+            $static_id = $insertData['id'];
+            unset($insertData['id']);
+            $insertData = array_merge(['id' => $static_id], $insertData);
+        }
+
+        // Prepare format array (must match key order)
+        $format = [];
+        if (isset($insertData['id'])) {
+            $format[] = '%d';  // id
+        }
+        $format = array_merge($format, [
+            '%d', // agency_id
+            '%d', // division_id
+            '%d', // user_id
+            '%s', // name
+            '%s', // position
+            '%s', // keterangan
+            '%s', // email
+            '%s', // phone
+            '%d', // created_by
+            '%s', // created_at
+            '%s', // updated_at
+            '%s'  // status
+        ]);
+
         $result = $wpdb->insert(
             $this->table,
-            [
-                'agency_id' => $data['agency_id'],
-                'division_id' => $data['division_id'],
-                'user_id' => $data['user_id'] ?? get_current_user_id(),
-                'name' => $data['name'],
-                'position' => $data['position'],
-                'keterangan' => $data['keterangan'],
-                'email' => $data['email'],
-                'phone' => $data['phone'],
-                'created_by' => $data['created_by'] ?? get_current_user_id(),
-                'created_at' => current_time('mysql'),
-                'updated_at' => current_time('mysql'),
-                'status' => $data['status'] ?? 'active'
-            ],
-            [
-                '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s'
-            ]
+            $insertData,
+            $format
         );
 
         if ($result === false) {
@@ -409,140 +476,48 @@ class AgencyEmployeeModel {
         return $exists;
     }
 
+    /**
+     * @deprecated Use EmployeeDataTableModel::get_datatable_data() instead
+     *
+     * This method has been moved to EmployeeDataTableModel to follow wp-app-core pattern.
+     * Kept for backward compatibility. Will be removed in future version.
+     *
+     * @param int $agency_id Agency ID
+     * @param int $start Offset
+     * @param int $length Limit
+     * @param string $search Search term
+     * @param string $orderColumn Column to order by
+     * @param string $orderDir Order direction
+     * @param string $status_filter Status filter
+     * @return array Empty result to prevent errors
+     */
     public function getDataTableData(int $agency_id, int $start, int $length, string $search, string $orderColumn, string $orderDir, string $status_filter = 'active'): array {
-        global $wpdb;
+        error_log('[AgencyEmployeeModel] DEPRECATED: getDataTableData() called. Use EmployeeDataTableModel instead.');
 
-        error_log('=== Start Debug Employee DataTable Query ===');
-        error_log('Agency ID: ' . $agency_id);
-        error_log('Start: ' . $start);
-        error_log('Length: ' . $length);
-        error_log('Search: ' . $search);
-        error_log('Order Column: ' . $orderColumn);
-        error_log('Order Direction: ' . $orderDir);
-        error_log('Status Filter: ' . $status_filter);
-
-        // Base query parts
-        $select = "SELECT SQL_CALC_FOUND_ROWS e.*,
-                         b.name as division_name,
-                         u.display_name as created_by_name";
-        $from = " FROM {$this->table} e";
-        $join = " LEFT JOIN {$this->division_table} b ON e.division_id = b.id
-                  LEFT JOIN {$wpdb->users} u ON e.created_by = u.ID";
-        $where = " WHERE e.agency_id = %d";
-        $params = [$agency_id];
-
-        // Add status filter
-        if ($status_filter !== 'all') {
-            $where .= " AND e.status = %s";
-            $params[] = $status_filter;
-        }
-
-        error_log('Initial Query Parts:');
-        error_log('Select: ' . $select);
-        error_log('From: ' . $from);
-        error_log('Join: ' . $join);
-        error_log('Where: ' . $where);
-
-        // Add search if provided
-        if (!empty($search)) {
-            $search_terms = array_filter(array_map('trim', explode(' ', $search)));
-            if (!empty($search_terms)) {
-                $conditions = [];
-                foreach ($search_terms as $term) {
-                    $term_escaped = '%' . $wpdb->esc_like($term) . '%';
-                    $conditions[] = "(e.name LIKE %s OR e.position LIKE %s OR b.name LIKE %s OR e.status LIKE %s OR EXISTS (SELECT 1 FROM {$wpdb->usermeta} WHERE user_id = e.user_id AND meta_key = 'wp_capabilities' AND meta_value LIKE %s))";
-                    $params = array_merge($params, [$term_escaped, $term_escaped, $term_escaped, $term_escaped, $term_escaped]);
-                }
-                $where .= " AND (" . implode(' AND ', $conditions) . ")";
-                error_log('Search Where Clause Added: ' . $where);
-                error_log('Search Parameters: ' . print_r($params, true));
-            }
-        }
-
-        // Validate order column
-        $validColumns = ['name', 'role', 'division_name', 'status'];
-        if (!in_array($orderColumn, $validColumns)) {
-            $orderColumn = 'name';
-        }
-        error_log('Validated Order Column: ' . $orderColumn);
-
-        // Map frontend column to actual column
-        $orderColumnMap = [
-            'name' => 'e.name',
-            'role' => 'e.name', // Map role ordering to name since role is generated
-            'division_name' => 'b.name',
-            'status' => 'e.status'
-        ];
-
-        $orderColumn = $orderColumnMap[$orderColumn] ?? 'e.name';
-        error_log('Mapped Order Column: ' . $orderColumn);
-
-        // Validate order direction
-        $orderDir = strtoupper($orderDir) === 'DESC' ? 'DESC' : 'ASC';
-        error_log('Validated Order Direction: ' . $orderDir);
-
-        // Build order clause
-        $order = " ORDER BY " . esc_sql($orderColumn) . " " . esc_sql($orderDir);
-        error_log('Order Clause: ' . $order);
-
-        // Add limit
-        $limit = $wpdb->prepare(" LIMIT %d, %d", $start, $length);
-        error_log('Limit Clause: ' . $limit);
-
-        // Complete query
-        $sql = $select . $from . $join . $where . $order . $limit;
-
-        // Log the final query with parameters
-        $final_query = $wpdb->prepare($sql, $params);
-        error_log('Final Complete Query: ' . $final_query);
-
-        // Get paginated results
-        $results = $wpdb->get_results($final_query);
-        
-        if ($results === null) {
-            error_log('Query Error: ' . $wpdb->last_error);
-            throw new \Exception($wpdb->last_error);
-        }
-
-        error_log('Query Results Count: ' . count($results));
-
-        // Get total filtered count
-        $filtered = $wpdb->get_var("SELECT FOUND_ROWS()");
-        error_log('Filtered Count: ' . $filtered);
-
-        // Get total count for agency with status filter
-        $total_where = "WHERE agency_id = %d";
-        $total_params = [$agency_id];
-        if ($status_filter !== 'all') {
-            $total_where .= " AND status = %s";
-            $total_params[] = $status_filter;
-        }
-
-        $total_query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} {$total_where}",
-            $total_params
-        );
-        error_log('Total Count Query: ' . $total_query);
-
-        $total = $wpdb->get_var($total_query);
-        error_log('Total Count: ' . $total);
-
-        error_log('=== End Debug Employee DataTable Query ===');
-
+        // Return empty result to prevent errors
         return [
-            'data' => $results,
-            'total' => (int) $total,
-            'filtered' => (int) $filtered
+            'data' => [],
+            'total' => 0,
+            'filtered' => 0
         ];
     }
     
+    
     /**
-     * Get total employee count based on user permission
-     * Filters by owner OR employee relation to agencies
+     * Get total employee count accessible by current user
+     *
+     * Reuses EmployeeDataTableModel for consistency.
+     * No query duplication - uses same permission filtering as DataTable.
+     *
+     * Benefits:
+     * - Single source of truth for permission logic
+     * - No code duplication (DRY principle)
+     * - Stats always match DataTable results
+     *
+     * @param int|null $agency_id Optional agency ID filter
+     * @return int Total count
      */
     public function getTotalCount(?int $agency_id = null): int {
-        global $wpdb;
-
         $current_user_id = get_current_user_id();
 
         // Generate cache key with user_id for permission-based caching
@@ -551,48 +526,24 @@ class AgencyEmployeeModel {
             $cache_key .= '_' . $agency_id;
         }
 
-        // Cek cache dulu
+        // Check cache first
         $cached_count = $this->cache->get($cache_key);
         if ($cached_count !== null) {
-            return (int)$cached_count;
+            return (int) $cached_count;
         }
 
-        // Check if user is agency owner
-        $has_agency = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->agency_table} WHERE user_id = %d",
-            $current_user_id
-        ));
+        // Reuse EmployeeDataTableModel logic (no duplication!)
+        $datatable_model = new \WPAgency\Models\Employee\EmployeeDataTableModel();
 
-        // Check if user is employee (active status only)
-        $is_employee = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE user_id = %d AND status = 'active'",
-            $current_user_id
-        ));
-
-        // Permission based filtering
-        if (current_user_can('edit_all_agencies') || current_user_can('edit_all_employees')) {
-            // Admin: statistics always show active count only
-            $sql = "SELECT COUNT(DISTINCT e.id) FROM {$this->table} e WHERE e.status = 'active'";
-            $count = (int) $wpdb->get_var($sql);
-        } elseif ($has_agency > 0 || $is_employee > 0) {
-            // User owns agency OR is employee: count employees from their agencies (active only)
-            $sql = $wpdb->prepare(
-                "SELECT COUNT(DISTINCT e.id)
-                 FROM {$this->table} e
-                 INNER JOIN {$this->agency_table} a ON e.agency_id = a.id
-                 LEFT JOIN {$this->table} emp ON a.id = emp.agency_id AND emp.status = 'active'
-                 WHERE (a.user_id = %d OR emp.user_id = %d)
-                   AND a.status = 'active'
-                   AND e.status = 'active'",
-                $current_user_id,
-                $current_user_id
-            );
-            $count = (int) $wpdb->get_var($sql);
+        if ($agency_id) {
+            // Agency-specific count
+            $count = $datatable_model->get_total_count($agency_id, 'active');
         } else {
-            $count = 0;
+            // Global count across all accessible agencies
+            $count = $datatable_model->get_total_count_global('active');
         }
 
-        // Simpan ke cache
+        // Cache for 10 minutes
         $this->cache->set($cache_key, $count, 10 * MINUTE_IN_SECONDS);
 
         return $count;

@@ -1,5 +1,110 @@
 # TODO List for WP Agency Plugin
 
+
+## TODO-3098: Add User Static ID Hook ✅ COMPLETED
+
+**Status**: ✅ COMPLETED (2025-11-01)
+**Priority**: HIGH
+
+Add filter hooks sebelum wp_insert_user() di production code untuk allow static WordPress user ID injection. Enables demo data generation dengan predictable IDs, consistent dengan wp-customer TODO-2185. Implemented 10 hooks total (6 entity + 4 user) across wp-customer dan wp-agency.
+
+**Hooks Implemented**:
+- WordPress User: `wp_agency_agency_user_before_insert`, `wp_agency_employee_user_before_insert`
+- Entity: `wp_agency_before_insert`, `wp_agency_division_before_insert`, `wp_agency_employee_before_insert`
+
+**Changes**:
+- AgencyController v1.0.8 - Added user static ID hook (lines 708-795)
+- AgencyEmployeeController v1.0.8 - Added user static ID hook (lines 416-502)
+- AgencyModel v1.0.11 - Added entity static ID hook
+- DivisionModel v1.1.1 - Added entity static ID hook
+- AgencyEmployeeModel v1.4.1 - Added entity static ID hook
+
+**Testing**: test-user-static-id-hook.php, test-entity-static-id-hook.php, test-agency-static-id.php
+
+**Related**: wp-customer TODO-2185, wp-app-core TODO-1190
+
+---
+
+## TODO-3091: Fix Race Condition Permission Matrix ✅ COMPLETED
+
+**Status**: ✅ COMPLETED (2025-10-29)
+**Priority**: HIGH (CRITICAL BUG FIX)
+
+Critical race condition vulnerability antara tombol "Reset to Default" dan "Save Permission Changes". User bisa trigger kedua operasi bersamaan → data corruption. Solution: Page-level locking dengan cross-disable buttons, disable checkboxes, immediate reload (no 1.5s delay window).
+
+**Changes**: agency-permissions-tab-script.js v1.0.2 - Added lockPage/unlockPage methods, cross-disable protection
+
+**Related**: TODO-2182 (same fix for wp-customer)
+
+---
+
+## TODO-3090: Improve Permission Matrix Display ✅ COMPLETED
+
+**Status**: ✅ COMPLETED (Phase 1 & Review-01) (2025-10-29)
+**Priority**: MEDIUM
+
+Merubah pola matriks permission agar sama dengan wp-app-core: hanya tampilkan agency roles (bukan semua WordPress roles), tambah visual indicator (dashicons-building), improve section styling dengan header/reset/matrix sections. Review-01: Refactor PermissionModel.php untuk clean pattern, remove scope violation (wp_customer tab).
+
+**Changes**:
+- tab-permissions.php v1.1.0 - Filter only agency roles, add sections, skip base role 'agency'
+- PermissionModel v1.1.0 - Added getDefaultCapabilitiesForRole(), refactored addCapabilities/resetToDefault
+
+---
+
+## TODO-3089: Simplify Architecture - Remove TabViewTemplate ✅ COMPLETED
+
+**Status**: ✅ COMPLETED (All Phases: 1, 2, Hotfix, CSS Fix, StatsBox Fix, Phase 3) (2025-10-29)
+**Priority**: HIGH
+
+Architectural decision untuk remove TabViewTemplate class dari wp-app-core karena over-engineering. User insight: "no active users + still development" = bisa breaking changes untuk better architecture. Removed 1,158+ lines total.
+
+**Phases**:
+- Phase 1: Cleanup wp-agency (removed 'template' key)
+- Phase 2: Delete TabViewTemplate + NavigationTemplate
+- Hotfix: TabSystemTemplate support 2 patterns
+- CSS Fix: Add wpapp- prefix to statistics classes
+- StatsBox Fix: Remove filter-based rendering (dual mechanism)
+- Phase 3: Update documentation (TODO-1188, TODO-1186 marked OBSOLETE)
+
+**Philosophy**: "Simple > Abstraction when no active users exist"
+
+---
+
+## TODO-3088: Clarify Template Key Usage ✅ COMPLETED
+
+**Status**: ✅ COMPLETED (2025-10-29)
+**Priority**: LOW (Documentation only)
+
+Klarifikasi bahwa 'template' key di register_tabs() adalah untuk konvensi/backward compatibility saja, TIDAK digunakan oleh render_tab_contents(). User confused kenapa info.php "dipanggil 2 kali" - ternyata cuma metadata, actual inclusion hanya via hook.
+
+**Changes**: AgencyDashboardController docblock - Added NOTE explaining template key not used
+
+---
+
+## TODO-3087: Eliminate Duplicate Hooks ✅ COMPLETED
+
+**Status**: ✅ COMPLETED (2025-10-29)
+**Priority**: HIGH
+
+Menghapus duplikasi hook `wpapp_tab_view_after_content` yang ada di TabViewTemplate (wp-app-core) dan AgencyDashboardController. User request: "Kembalikan sebelum revisi terakhir" - simple solution dengan hapus duplikasi dari controller karena TabViewTemplate sudah provide.
+
+**Changes**:
+- AgencyDashboardController v1.3.0 - Removed duplicate hook
+- TabViewTemplate v1.2.0 - Removed (not used by implementations)
+
+---
+
+## TODO-3086: Hook Separation Pattern ✅ COMPLETED
+
+**Status**: ✅ COMPLETED (2025-10-29)
+**Priority**: HIGH
+
+Added `wpapp_tab_view_after_content` hook untuk memisahkan core content rendering dari extension content injection. Mengatasi masalah duplikasi konten dari wp-customer statistics yang muncul dua kali karena single hook digunakan untuk dua tujuan berbeda.
+
+**Changes**: AgencyDashboardController v1.1.0 - Added extension hook with per-tab hook registration pattern
+
+---
+
 ## TODO-3084: TabViewTemplate Architecture - Hook-Based Extensibility ✅ COMPLETED
 
 **Status**: ✅ COMPLETED (All 4 Phases Done)

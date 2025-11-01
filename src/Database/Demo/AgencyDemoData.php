@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Database/Demo
- * @version     1.0.7
+ * @version     1.0.8
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Database/Demo/AgencyDemoData.php
@@ -17,6 +17,13 @@
  *              - Division pusat inherit user dari agency (same user)
  *
  * Changelog:
+ * 1.0.8 - 2025-11-01 (FIX: Static Entity IDs via Hook)
+ * - CRITICAL FIX: Added filter hook to inject static agency IDs (1-10)
+ * - Now uses wp_agency_before_insert hook for static ID injection
+ * - Agencies created with predictable IDs matching AgencyUsersData (1-10)
+ * - Passes '_demo_entity_id' to hook for ID injection
+ * - Fixes inconsistency: defined IDs 1-10 but created with auto-increment
+ *
  * 2.2.0 - 2025-10-22 (FIX: Division Pusat Inherits Agency User)
  * - REVERTED: Division pusat now INHERITS user from agency (same user)
  * - Removed createDivisionPusatForDemo() method (no longer needed)
@@ -271,6 +278,15 @@ class AgencyDemoData extends AbstractDemoData {
     private function generateAgenciesViaRuntimeFlow(): void {
         $this->debug('Starting agency generation via runtime flow...');
 
+        // Add filter hook to inject static entity IDs for demo data
+        add_filter('wp_agency_before_insert', function($insert_data, $data) {
+            if (isset($data['_demo_entity_id'])) {
+                $insert_data['id'] = $data['_demo_entity_id'];
+                error_log("AgencyDemoData: Injecting static agency ID: {$insert_data['id']}");
+            }
+            return $insert_data;
+        }, 10, 2);
+
         $userGenerator = new WPUserGenerator();
         $generated_count = 0;
         $failed_count = 0;
@@ -311,7 +327,7 @@ class AgencyDemoData extends AbstractDemoData {
                     throw new \Exception("Invalid province-regency relationship");
                 }
 
-                // 4. Prepare agency data (NO fixed ID, let Model auto-generate)
+                // 4. Prepare agency data with static ID for demo data
                 $agency_data = [
                     'name' => $agency['name'],
                     'status' => 'active',
@@ -319,7 +335,8 @@ class AgencyDemoData extends AbstractDemoData {
                     'regency_code' => $regency_code,
                     'user_id' => $user_id,
                     'reg_type' => 'generate',  // Mark as demo data
-                    'created_by' => $user_id
+                    'created_by' => $user_id,
+                    '_demo_entity_id' => $agency['id']  // Pass static ID for hook injection
                 ];
 
                 // 5. Create agency via runtime flow
@@ -347,6 +364,9 @@ class AgencyDemoData extends AbstractDemoData {
         }
 
         $this->debug("Generation completed: {$generated_count} succeeded, {$failed_count} failed");
+
+        // Remove the filter hook after generation
+        remove_all_filters('wp_agency_before_insert', 10);
     }
 
     /**
