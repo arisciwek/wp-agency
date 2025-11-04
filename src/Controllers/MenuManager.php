@@ -57,15 +57,19 @@ class MenuManager {
             31
         );
 
-        // Register page hooks for wp-app-core assets (TODO-1182)
-        // DEPRECATED: This filter was for OLD panel-handler.js (now disabled)
-        // DataTableAssetsController now handles panel assets automatically
-        // Keeping filter for backward compatibility (does nothing if panel-handler disabled)
-        add_filter('wpapp_datatable_allowed_hooks', function($hooks) use ($agency_hook, $disnaker_hook) {
-            $hooks[] = $agency_hook;
-            $hooks[] = $disnaker_hook;
-            return $hooks;
-        });
+        // REMOVED (TODO-1192): Plug & Play Pattern Implementation
+        //
+        // Assets sekarang di-load OTOMATIS oleh DashboardTemplate::render()
+        // Plugin TIDAK PERLU register hooks ke core - ini adalah anti-pattern!
+        //
+        // Arsitektur yang benar:
+        // - wp-app-core = CONTAINER (menyediakan slot kosong)
+        // - wp-agency = PLUGIN (mengisi slot via hooks)
+        // - Container auto-detect usage dan load assets secara otomatis
+        //
+        // Prinsip: Plugin TIDAK boleh modifikasi core behavior
+        // OLD (BAD): add_filter('wpapp_datatable_allowed_hooks', ...)
+        // NEW (GOOD): Just call DashboardTemplate::render() - assets loaded automatically!
 
         // Submenu Settings - tetap menggunakan manage_options untuk admin only
         add_submenu_page(

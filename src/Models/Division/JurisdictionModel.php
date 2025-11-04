@@ -69,11 +69,22 @@ class JurisdictionModel {
                 // Debug logging: Log each jurisdiction being processed
                 error_log('DEBUG JURISDICTION MODEL: Processing jurisdiction: ' . $regency_code . ', is_primary: ' . $is_primary);
 
+                // Convert regency_code to regency_id
+                $regency_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM {$wpdb->prefix}wi_regencies WHERE code = %s",
+                    $regency_code
+                ));
+
+                if (!$regency_id) {
+                    error_log('DEBUG JURISDICTION MODEL: Regency code ' . $regency_code . ' not found, skipping');
+                    continue;
+                }
+
                 // Skip if already exists for this division
                 $exists = $wpdb->get_var($wpdb->prepare(
                     "SELECT id FROM {$wpdb->prefix}app_agency_jurisdictions
-                     WHERE division_id = %d AND jurisdiction_code = %s",
-                    $division_id, $regency_code
+                     WHERE division_id = %d AND jurisdiction_regency_id = %d",
+                    $division_id, $regency_id
                 ));
 
                 if ($exists) {
@@ -81,14 +92,14 @@ class JurisdictionModel {
                     continue;
                 }
 
-                // Check if jurisdiction_code is already assigned to another division in the same agency
+                // Check if jurisdiction_regency_id is already assigned to another division in the same agency
                 $regency_exists = $wpdb->get_var($wpdb->prepare(
                     "SELECT aj.id FROM {$wpdb->prefix}app_agency_jurisdictions aj
                      JOIN {$wpdb->prefix}app_agency_divisions d ON aj.division_id = d.id
-                     WHERE aj.jurisdiction_code = %s AND d.agency_id = (
+                     WHERE aj.jurisdiction_regency_id = %d AND d.agency_id = (
                          SELECT agency_id FROM {$wpdb->prefix}app_agency_divisions WHERE id = %d
                      )",
-                    $regency_code, $division_id
+                    $regency_id, $division_id
                 ));
 
                 if ($regency_exists) {
@@ -100,13 +111,13 @@ class JurisdictionModel {
                     $table,
                     [
                         'division_id' => $division_id,
-                        'jurisdiction_code' => $regency_code,
+                        'jurisdiction_regency_id' => $regency_id,
                         'is_primary' => $is_primary,
                         'created_by' => $current_user_id,
                         'created_at' => current_time('mysql'),
                         'updated_at' => current_time('mysql')
                     ],
-                    ['%d', '%s', '%d', '%d', '%s', '%s']
+                    ['%d', '%d', '%d', '%d', '%s', '%s']
                 );
 
                 if ($result === false) {
@@ -151,9 +162,9 @@ class JurisdictionModel {
         }
 
         $query = $wpdb->prepare("
-            SELECT j.*, r.id as regency_id, r.name as regency_name, r.province_id
+            SELECT j.*, r.id as regency_id, r.name as regency_name, r.code as regency_code, r.province_id
             FROM {$wpdb->prefix}app_agency_jurisdictions j
-            LEFT JOIN {$wpdb->prefix}wi_regencies r ON j.jurisdiction_code = r.code
+            LEFT JOIN {$wpdb->prefix}wi_regencies r ON j.jurisdiction_regency_id = r.id
             WHERE j.division_id = %d
             ORDER BY r.name ASC
         ", $division_id);
@@ -209,7 +220,7 @@ class JurisdictionModel {
             SELECT r.id, r.code, r.name, p.name as province_name
             FROM {$wpdb->prefix}wi_regencies r
             JOIN {$wpdb->prefix}wi_provinces p ON p.id = r.province_id AND p.code = %s
-            LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_code = r.code
+            LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_regency_id = r.id
             LEFT JOIN {$wpdb->prefix}app_agency_divisions d ON aj.division_id = d.id AND d.agency_id = %d";
         $params = [$filter_province, $agency_id];
 
@@ -220,7 +231,7 @@ class JurisdictionModel {
         }
 
         $query .= "
-            WHERE aj.jurisdiction_code IS NULL
+            WHERE aj.jurisdiction_regency_id IS NULL
             ORDER BY r.code ASC";
 
         error_log("DEBUG MODEL: Query: " . $wpdb->prepare($query, $params));

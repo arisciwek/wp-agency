@@ -619,7 +619,7 @@ class DivisionController {
                     $assigned_jurisdictions = $wpdb->get_results($wpdb->prepare(
                         "SELECT r.id, r.code, r.name, aj.is_primary
                          FROM {$wpdb->prefix}wi_regencies r
-                         INNER JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_code = r.code AND aj.division_id = %d
+                         INNER JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_regency_id = r.id AND aj.division_id = %d
                          WHERE r.province_id = %d
                          ORDER BY r.name ASC",
                         $id, $province_id
@@ -628,7 +628,7 @@ class DivisionController {
                     $available_jurisdictions = $wpdb->get_results($wpdb->prepare(
                         "SELECT r.id, r.code, r.name
                          FROM {$wpdb->prefix}wi_regencies r
-                         LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_code = r.code
+                         LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_regency_id = r.id
                          WHERE r.province_id = %d AND aj.id IS NULL
                          ORDER BY r.name ASC",
                         $province_id
@@ -644,9 +644,9 @@ class DivisionController {
                                 $wpdb->update(
                                     $wpdb->prefix . 'app_agency_jurisdictions',
                                     ['is_primary' => 1],
-                                    ['division_id' => $id, 'jurisdiction_code' => $jur->code],
+                                    ['division_id' => $id, 'jurisdiction_regency_id' => $jur->id],
                                     ['%d'],
-                                    ['%d', '%s']
+                                    ['%d', '%d']
                                 );
                                 break; // Only one primary per division
                             }
@@ -1072,18 +1072,18 @@ class DivisionController {
 
             // Get regencies for the province that are not assigned as jurisdiction in any division of the province
             $regencies = $wpdb->get_results($wpdb->prepare("
-                SELECT r.id, r.name
+                SELECT r.id, r.name, r.code
                 FROM {$wpdb->prefix}wi_regencies r
                 JOIN {$wpdb->prefix}wi_provinces p ON r.province_id = p.id
                 WHERE p.code = %s
-                  AND r.code NOT IN (
-                    SELECT j.jurisdiction_code
+                  AND r.id NOT IN (
+                    SELECT j.jurisdiction_regency_id
                     FROM {$wpdb->prefix}app_agency_jurisdictions j
                     JOIN {$wpdb->prefix}app_agency_divisions d ON j.division_id = d.id
-                    WHERE d.provinsi_code = %s
+                    WHERE d.province_id = p.id
                   )
                 ORDER BY r.name ASC
-            ", $province_code, $province_code));
+            ", $province_code));
 
             // Debug: Log the results
             $this->debug_log('DEBUG getAvailableRegenciesForDivisionCreation: Found ' . count($regencies) . ' available regencies');

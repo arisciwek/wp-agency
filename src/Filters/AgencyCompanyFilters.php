@@ -100,24 +100,16 @@ class CompanyFilters {
         // Check division admin (regency_id sama)
         $is_division_admin = false;
         if (!empty($branch_data->regency_id)) {
-            // Get regency code
-            $regency_code = $wpdb->get_var($wpdb->prepare(
-                "SELECT code FROM {$wpdb->prefix}wi_regencies WHERE id = %d",
+            // Check via jurisdiction using jurisdiction_regency_id directly
+            $division_admin_check = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(DISTINCT d.id)
+                 FROM {$wpdb->prefix}app_agency_divisions d
+                 INNER JOIN {$wpdb->prefix}app_agency_jurisdictions j ON d.id = j.division_id
+                 WHERE d.user_id = %d AND j.jurisdiction_regency_id = %d",
+                $user_id,
                 $branch_data->regency_id
             ));
-
-            if ($regency_code) {
-                // Check via jurisdiction
-                $division_admin_check = $wpdb->get_var($wpdb->prepare(
-                    "SELECT COUNT(DISTINCT d.id) 
-                     FROM {$wpdb->prefix}app_agency_divisions d
-                     INNER JOIN {$wpdb->prefix}app_agency_jurisdictions j ON d.id = j.division_id
-                     WHERE d.user_id = %d AND j.jurisdiction_code = %s",
-                    $user_id,
-                    $regency_code
-                ));
-                $is_division_admin = ($division_admin_check > 0);
-            }
+            $is_division_admin = ($division_admin_check > 0);
         }
 
         // Check inspector (inspector_id sama dengan user_id)

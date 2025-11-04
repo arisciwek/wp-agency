@@ -21,15 +21,22 @@
  * - app_agency_employees     : Data karyawan agency
  *
  * Changelog:
+ * 1.2.0 - 2025-01-04 (TODO-4014)
+ * - Added foreign key constraints to wilayah-indonesia tables
+ * - Added add_wilayah_foreign_keys() method
+ * - Added FK for agencies → provinces/regencies
+ * - Added FK for divisions → provinces/regencies
+ * - Added FK for jurisdictions → regencies
+ *
  * 1.1.0 - 2025-02-27
  * - Perbaikan metode instalasi untuk mendukung foreign keys
  * - Memisahkan pembuatan tabel dan penambahan foreign key
  * - Penanganan error dan rollback transaction
  * - Tambahan verifikasi tabel setelah instalasi
- * 
+ *
  * 1.0.1 - 2025-02-14
  * - Peningkatan penanganan error
- * 
+ *
  * 1.0.0 - 2025-01-07
  * - Versi awal
  * - Instalasi tabel dasar
@@ -102,13 +109,27 @@ class Installer {
             // Tambahkan foreign key constraints setelah semua tabel dibuat
             self::debug("Adding foreign key constraints...");
 
-            // Tambahkan foreign keys untuk Agency Jurisdictions
+            // Tambahkan foreign keys untuk Agencies
+            if (method_exists(Tables\AgencysDB::class, 'add_foreign_keys')) {
+                self::debug("Adding Agencies FK...");
+                Tables\AgencysDB::add_foreign_keys();
+            }
+
+            // Tambahkan foreign keys untuk Divisions
+            if (method_exists(Tables\DivisionsDB::class, 'add_foreign_keys')) {
+                self::debug("Adding Divisions FK...");
+                Tables\DivisionsDB::add_foreign_keys();
+            }
+
+            // Tambahkan foreign keys untuk Jurisdictions
             if (method_exists(Tables\JurisdictionDB::class, 'add_foreign_keys')) {
+                self::debug("Adding Jurisdictions FK...");
                 Tables\JurisdictionDB::add_foreign_keys();
             }
 
             // Tambahkan foreign keys untuk AgencyEmployees
             if (method_exists(Tables\AgencyEmployeesDB::class, 'add_foreign_keys')) {
+                self::debug("Adding Employees FK...");
                 Tables\AgencyEmployeesDB::add_foreign_keys();
             }
 

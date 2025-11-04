@@ -811,7 +811,7 @@ class AgencyEmployeeModel {
                     MAX(d.code) AS division_code,
                     MAX(d.name) AS division_name,
                     MAX(d.type) AS division_type,
-                    GROUP_CONCAT(j.jurisdiction_code SEPARATOR ',') AS jurisdiction_codes,
+                    GROUP_CONCAT(wr.code SEPARATOR ',') AS jurisdiction_codes,
                     MAX(j.is_primary) AS is_primary_jurisdiction,
                     MAX(a.code) AS agency_code,
                     MAX(a.name) AS agency_name,
@@ -823,6 +823,8 @@ class AgencyEmployeeModel {
                     {$wpdb->prefix}app_agency_divisions d ON e.division_id = d.id
                 INNER JOIN
                     {$wpdb->prefix}app_agency_jurisdictions j ON d.id = j.division_id
+                INNER JOIN
+                    {$wpdb->prefix}wi_regencies wr ON j.jurisdiction_regency_id = wr.id
                 INNER JOIN
                     {$wpdb->prefix}app_agencies a ON e.agency_id = a.id
                 INNER JOIN

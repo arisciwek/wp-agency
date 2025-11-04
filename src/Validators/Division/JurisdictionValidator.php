@@ -53,34 +53,34 @@ class JurisdictionValidator {
             return ['valid' => true];
         }
 
-        // Convert IDs to codes if needed
-        $jurisdiction_codes = $jurisdiction_ids_or_codes;
-        if (!$is_codes) {
-            // Convert IDs to codes
-            $placeholders = str_repeat('%d,', count($jurisdiction_ids_or_codes) - 1) . '%d';
+        // Convert codes to IDs if needed
+        $jurisdiction_ids = $jurisdiction_ids_or_codes;
+        if ($is_codes) {
+            // Convert codes to IDs
+            $placeholders = str_repeat('%s,', count($jurisdiction_ids_or_codes) - 1) . '%s';
             $query = $wpdb->prepare("
-                SELECT code FROM {$wpdb->prefix}wi_regencies
-                WHERE id IN ($placeholders)
+                SELECT id FROM {$wpdb->prefix}wi_regencies
+                WHERE code IN ($placeholders)
             ", $jurisdiction_ids_or_codes);
 
             // Debug logging: Log conversion query
             error_log('DEBUG JURISDICTION VALIDATOR: Conversion query: ' . $query);
 
-            $codes_result = $wpdb->get_col($query);
-            if (count($codes_result) !== count($jurisdiction_ids_or_codes)) {
+            $ids_result = $wpdb->get_col($query);
+            if (count($ids_result) !== count($jurisdiction_ids_or_codes)) {
                 return [
                     'valid' => false,
                     'message' => 'Beberapa wilayah yang dipilih tidak valid.'
                 ];
             }
-            $jurisdiction_codes = $codes_result;
+            $jurisdiction_ids = $ids_result;
 
-            // Debug logging: Log converted codes
-            error_log('DEBUG JURISDICTION VALIDATOR: Converted codes: ' . print_r($jurisdiction_codes, true));
+            // Debug logging: Log converted IDs
+            error_log('DEBUG JURISDICTION VALIDATOR: Converted IDs: ' . print_r($jurisdiction_ids, true));
         }
 
         // Create cache key
-        $cache_key = 'jurisdiction_assignment_validation_' . $agency_id . '_' . md5(implode(',', $jurisdiction_codes));
+        $cache_key = 'jurisdiction_assignment_validation_' . $agency_id . '_' . md5(implode(',', $jurisdiction_ids));
         if ($exclude_division_id) {
             $cache_key .= '_exclude_' . $exclude_division_id;
         }
@@ -92,8 +92,8 @@ class JurisdictionValidator {
         }
 
         // Build query to check for conflicts
-        $placeholders = str_repeat('%s,', count($jurisdiction_codes) - 1) . '%s';
-        $params = $jurisdiction_codes;
+        $placeholders = str_repeat('%d,', count($jurisdiction_ids) - 1) . '%d';
+        $params = $jurisdiction_ids;
         $params[] = $agency_id;
 
         $exclude_condition = "";
@@ -103,10 +103,11 @@ class JurisdictionValidator {
         }
 
         $query = $wpdb->prepare("
-            SELECT aj.jurisdiction_code, d.name as division_name, d.code as division_code
+            SELECT wr.code as regency_code, d.name as division_name, d.code as division_code
             FROM {$wpdb->prefix}app_agency_jurisdictions aj
             JOIN {$wpdb->prefix}app_agency_divisions d ON aj.division_id = d.id
-            WHERE aj.jurisdiction_code IN ($placeholders)
+            JOIN {$wpdb->prefix}wi_regencies wr ON aj.jurisdiction_regency_id = wr.id
+            WHERE aj.jurisdiction_regency_id IN ($placeholders)
             AND d.agency_id = %d
             $exclude_condition
             LIMIT 1

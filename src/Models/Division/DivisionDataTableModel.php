@@ -112,7 +112,7 @@ class DivisionDataTableModel extends DataTableModel {
 
         return [
             "LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions j ON d.id = j.division_id",
-            "LEFT JOIN {$wpdb->prefix}wi_regencies wr ON j.jurisdiction_code = wr.code"
+            "LEFT JOIN {$wpdb->prefix}wi_regencies wr ON j.jurisdiction_regency_id = wr.id"
         ];
     }
 

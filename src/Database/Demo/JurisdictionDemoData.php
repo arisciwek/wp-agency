@@ -23,11 +23,11 @@
  *
  * Database Design:
  * - app_jurisdictions
- *   * id             : Primary key
- *   * division_id    : Foreign key ke app_agency_divisions
- *   * jurisdiction_code   : Code ke wi_regencies
- *   * is_primary     : 1 jika regency utama (tidak dapat dipindah)
- *   * created_by     : User ID pembuat
+ *   * id                       : Primary key
+ *   * division_id              : Foreign key ke app_agency_divisions
+ *   * jurisdiction_regency_id  : Foreign key ke wi_regencies (wilayah kerja)
+ *   * is_primary               : 1 jika regency utama (tidak dapat dipindah)
+ *   * created_by               : User ID pembuat
  *
  * Usage Example:
  * ```php
@@ -319,11 +319,22 @@ class JurisdictionDemoData extends AbstractDemoData {
         foreach ($jurisdiction_codes as $jurisdiction_code) {
             $is_primary = ($jurisdiction_code == $primary_jurisdiction_code) ? 1 : 0;
 
+            // Convert regency_code to regency_id
+            $regency_id = $this->wpdb->get_var($this->wpdb->prepare(
+                "SELECT id FROM {$this->wpdb->prefix}wi_regencies WHERE code = %s",
+                $jurisdiction_code
+            ));
+
+            if (!$regency_id) {
+                $this->debug("Regency code {$jurisdiction_code} not found, skipping");
+                continue;
+            }
+
             // Skip if already exists for this division
             $exists = $this->wpdb->get_var($this->wpdb->prepare(
                 "SELECT id FROM {$this->wpdb->prefix}app_agency_jurisdictions
-                 WHERE division_id = %d AND jurisdiction_code = %s",
-                $division->id, $jurisdiction_code
+                 WHERE division_id = %d AND jurisdiction_regency_id = %d",
+                $division->id, $regency_id
             ));
 
             if ($exists) {
@@ -331,11 +342,11 @@ class JurisdictionDemoData extends AbstractDemoData {
                 continue;
             }
 
-            // Check if jurisdiction_code is already assigned to another division
+            // Check if jurisdiction_regency_id is already assigned to another division
             $regency_exists = $this->wpdb->get_var($this->wpdb->prepare(
                 "SELECT id FROM {$this->wpdb->prefix}app_agency_jurisdictions
-                 WHERE jurisdiction_code = %s",
-                $jurisdiction_code
+                 WHERE jurisdiction_regency_id = %d",
+                $regency_id
             ));
 
             if ($regency_exists) {
@@ -347,11 +358,11 @@ class JurisdictionDemoData extends AbstractDemoData {
                 $this->wpdb->prefix . 'app_agency_jurisdictions',
                 [
                     'division_id' => $division->id,
-                    'jurisdiction_code' => $jurisdiction_code,
+                    'jurisdiction_regency_id' => $regency_id,
                     'is_primary' => $is_primary,
                     'created_by' => $created_by
                 ],
-                ['%d', '%s', '%d', '%d']
+                ['%d', '%d', '%d', '%d']
             );
 
             if ($result === false) {
