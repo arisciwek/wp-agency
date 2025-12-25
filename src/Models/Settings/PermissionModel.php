@@ -306,6 +306,21 @@ class PermissionModel {
                 error_log('[AgencyPermissionModel] Saving modified roles to database');
                 $updated = update_option($wpdb->prefix . 'user_roles', $roles);
                 error_log('[AgencyPermissionModel] Database update result: ' . ($updated ? 'SUCCESS' : 'NO CHANGE'));
+
+                // CRITICAL: Clear WordPress capability caches
+                // Without this, users will still have old cached capabilities
+                wp_cache_flush();
+                error_log('[AgencyPermissionModel] Cleared WordPress cache');
+
+                // Clear capability cache for all users with agency roles
+                $agency_role_slugs = \WP_Agency_Role_Manager::getRoleSlugs();
+                foreach ($agency_role_slugs as $role_slug) {
+                    $users = get_users(['role' => $role_slug, 'fields' => 'ID']);
+                    foreach ($users as $user_id) {
+                        clean_user_cache($user_id);
+                    }
+                }
+                error_log('[AgencyPermissionModel] Cleared user capability caches for agency roles');
             }
 
             error_log('[AgencyPermissionModel] All roles processed successfully');
@@ -385,13 +400,11 @@ class PermissionModel {
                 // Only has 'read' for wp-admin access
             ],
             'agency_admin_dinas' => [
-                'read' => true,
                 // Disnaker capabilities - Full access
                 'view_agency_list' => true,
                 'view_agency_detail' => true,
                 'view_own_agency' => true,
                 'add_agency' => true,
-                'edit_all_agencies' => true,
                 'edit_own_agency' => true,
                 'delete_agency' => false,  // Restricted
 
@@ -422,7 +435,6 @@ class PermissionModel {
                 'view_customer_employee_detail' => true,
             ],
             'agency_admin_unit' => [
-                'read' => true,
                 // Disnaker capabilities - View only
                 'view_agency_list' => true,
                 'view_agency_detail' => true,
@@ -455,7 +467,6 @@ class PermissionModel {
                 'view_customer_employee_detail' => true,
             ],
             'agency_kepala_dinas' => [
-                'read' => true,
                 // Disnaker capabilities - View and manage
                 'view_agency_list' => true,
                 'view_agency_detail' => true,
@@ -481,7 +492,6 @@ class PermissionModel {
                 'view_customer_employee_detail' => true,
             ],
             'agency_kepala_bidang' => [
-                'read' => true,
                 // Disnaker capabilities - View only
                 'view_agency_list' => true,
                 'view_agency_detail' => true,
@@ -506,7 +516,6 @@ class PermissionModel {
                 'view_customer_employee_detail' => true,
             ],
             'agency_kepala_seksi' => [
-                'read' => true,
                 // Disnaker capabilities - View only
                 'view_agency_list' => true,
                 'view_agency_detail' => true,
@@ -531,7 +540,6 @@ class PermissionModel {
                 'view_customer_employee_detail' => true,
             ],
             'agency_kepala_unit' => [
-                'read' => true,
                 // Disnaker capabilities - View only
                 'view_agency_list' => true,
                 'view_agency_detail' => true,
@@ -556,7 +564,6 @@ class PermissionModel {
                 'view_customer_employee_detail' => true,
             ],
             'agency_pengawas' => [
-                'read' => true,
                 // Disnaker capabilities - View only
                 'view_agency_list' => true,
                 'view_agency_detail' => true,
@@ -581,7 +588,6 @@ class PermissionModel {
                 'view_customer_employee_detail' => true,
             ],
             'agency_pengawas_spesialis' => [
-                'read' => true,
                 // Disnaker capabilities - View only
                 'view_agency_list' => true,
                 'view_agency_detail' => true,

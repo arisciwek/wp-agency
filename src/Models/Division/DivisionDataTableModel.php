@@ -193,6 +193,20 @@ class DivisionDataTableModel extends DataTableModel {
             $where_conditions[] = "d.status = 'active'";
         }
 
+        /**
+         * Filter: Allow modification of WHERE conditions
+         *
+         * Used by:
+         * - DivisionAccessFilter: Role-based filtering
+         * - DataTableAccessFilter: Generic entity filtering
+         *
+         * @param array $where WHERE conditions
+         * @param array $request_data Request data
+         * @param object $model Current model instance
+         * @return array Modified WHERE conditions
+         */
+        $where_conditions = apply_filters('wpdt_datatable_divisions_where', $where_conditions, $request_data, $model);
+
         error_log('[DivisionDataTableModel] Final WHERE conditions: ' . print_r($where_conditions, true));
         return $where_conditions;
     }

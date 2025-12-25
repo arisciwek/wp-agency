@@ -60,25 +60,37 @@ class AgencyDataTableModel extends DataTableModel {
         parent::__construct();
 
         global $wpdb;
-        $current_user_id = get_current_user_id();
 
-        $this->table = $wpdb->prefix . 'app_agencies a';  // Include alias 'a' for columns
+        $this->table = $wpdb->prefix . 'app_agencies a';
         $this->index_column = 'a.id';
 
-        // Define searchable columns for global search
+        // Set base WHERE - parent will apply wpdt_datatable_agencies_where filter to this
+        $status_filter = isset($_POST['status_filter'])
+            ? sanitize_text_field($_POST['status_filter'])
+            : 'active';
+
+        if (!current_user_can('delete_agency')) {
+            $status_filter = 'active';
+        }
+
+        if ($status_filter !== 'all') {
+            $this->base_where = [$wpdb->prepare('a.status = %s', $status_filter)];
+        } else {
+            $this->base_where = [];
+        }
+
+        // Define searchable columns
         $this->searchable_columns = [
             'a.code',
             'a.name',
-            'p.name',  // province name
-            'r.name'   // regency name
+            'p.name',
+            'r.name'
         ];
 
-        // Define base JOINs for location data + permission filtering
+        // Define base JOINs
         $this->base_joins = [
             'LEFT JOIN ' . $wpdb->prefix . 'wi_provinces p ON a.province_id = p.id',
-            'LEFT JOIN ' . $wpdb->prefix . 'wi_regencies r ON a.regency_id = r.id',
-            // Employee JOIN for permission filtering (used in get_where)
-            'LEFT JOIN ' . $wpdb->prefix . 'app_agency_employees ae ON a.id = ae.agency_id AND ae.user_id = ' . $current_user_id . ' AND ae.status = "active"'
+            'LEFT JOIN ' . $wpdb->prefix . 'wi_regencies r ON a.regency_id = r.id'
         ];
     }
 
@@ -155,63 +167,6 @@ class AgencyDataTableModel extends DataTableModel {
      *
      * @return array WHERE conditions
      */
-    public function get_where(): array {
-        global $wpdb;
-        $where = []; // Initialize (parent class doesn't have get_where method)
-        $current_user_id = get_current_user_id();
-
-        // 1. Status filter (soft delete aware)
-        $status_filter = isset($_POST['status_filter']) ? sanitize_text_field($_POST['status_filter']) : 'active';
-
-        // Force active filter if user doesn't have delete_agency permission
-        if (!current_user_can('delete_agency')) {
-            $status_filter = 'active';
-        }
-
-        if ($status_filter !== 'all') {
-            $where[] = $wpdb->prepare('a.status = %s', $status_filter);
-        }
-
-        // 2. Permission-based filtering (core security logic)
-        error_log('[AgencyDataTableModel] Building permission WHERE clause for user: ' . $current_user_id);
-
-        if (current_user_can('edit_all_agencies')) {
-            // Admin: No additional restrictions
-            error_log('[AgencyDataTableModel] User has edit_all_agencies - no restrictions');
-        } else {
-            // Check user relationship with agencies
-            $has_agency = (int) $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}app_agencies WHERE user_id = %d",
-                $current_user_id
-            ));
-
-            $employee_table = $wpdb->prefix . 'app_agency_employees';
-            $is_employee = (int) $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$employee_table} WHERE user_id = %d AND status = 'active'",
-                $current_user_id
-            ));
-
-            error_log('[AgencyDataTableModel] User has_agency: ' . $has_agency . ', is_employee: ' . $is_employee);
-
-            if (($has_agency > 0 || $is_employee > 0) && current_user_can('view_own_agency')) {
-                // User owns agency OR is employee: filter by owner OR employee
-                // Add LEFT JOIN to employee table - IMPORTANT: Add to base_joins instead!
-                // This will be handled in __construct by adding to $this->base_joins
-                $where[] = $wpdb->prepare("(a.user_id = %d OR ae.user_id IS NOT NULL)", $current_user_id);
-                error_log('[AgencyDataTableModel] Added owner OR employee restriction');
-            } elseif (!current_user_can('view_agency_list')) {
-                // No access at all
-                $where[] = "1=0";
-                error_log('[AgencyDataTableModel] User has no access - blocking all results');
-            } else {
-                // Has view_agency_list but no direct relationship
-                // Allow hook-based filtering (wp-customer integration)
-                error_log('[AgencyDataTableModel] User has view_agency_list - allowing hook-based filtering');
-            }
-        }
-
-        return $where;
-    }
 
     /**
      * Format status badge with color coding
@@ -317,43 +272,41 @@ class AgencyDataTableModel extends DataTableModel {
      * @param string $status_filter Status to filter (active/inactive/all)
      * @return int Total count
      */
+    /**
+     * Get total count with permission filtering
+     *
+     * Pattern from wp-customer CustomerDataTableModel
+     * Applies wpapp_datatable_agencies_where filter for role-based access
+     *
+     * @param string $status_filter Status to filter (active/inactive/all)
+     * @return int Total count
+     */
     public function get_total_count(string $status_filter = 'active'): int {
         global $wpdb;
 
-        // Prepare minimal request data for counting
-        $request_data = [
-            'start' => 0,
-            'length' => 1,
-            'search' => ['value' => ''],
-            'order' => [['column' => 0, 'dir' => 'asc']],
-            'status_filter' => $status_filter
-        ];
+        // Build base WHERE conditions
+        $where_conditions = [];
 
-        // Temporarily set POST for get_where() method
-        $original_post = $_POST;
-        $_POST['status_filter'] = $status_filter;
-
-        // Build WHERE conditions (includes permission filtering)
-        $where_conditions = $this->get_where();
+        if ($status_filter !== 'all') {
+            $where_conditions[] = $wpdb->prepare('a.status = %s', $status_filter);
+        }
 
         /**
-         * CRITICAL: Apply cross-plugin filter (wp-customer integration)
+         * CRITICAL: Apply role-based filter hook
          *
-         * This filter allows wp-customer's AgencyAccessFilter to add
-         * additional WHERE conditions for customer_admin users.
+         * This hook allows:
+         * - AgencyRoleFilter to filter by user's assigned agency
+         * - DataTableAccessFilter for generic entity filtering
+         * - AgencyAccessFilter (wp-customer) for cross-plugin integration
          *
-         * Without this, customer_admin would see ALL agencies instead of
-         * only agencies related to their branches.
+         * Same hook used by DataTable for consistency
          */
         $where_conditions = apply_filters(
-            'wpapp_datatable_app_agencies_where',
+            'wpapp_datatable_agencies_where',
             $where_conditions,
-            $request_data,
+            ['status_filter' => $status_filter],
             $this
         );
-
-        // Restore original POST
-        $_POST = $original_post;
 
         // Build count query
         $where_sql = '';
@@ -361,13 +314,9 @@ class AgencyDataTableModel extends DataTableModel {
             $where_sql = ' WHERE ' . implode(' AND ', $where_conditions);
         }
 
-        // Use DISTINCT COUNT
         $count_sql = "SELECT COUNT(DISTINCT a.id) as total
                       FROM {$this->table}
-                      " . implode(' ', $this->base_joins) . "
                       {$where_sql}";
-
-        error_log('[AgencyDataTableModel::get_total_count] Query: ' . $count_sql);
 
         return (int) $wpdb->get_var($count_sql);
     }

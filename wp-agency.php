@@ -137,6 +137,9 @@ class WPAgency {
         // Initialize controllers
         $this->initControllers();
 
+        // Initialize role-based filtering (wpdt_ pattern)
+        $this->initFilters();
+
         // Initialize other hooks
         $init_hooks = new WP_Agency_Init_Hooks();
         $init_hooks->init();
@@ -172,6 +175,11 @@ class WPAgency {
 
         // Custom role names for wp-agency roles
         add_filter('wp_app_core_role_display_name', [$this, 'get_role_display_name'], 10, 2);
+
+        // DEBUG: Log DataTable queries (development only)
+        if (WP_AGENCY_DEVELOPMENT || (defined('WP_DEBUG') && WP_DEBUG)) {
+            add_filter('query', [$this, 'log_datatable_queries']);
+        }
     }
 
     /**
@@ -254,6 +262,34 @@ class WPAgency {
     }
 
     /**
+     * Initialize role-based filtering classes
+     *
+     * Implements wp-customer pattern for DataTable filtering.
+     * Uses wpdt_ prefix for wp-datatable framework.
+     *
+     * Filters initialized:
+     * - DataTableAccessFilter: Generic framework for all entities
+     * - AgencyRoleFilter: Agency DataTable filtering
+     * - DivisionAccessFilter: Division DataTable filtering
+     * - EmployeeAccessFilter: Employee DataTable filtering
+     *
+     * @since 1.0.0
+     */
+    private function initFilters() {
+        // 1. Generic DataTable Access Filter (framework)
+        new \WPAgency\Controllers\Integration\DataTableAccessFilter();
+
+        // 2. Agency Role Filter (specific implementation)
+        new \WPAgency\Integrations\AgencyRoleFilter();
+
+        // 3. Division Access Filter
+        new \WPAgency\Integrations\DivisionAccessFilter();
+
+        // 4. Employee Access Filter
+        new \WPAgency\Integrations\EmployeeAccessFilter();
+    }
+
+    /**
      * Provide entity data for wp-app-core admin bar (v2.0 simplified integration)
      *
      * wp-app-core queries WordPress user, roles, and permissions
@@ -302,6 +338,37 @@ class WPAgency {
      */
     public function get_role_display_name($name, $slug) {
         return WP_Agency_Role_Manager::getRoleName($slug) ?? $name;
+    }
+
+    /**
+     * Log DataTable queries for debugging
+     *
+     * @param string $query SQL query
+     * @return string Unmodified query
+     */
+    public function log_datatable_queries($query) {
+        // Only log SELECT queries on agency tables during AJAX requests
+        if (
+            wp_doing_ajax() &&
+            strpos($query, 'app_agencies') !== false &&
+            strpos($query, 'SELECT') === 0
+        ) {
+            $user = wp_get_current_user();
+            $user_info = sprintf(
+                'User: %s (ID: %d, Roles: %s)',
+                $user->user_login,
+                $user->ID,
+                implode(', ', $user->roles)
+            );
+
+            error_log('[WP_Agency] ========================================');
+            error_log('[WP_Agency] ' . $user_info);
+            error_log('[WP_Agency] DATATABLE QUERY:');
+            error_log('[WP_Agency] ' . $query);
+            error_log('[WP_Agency] ========================================');
+        }
+
+        return $query;
     }
 
     /**

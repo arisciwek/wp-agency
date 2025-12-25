@@ -84,7 +84,7 @@ class EmployeeDataTableModel extends DataTableModel {
         $this->base_where = [];
 
         // Register WHERE filter to apply agency_id and status filters
-        add_filter('wpapp_datatable_agency_employees_where', [$this, 'apply_filters_to_where'], 5, 3);
+        add_filter('wpdt_datatable_agency_employees_where', [$this, 'apply_filters_to_where'], 5, 3);
     }
 
     /**
@@ -126,8 +126,8 @@ class EmployeeDataTableModel extends DataTableModel {
     /**
      * Apply WHERE filters via hook
      *
-     * This method is called by wpapp_datatable_app_agency_employees_where filter (priority 5).
-     * It applies agency_id and status filters BEFORE cross-plugin integrations (priority 10).
+     * This method is called by wpdt_datatable_agency_employees_where filter (priority 5).
+     * It applies agency_id and status filters BEFORE role-based filtering (priority 10).
      *
      * @param array $where Existing WHERE conditions
      * @param array $request Request data

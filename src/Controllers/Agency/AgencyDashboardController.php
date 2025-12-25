@@ -288,33 +288,14 @@ class AgencyDashboardController {
             return;
         }
 
-        // Get stats directly from database
-        global $wpdb;
-        $table = $wpdb->prefix . 'app_agencies';
+        // Use DataTableModel for consistent filtering (same as DataTable & wp-customer pattern)
+        $model = new \WPAgency\Models\Agency\AgencyDataTableModel();
 
-        /**
-         * Filter: Allow filtering statistics WHERE clause
-         *
-         * Enables access control for statistics (e.g., customer employees only see accessible agencies)
-         *
-         * @param array $where WHERE conditions
-         * @param string $context Statistics context (total, active, inactive)
-         * @return array Modified WHERE conditions
-         *
-         * @since 1.0.0
-         */
-        $where_total = apply_filters('wpdt_agency_statistics_where', [], 'total');
-        $where_active = apply_filters('wpdt_agency_statistics_where', ['status' => 'active'], 'active');
-        $where_inactive = apply_filters('wpdt_agency_statistics_where', ['status' => 'inactive'], 'inactive');
-
-        // Build WHERE clause
-        $where_total_sql = $this->build_where_clause($where_total);
-        $where_active_sql = $this->build_where_clause($where_active);
-        $where_inactive_sql = $this->build_where_clause($where_inactive);
-
-        $total = $wpdb->get_var("SELECT COUNT(*) FROM {$table} {$where_total_sql}");
-        $active = $wpdb->get_var("SELECT COUNT(*) FROM {$table} {$where_active_sql}");
-        $inactive = $wpdb->get_var("SELECT COUNT(*) FROM {$table} {$where_inactive_sql}");
+        // Get filtered counts using model method
+        // This applies wpapp_datatable_agencies_where filter automatically
+        $total = $model->get_total_count('all');
+        $active = $model->get_total_count('active');
+        $inactive = $model->get_total_count('inactive');
 
         // Render using partial template (context: 'agency' not 'tab')
         $this->render_partial('stat-cards', compact('total', 'active', 'inactive'), 'agency');
