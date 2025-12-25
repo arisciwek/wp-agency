@@ -423,12 +423,17 @@ class AgencyDashboardController {
             'employees' => [
                 'title' => __('Staff', 'wp-agency'),
                 'priority' => 30
-            ],
-            'new-companies' => [
-                'title' => __('Perusahaan Baru', 'wp-agency'),
-                'priority' => 40
             ]
         ];
+
+        // 'Perusahaan Baru' tab - Only for agency roles
+        // Customer roles (customer_admin, customer_branch_admin, customer_employee) cannot see this tab
+        if ($this->user_has_agency_role()) {
+            $agency_tabs['new-companies'] = [
+                'title' => __('Perusahaan Baru', 'wp-agency'),
+                'priority' => 40
+            ];
+        }
 
 // error_log('Returning agency tabs: ' . print_r($agency_tabs, true));
         return $agency_tabs;
@@ -1235,5 +1240,26 @@ class AgencyDashboardController {
         }
 
         return 'WHERE ' . implode(' AND ', $where_parts);
+    }
+
+    /**
+     * Check if current user has any agency role
+     *
+     * Used to restrict certain tabs (like 'Perusahaan Baru') to agency users only.
+     * Customer roles (customer_admin, customer_branch_admin, customer_employee)
+     * should not see agency-specific tabs.
+     *
+     * @return bool True if user has agency role, false otherwise
+     */
+    private function user_has_agency_role(): bool {
+        $user = wp_get_current_user();
+
+        // List of all agency-related roles
+        $agency_roles = [
+            'agency_employee'
+        ];
+
+        // Check if user has any agency role
+        return !empty(array_intersect($user->roles, $agency_roles));
     }
 }
