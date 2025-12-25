@@ -4,14 +4,14 @@
  *
  * @package     WP_Agency
  * @subpackage  Database/Demo
- * @version     2.0.1
+ * @version     2.0.2
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Database/Demo/JurisdictionDemoData.php
  *
  * Description: Generate jurisdiction demo data dari static array JurisdictionData.
  *              Membuat relasi antara divisions dan regencies untuk wilayah kerja.
- *              is_primary = true untuk regency yang sama dengan division.regency_code.
+ *              is_primary = true untuk regency yang sama dengan division.regency_id.
  *              Uses agency index pattern (1-10) like DivisionUsersData.
  *              Works with runtime generated division IDs from DivisionDemoData.
  *
@@ -42,6 +42,15 @@
  * 4. Insert jurisdiction relations with is_primary flag
  *
  * Changelog:
+ * 2.0.2 - 2025-11-04 (FIX: Use division.regency_id instead of regency_code)
+ * - CRITICAL FIX: Changed from division.regency_code to division.regency_id
+ * - Updated validateJurisdictionData(): query by regency ID instead of code
+ * - Updated createJurisdictionsForDivision(): get primary regency code from division's regency_id
+ * - Added null check for primary regency retrieval
+ * - Matches current DivisionsDB schema (ID-based FKs, not code-based)
+ * - Fixes PHP warning "Undefined property: regency_code"
+ * - Fixes validation error "Primary regency not found: (empty)"
+ *
  * 2.0.1 - 2025-11-01 (BugFix: Agency ID Mismatch + Static ID Implementation)
  * - CRITICAL FIX: Changed agency_id calculation from ($index + 20) to $index
  * - AgencyDemoData now injects static IDs 1-10 via wp_agency_before_insert hook
@@ -287,13 +296,13 @@ class JurisdictionDemoData extends AbstractDemoData {
             }
         }
 
-        // Validasi primary regency (dari division.regency_code)
+        // Validasi primary regency (dari division.regency_id)
         $primary_regency = $this->wpdb->get_row($this->wpdb->prepare(
-            "SELECT * FROM {$this->wpdb->prefix}wi_regencies WHERE code = %s",
-            $division->regency_code
+            "SELECT * FROM {$this->wpdb->prefix}wi_regencies WHERE id = %d",
+            $division->regency_id
         ));
         if (!$primary_regency) {
-            throw new \Exception("Primary regency not found: {$division->regency_code}");
+            throw new \Exception("Primary regency not found with ID: {$division->regency_id}");
         }
     }
 
@@ -306,7 +315,18 @@ class JurisdictionDemoData extends AbstractDemoData {
      */
     private function createJurisdictionsForDivision($division, $jurisdiction_data): int {
         $count = 0;
-        $primary_jurisdiction_code = $division->regency_code;
+
+        // Get primary regency code from division's regency_id
+        $primary_jurisdiction_code = $this->wpdb->get_var($this->wpdb->prepare(
+            "SELECT code FROM {$this->wpdb->prefix}wi_regencies WHERE id = %d",
+            $division->regency_id
+        ));
+
+        if (!$primary_jurisdiction_code) {
+            $this->debug("Primary regency not found for division {$division->id} (regency_id: {$division->regency_id}), skipping");
+            return 0;
+        }
+
         $jurisdiction_codes = $jurisdiction_data['regencies'];
         $created_by = $jurisdiction_data['created_by'];
 

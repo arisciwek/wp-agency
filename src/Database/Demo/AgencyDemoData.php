@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Database/Demo
- * @version     1.0.8
+ * @version     1.0.9
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Database/Demo/AgencyDemoData.php
@@ -12,11 +12,18 @@
  * Description: Generate agency demo data dengan:
  *              - Data perusahaan dengan format yang valid
  *              - Integrasi dengan WordPress user
- *              - Data wilayah dari Provinces/Regencies
+ *              - Data wilayah dari Provinces/Regencies (ID-based, not code-based)
  *              - Validasi dan tracking data unik
  *              - Division pusat inherit user dari agency (same user)
  *
  * Changelog:
+ * 1.0.9 - 2025-11-04 (FIX: Use province_id/regency_id instead of codes)
+ * - CRITICAL FIX: Changed from provinsi_code/regency_code to province_id/regency_id
+ * - Matches current AgencysDB schema (uses ID-based FKs, not codes)
+ * - Updated location data retrieval to use IDs directly
+ * - Removed code-based helper method calls
+ * - Fixes "Unknown column 'provinsi_code'" error
+ *
  * 1.0.8 - 2025-11-01 (FIX: Static Entity IDs via Hook)
  * - CRITICAL FIX: Added filter hook to inject static agency IDs (1-10)
  * - Now uses wp_agency_before_insert hook for static ID injection
@@ -309,21 +316,19 @@ class AgencyDemoData extends AbstractDemoData {
 
                 $this->debug("✓ User created: ID={$user_id}, Username={$user_data['username']}");
 
-                // 3. Get location codes
+                // 3. Get location IDs (not codes)
                 $province_name = $this->mapAgencyNameToProvince($agency['name']);
                 if ($province_name) {
-                    $provinsi_id = $this->getProvinceIdByName($province_name);
-                    $provinsi_code = $this->getProvinceCodeByName($province_name);
-                    $regency_code = $this->getRandomRegencyCode($provinsi_id);
+                    $province_id = $this->getProvinceIdByName($province_name);
+                    $regency_id = $this->getRandomRegencyId($province_id);
                 } else {
                     // Fallback to random
-                    $provinsi_id = $this->getRandomProvinceId();
-                    $provinsi_code = $this->getProvinceCodeById($provinsi_id);
-                    $regency_code = $this->getRandomRegencyCode($provinsi_id);
+                    $province_id = $this->getRandomProvinceId();
+                    $regency_id = $this->getRandomRegencyId($province_id);
                 }
 
                 // Validate location relationship
-                if (!$this->validateLocation($provinsi_id, $this->getRegencyIdByCode($regency_code))) {
+                if (!$this->validateLocation($province_id, $regency_id)) {
                     throw new \Exception("Invalid province-regency relationship");
                 }
 
@@ -331,8 +336,8 @@ class AgencyDemoData extends AbstractDemoData {
                 $agency_data = [
                     'name' => $agency['name'],
                     'status' => 'active',
-                    'provinsi_code' => $provinsi_code,
-                    'regency_code' => $regency_code,
+                    'province_id' => $province_id,
+                    'regency_id' => $regency_id,
                     'user_id' => $user_id,
                     'reg_type' => 'generate',  // Mark as demo data
                     'created_by' => $user_id,

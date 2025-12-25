@@ -15,7 +15,7 @@
  *              Includes status filter for users with edit permissions.
  *
  * Context: AJAX response (lazy-load)
- * Scope: MIXED (wpapp-* for DataTable structure, agency-* for local)
+ * Scope: MIXED (wpdt-* for DataTable structure, agency-* for local)
  *
  * Variables available:
  * @var int $agency_id Agency ID for DataTable filtering
@@ -75,7 +75,7 @@ $can_filter = current_user_can('edit_all_divisions') || current_user_can('edit_o
 <?php endif; ?>
 
 <table id="divisions-datatable"
-       class="wpapp-datatable agency-lazy-datatable"
+       class="wpdt-datatable agency-lazy-datatable"
        style="width:100%"
        data-entity="division"
        data-agency-id="<?php echo esc_attr($agency_id); ?>"

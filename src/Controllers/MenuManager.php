@@ -68,7 +68,7 @@ class MenuManager {
         // - Container auto-detect usage dan load assets secara otomatis
         //
         // Prinsip: Plugin TIDAK boleh modifikasi core behavior
-        // OLD (BAD): add_filter('wpapp_datatable_allowed_hooks', ...)
+        // OLD (BAD): add_filter('wpdt_datatable_allowed_hooks', ...)
         // NEW (GOOD): Just call DashboardTemplate::render() - assets loaded automatically!
 
         // Submenu Settings - tetap menggunakan manage_options untuk admin only

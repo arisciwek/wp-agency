@@ -15,7 +15,7 @@
  *              Shows branches without inspector (inspector_id IS NULL).
  *
  * Context: AJAX response (lazy-load)
- * Scope: MIXED (wpapp-* for DataTable structure, agency-* for local)
+ * Scope: MIXED (wpdt-* for DataTable structure, agency-* for local)
  *
  * Variables available:
  * @var int $agency_id Agency ID for DataTable filtering
@@ -44,7 +44,7 @@ if (!isset($agency_id)) {
 ?>
 
 <table id="new-companies-datatable"
-       class="wpapp-datatable agency-lazy-datatable"
+       class="wpdt-datatable agency-lazy-datatable"
        style="width:100%"
        data-entity="new-company"
        data-agency-id="<?php echo esc_attr($agency_id); ?>"

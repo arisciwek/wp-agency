@@ -15,15 +15,15 @@
  * ✅ DO: Use prefix agency- for all classes
  * ✅ DO: Agency-specific colors, themes
  * ✅ DO: Entity-specific enhancements
- * ❌ DON'T: Use wpapp- prefix (that's global scope)
+ * ❌ DON'T: Use wpdt- prefix (that's global scope)
  * ❌ DON'T: Add layout/structure (that's wp-app-core)
  * ❌ DON'T: Mix global and local scopes
  *
  * Global Scope (wp-app-core):
- * - Layout/positioning → wpapp-datatable.css
- * - Grid systems → wpapp-datatable.css
- * - Panel structure → wpapp-datatable.css
- * - Hover effects for global classes → wpapp-datatable.css
+ * - Layout/positioning → wpdt-datatable.css
+ * - Grid systems → wpdt-datatable.css
+ * - Panel structure → wpdt-datatable.css
+ * - Hover effects for global classes → wpdt-datatable.css
  *
  * Changelog:
  * 2.0.0 - 2025-10-27
@@ -167,7 +167,7 @@
  * ONLY if agency needs different styling than global
  */
 /*
-.agency-context .wpapp-datatable tbody tr:hover {
+.agency-context .wpdt-datatable tbody tr:hover {
     background-color: #e3f2fd;
 }
 */

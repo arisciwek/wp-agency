@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Agency
- * @version     1.0.2
+ * @version     1.0.3
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Agency/AgencyDataTableModel.php
@@ -15,6 +15,13 @@
  *              Integrates dengan base panel system (TODO-2179).
  *
  * Changelog:
+ * 1.0.3 - 2025-11-04 (FIX: Use province_id/regency_id instead of codes)
+ * - CRITICAL FIX: Changed JOIN conditions from code-based to ID-based
+ * - Updated base_joins: a.province_id = p.id, a.regency_id = r.id
+ * - Updated get_columns(): a.province_id, a.regency_id (instead of provinsi_code/regency_code)
+ * - Matches current AgencysDB schema (ID-based FKs, not code-based)
+ * - Fixes DataTable error "Unknown column 'a.provinsi_code' in 'field list'"
+ *
  * 1.0.2 - 2025-11-01 (TODO-3094 Follow-up)
  * - Added get_total_count() method for dashboard statistics
  * - Eliminates query duplication (DRY principle)
@@ -68,8 +75,8 @@ class AgencyDataTableModel extends DataTableModel {
 
         // Define base JOINs for location data + permission filtering
         $this->base_joins = [
-            'LEFT JOIN wp_wi_provinces p ON a.provinsi_code = p.code',
-            'LEFT JOIN wp_wi_regencies r ON a.regency_code = r.code',
+            'LEFT JOIN ' . $wpdb->prefix . 'wi_provinces p ON a.province_id = p.id',
+            'LEFT JOIN ' . $wpdb->prefix . 'wi_regencies r ON a.regency_id = r.id',
             // Employee JOIN for permission filtering (used in get_where)
             'LEFT JOIN ' . $wpdb->prefix . 'app_agency_employees ae ON a.id = ae.agency_id AND ae.user_id = ' . $current_user_id . ' AND ae.status = "active"'
         ];
@@ -93,8 +100,8 @@ class AgencyDataTableModel extends DataTableModel {
         $columns = [
             'a.code as code',
             'a.name as name',
-            'a.provinsi_code',
-            'a.regency_code',
+            'a.province_id',
+            'a.regency_id',
             'p.name as provinsi_name',
             'r.name as regency_name',
             'a.id as id'
@@ -223,7 +230,7 @@ class AgencyDataTableModel extends DataTableModel {
             : __('Inactive', 'wp-agency');
 
         return sprintf(
-            '<span class="wpapp-badge wpapp-badge-%s">%s</span>',
+            '<span class="wpdt-badge wpdt-badge-%s">%s</span>',
             esc_attr($badge_class),
             esc_html($status_text)
         );
@@ -250,7 +257,7 @@ class AgencyDataTableModel extends DataTableModel {
         // View button (always shown, opens panel)
         // Base panel system handles the click event via DT_RowId
         $buttons[] = sprintf(
-            '<button type="button" class="button button-small wpapp-panel-trigger" data-id="%d" data-entity="agency" title="%s">
+            '<button type="button" class="button button-small wpdt-panel-trigger" data-id="%d" data-entity="agency" title="%s">
                 <span class="dashicons dashicons-visibility"></span>
             </button>',
             esc_attr($row->id),
@@ -263,7 +270,7 @@ class AgencyDataTableModel extends DataTableModel {
 
         if ($can_edit) {
             $buttons[] = sprintf(
-                '<button type="button" class="button button-small wpapp-edit-agency" data-id="%d" title="%s">
+                '<button type="button" class="button button-small wpdt-edit-agency" data-id="%d" title="%s">
                     <span class="dashicons dashicons-edit"></span>
                 </button>',
                 esc_attr($row->id),
@@ -277,7 +284,7 @@ class AgencyDataTableModel extends DataTableModel {
 
         if ($can_delete) {
             $buttons[] = sprintf(
-                '<button type="button" class="button button-small wpapp-delete-agency" data-id="%d" title="%s">
+                '<button type="button" class="button button-small wpdt-delete-agency" data-id="%d" title="%s">
                     <span class="dashicons dashicons-trash"></span>
                 </button>',
                 esc_attr($row->id),

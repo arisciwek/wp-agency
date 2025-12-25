@@ -189,6 +189,13 @@ class DivisionValidator {
         // Gunakan method dari model untuk cek status employee
         $relation['is_employee'] = $this->division_model->isEmployeeActive($division_id, $current_user_id);
 
+        // Add access_type
+        $relation['access_type'] = $this->getAccessType($relation);
+
+        // Apply filter to allow plugins to extend relation data
+        // Example: wp-customer can add customer-specific data to division relation
+        $relation = apply_filters('wp_agency_division_user_relation', $relation, $division_id, $current_user_id);
+
         return $relation;
     }
 

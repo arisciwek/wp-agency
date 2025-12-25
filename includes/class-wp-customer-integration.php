@@ -4,16 +4,29 @@
  *
  * @package     WP_Agency
  * @subpackage  Includes
- * @version     1.0.7
+ * @version     1.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/includes/class-wp-customer-integration.php
  *
  * Description: Integration class untuk menghubungkan wp-agency dengan wp-customer.
- *              Menyediakan filter hooks untuk access control berbasis provinsi.
- *              Agency employee hanya bisa melihat customer di provinsi agency mereka.
+ *              Menyediakan filter hooks untuk access control berbasis agency_id.
+ *              Agency employee hanya bisa melihat customer yang punya branch di agency mereka.
+ *
+ * Architecture Pattern:
+ * - wp-customer: Provides generic hooks (no awareness of wp-agency)
+ * - wp-agency: Extends wp-customer via hooks (loose coupling)
+ * - This is CORRECT pattern - integration code lives in wp-agency, not wp-customer
  *
  * Changelog:
+ * 1.1.0 - 2025-11-05
+ * - Added DataTable filtering methods (migrated from wp-customer)
+ * - Added filter_datatable_count_query() for statistics
+ * - Added filter_datatable_where_conditions() for data query
+ * - Hooks: wpapp_datatable_customers_count_query, wpapp_datatable_customers_where
+ * - Follows correct architecture: integration code in wp-agency, not wp-customer
+ * - Uses agency_id filtering (not provinsi_id)
+ *
  * 1.0.0 - 2025-10-19
  * - Initial version
  * - Implement access_type='agency' filter
@@ -33,6 +46,13 @@ class WP_Agency_WP_Customer_Integration {
 
         // Set access type untuk branch
         add_filter('wp_branch_access_type', [__CLASS__, 'set_agency_access_type'], 10, 2);
+
+        // DataTable filtering hooks (wp-customer Customer V2)
+        // For statistics count (uses WPQB\QueryBuilder)
+        add_filter('wpapp_datatable_customers_count_query', [__CLASS__, 'filter_datatable_count_query'], 20, 2);
+
+        // For data query (uses DataTableQueryBuilder with WHERE array)
+        add_filter('wpapp_datatable_customers_where', [__CLASS__, 'filter_datatable_where_conditions'], 20, 3);
     }
 
     /**
@@ -281,21 +301,19 @@ class WP_Agency_WP_Customer_Integration {
             return [];
         }
 
-        // Get jurisdiction codes for this division
-        $jurisdiction_codes = $wpdb->get_col($wpdb->prepare("
-            SELECT jurisdiction_code
+        // Get jurisdiction regency IDs for this division
+        // FIXED: Changed from jurisdiction_code to jurisdiction_regency_id
+        // Schema migrated from code-based to ID-based (TODO-4013)
+        $regency_ids = $wpdb->get_col($wpdb->prepare("
+            SELECT jurisdiction_regency_id
             FROM {$wpdb->prefix}app_agency_jurisdictions
             WHERE division_id = %d
         ", $division_id));
 
-        if (empty($jurisdiction_codes)) {
+        if (empty($regency_ids)) {
+            error_log('Division-level user has no jurisdictions - blocking access');
             return [];
         }
-
-        // Convert jurisdiction codes to regency IDs
-        $placeholders = implode(',', array_fill(0, count($jurisdiction_codes), '%s'));
-        $query = "SELECT id FROM {$wpdb->prefix}wi_regencies WHERE code IN ($placeholders)";
-        $regency_ids = $wpdb->get_col($wpdb->prepare($query, $jurisdiction_codes));
 
         // Cache for 5 minutes
         wp_cache_set($cache_key, $regency_ids, 'wp_agency', 300);
@@ -357,6 +375,123 @@ class WP_Agency_WP_Customer_Integration {
         }
 
         return $province_id;
+    }
+
+    /**
+     * Filter DataTable count query for agency users (QueryBuilder)
+     *
+     * Agency-based filtering: hanya customers dengan branches di agency user.
+     *
+     * Hooked to: wpapp_datatable_customers_count_query (priority 20)
+     *
+     * @param \WPQB\QueryBuilder $query QueryBuilder instance
+     * @param array $params Request parameters
+     * @return \WPQB\QueryBuilder Modified query
+     */
+    public static function filter_datatable_count_query($query, $params) {
+        error_log('=== WP_Agency: filter_datatable_count_query CALLED ===');
+        error_log('User ID: ' . get_current_user_id());
+
+        // Check if admin (no filtering)
+        if (current_user_can('manage_options')) {
+            error_log('User is admin - skipping filter');
+            return $query;
+        }
+
+        // Check if user is agency employee
+        $user_id = get_current_user_id();
+        if (!self::is_agency_employee($user_id)) {
+            error_log('User is not agency employee - skipping filter');
+            return $query;
+        }
+
+        error_log('User is agency employee - applying filter');
+
+        // Get user's agency_id
+        $agency_id = self::get_user_agency_id($user_id);
+        error_log('Agency ID: ' . ($agency_id ?? 'NULL'));
+
+        if (!$agency_id) {
+            error_log('No agency_id - blocking all results');
+            $query->whereRaw('1=0');
+            return $query;
+        }
+
+        // Filter customers: only those with branches in this agency
+        global $wpdb;
+        error_log('Adding agency_id filter: ' . $agency_id);
+
+        $query->whereRaw(sprintf(
+            "c.id IN (
+                SELECT DISTINCT customer_id
+                FROM {$wpdb->prefix}app_customer_branches
+                WHERE agency_id = %d
+            )",
+            intval($agency_id)
+        ));
+
+        error_log('Query after filter: ' . $query->toSql());
+        error_log('=== END WP_Agency filter ===');
+
+        return $query;
+    }
+
+    /**
+     * Filter DataTable WHERE conditions for agency users (DataTableQueryBuilder)
+     *
+     * Agency-based filtering: hanya customers dengan branches di agency user.
+     *
+     * Hooked to: wpapp_datatable_customers_where (priority 20)
+     *
+     * @param array $where_conditions Current WHERE conditions (array of SQL strings)
+     * @param array $request_data DataTables request data
+     * @param object $model Model instance
+     * @return array Modified WHERE conditions
+     */
+    public static function filter_datatable_where_conditions($where_conditions, $request_data, $model) {
+        error_log('=== WP_Agency: filter_datatable_where_conditions CALLED ===');
+        error_log('User ID: ' . get_current_user_id());
+
+        // Check if admin (no filtering)
+        if (current_user_can('manage_options')) {
+            error_log('User is admin - skipping filter');
+            return $where_conditions;
+        }
+
+        // Check if user is agency employee
+        $user_id = get_current_user_id();
+        if (!self::is_agency_employee($user_id)) {
+            error_log('User is not agency employee - skipping filter');
+            return $where_conditions;
+        }
+
+        error_log('User is agency employee - applying filter');
+
+        // Get user's agency_id
+        $agency_id = self::get_user_agency_id($user_id);
+        error_log('Agency ID: ' . ($agency_id ?? 'NULL'));
+
+        if (!$agency_id) {
+            error_log('No agency_id - blocking all results');
+            $where_conditions[] = '1=0';
+            return $where_conditions;
+        }
+
+        // Add agency filter to WHERE conditions
+        global $wpdb;
+        error_log('Adding agency_id WHERE condition: ' . $agency_id);
+
+        $where_conditions[] = sprintf(
+            "c.id IN (
+                SELECT DISTINCT customer_id
+                FROM {$wpdb->prefix}app_customer_branches
+                WHERE agency_id = %d
+            )",
+            intval($agency_id)
+        );
+
+        error_log('=== END WP_Agency filter ===');
+        return $where_conditions;
     }
 }
 

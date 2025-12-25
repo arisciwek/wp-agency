@@ -19,9 +19,9 @@
  * - Template now contains HTML only (best practice)
  * - Separation of concerns: PHP template vs JavaScript
  * 1.0.2 - 2025-10-25
- * - Changed wpapp-datatable-wrapper to agency-datatable-wrapper (local scope)
- * - Following wp-customer pattern (wpapp-companies-list-container)
- * - Provides own wrapper styling instead of relying on global wpapp-panel-content
+ * - Changed wpdt-datatable-wrapper to agency-datatable-wrapper (local scope)
+ * - Following wp-customer pattern (wpdt-companies-list-container)
+ * - Provides own wrapper styling instead of relying on global wpdt-panel-content
  * 1.0.1 - 2025-10-25
  * - Moved from /Views/agency/ to /Views/DataTable/Templates/
  * - Updated path to match DataTable structure
@@ -37,7 +37,7 @@ defined('ABSPATH') || exit;
 ?>
 
 <div class="agency-datatable-wrapper">
-    <table id="agency-list-table" class="wpapp-datatable display" style="width:100%">
+    <table id="agency-list-table" class="wpdt-datatable display" style="width:100%">
         <thead>
             <tr>
                 <th><?php esc_html_e('Code', 'wp-agency'); ?></th>

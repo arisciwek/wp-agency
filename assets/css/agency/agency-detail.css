@@ -8,7 +8,7 @@
  * ✅ DO: Use prefix agency- for all classes
  * ✅ DO: Agency-specific detail layouts
  * ✅ DO: Entity-specific enhancements
- * ❌ DON'T: Use wpapp- prefix (that's global scope)
+ * ❌ DON'T: Use wpdt- prefix (that's global scope)
  * ❌ DON'T: Add layout/structure (that's wp-app-core)
  * ❌ DON'T: Mix global and local scopes
  *

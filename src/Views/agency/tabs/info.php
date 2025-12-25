@@ -73,7 +73,7 @@ if (!isset($agency)) {
                     ? __('Aktif', 'wp-agency')
                     : __('Tidak Aktif', 'wp-agency');
                 ?>
-                <span class="wpapp-badge wpapp-badge-<?php echo esc_attr($status_class); ?>">
+                <span class="wpdt-badge wpdt-badge-<?php echo esc_attr($status_class); ?>">
                     <?php echo esc_html($status_text); ?>
                 </span>
             </span>

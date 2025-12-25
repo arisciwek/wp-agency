@@ -230,7 +230,7 @@ class EmployeeDataTableModel extends DataTableModel {
             : __('Inactive', 'wp-agency');
 
         return sprintf(
-            '<span class="wpapp-badge wpapp-badge-%s">%s</span>',
+            '<span class="wpdt-badge wpdt-badge-%s">%s</span>',
             esc_attr($badge_class),
             esc_html($status_text)
         );

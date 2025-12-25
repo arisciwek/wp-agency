@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Database/Demo
- * @version     1.0.7
+ * @version     1.0.8
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Database/Demo/DivisionDemoData.php
@@ -37,8 +37,8 @@
  *   * name           : Nama division
  *   * type           : enum('cabang','pusat')
  *   * nitku          : Nomor Identitas Tempat Kegiatan Usaha
- *   * provinsi_code  : Code ke wi_provinces
- *   * regency_code   : Code ke wi_regencies
+ *   * province_id    : Foreign key ke wi_provinces
+ *   * regency_id     : Foreign key ke wi_regencies
  *   * user_id        : Foreign key ke wp_users
  *   * status         : enum('active','inactive')
  *
@@ -57,6 +57,15 @@
  * 5. Track generated division IDs
  *
  * Changelog:
+ * 1.0.8 - 2025-11-04 (FIX: Use province_id/regency_id instead of codes)
+ * - CRITICAL FIX: Changed from provinsi_code/regency_code to province_id/regency_id
+ * - Updated validation method: now uses ID-based queries
+ * - Updated generateCabangDivisions(): direct access to agency->province_id/regency_id
+ * - Updated createDivisionViaRuntimeFlow(): division_data uses province_id/regency_id
+ * - Removed unnecessary getRegencyCodeById() call
+ * - Matches current DivisionsDB schema (ID-based FKs, not code-based)
+ * - Fixes PHP warning "Undefined property: regency_code"
+ *
  * 1.0.0 - 2024-01-27
  * - Initial version
  * - Added integration with wi_provinces and wi_regencies
@@ -154,15 +163,15 @@ class DivisionDemoData extends AbstractDemoData {
                     }
 
                     // Jika agency punya data wilayah, validasi relasinya
-                    if ($agency->provinsi_code && $agency->regency_code) {
+                    if ($agency->province_id && $agency->regency_id) {
                         // Cek provinsi ada
                         $province = $this->wpdb->get_row($this->wpdb->prepare("
                             SELECT * FROM {$this->wpdb->prefix}wi_provinces
-                            WHERE code = %s",
-                            $agency->provinsi_code
+                            WHERE id = %d",
+                            $agency->province_id
                         ));
                         if (!$province) {
-                            throw new \Exception("Invalid province code for agency {$agency_id}: {$agency->provinsi_code}");
+                            throw new \Exception("Invalid province ID for agency {$agency_id}: {$agency->province_id}");
                         }
 
                         // Cek regency ada dan berelasi dengan provinsi
@@ -170,12 +179,12 @@ class DivisionDemoData extends AbstractDemoData {
                             SELECT r.*, p.name as province_name
                             FROM {$this->wpdb->prefix}wi_regencies r
                             JOIN {$this->wpdb->prefix}wi_provinces p ON r.province_id = p.id
-                            WHERE r.code = %s AND p.code = %s",
-                            $agency->regency_code,
-                            $agency->provinsi_code
+                            WHERE r.id = %d AND p.id = %d",
+                            $agency->regency_id,
+                            $agency->province_id
                         ));
                         if (!$regency) {
-                            throw new \Exception("Invalid regency code {$agency->regency_code} for province {$agency->provinsi_code}");
+                            throw new \Exception("Invalid regency ID {$agency->regency_id} for province {$agency->province_id}");
                         }
 
                         $this->debug(sprintf(
@@ -367,7 +376,7 @@ class DivisionDemoData extends AbstractDemoData {
         $userGenerator = new WPUserGenerator();
 
         // Track used regencies for this agency to avoid duplicates
-        $excluded_regencies = [$this->getRegencyIdByCode($agency->regency_code)];
+        $excluded_regencies = [$agency->regency_id];
 
         for ($i = 0; $i < $cabang_count; $i++) {
             // Get cabang admin user ID
@@ -391,7 +400,7 @@ class DivisionDemoData extends AbstractDemoData {
             }
 
             // Use the same province as the agency
-            $provinsi_id = $this->getProvinceIdByCode($agency->provinsi_code);
+            $provinsi_id = $agency->province_id;
 
             // Get random regency from the agency's province, excluding used ones
             $placeholders = implode(',', array_fill(0, count($excluded_regencies), '%d'));
@@ -408,7 +417,6 @@ class DivisionDemoData extends AbstractDemoData {
 
             $regency_id = (int) $regency->id;
             $excluded_regencies[] = $regency_id;
-            $regency_code = $this->getRegencyCodeById($regency_id);
 
             $regency_name = $this->getRegencyName($regency_id);
             $location = $this->generateValidLocation();
@@ -423,8 +431,8 @@ class DivisionDemoData extends AbstractDemoData {
                 'address' => $this->generateAddress($regency_name),
                 'phone' => $this->generatePhone(),
                 'email' => $this->generateEmail($agency->name, $cabang_key),
-                'provinsi_code' => $agency->provinsi_code,
-                'regency_code' => $regency_code,
+                'province_id' => $agency->province_id,
+                'regency_id' => $regency_id,
             ];
 
             // Create division via runtime flow (validates + uses production code + triggers hooks)
@@ -487,8 +495,8 @@ class DivisionDemoData extends AbstractDemoData {
             'address' => sanitize_text_field($division_data['address'] ?? ''),
             'phone' => sanitize_text_field($division_data['phone'] ?? ''),
             'email' => sanitize_email($division_data['email'] ?? ''),
-            'provinsi_code' => $division_data['provinsi_code'] ?? '',
-            'regency_code' => $division_data['regency_code'] ?? '',
+            'province_id' => $division_data['province_id'] ?? null,
+            'regency_id' => $division_data['regency_id'] ?? null,
             'created_by' => $created_by,
             'status' => 'active'
         ];

@@ -26,7 +26,7 @@
  * 2.0.0 - 2025-10-25
  * - Migrated from inline script in datatable.php (TODO-3077)
  * - Integrated with wp-app-core base panel system
- * - Uses wpapp:open-panel event for panel integration
+ * - Uses wpdt:open-panel event for panel integration
  * - Table ID: #agency-list-table (singular + list)
  * - AJAX action: get_agencies_datatable
  * - Columns: code, name, provinsi_name, regency_name, actions
@@ -214,10 +214,10 @@
             /**
              * Handle row click to open detail panel
              *
-             * DEPRECATED (TODO-3080): Row click now handled by wpapp-panel-manager.js
+             * DEPRECATED (TODO-3080): Row click now handled by wpdt-panel-manager.js
              * Disabled to prevent conflict with NEW panel system
-             * OLD event 'wpapp:open-panel' was for panel-handler.js (now disabled)
-             * NEW system (wpapp-panel-manager.js) handles row click automatically
+             * OLD event 'wpdt:open-panel' was for panel-handler.js (now disabled)
+             * NEW system (wpdt-panel-manager.js) handles row click automatically
              */
             /*
             $('#agency-list-table tbody').on('click', 'tr', function() {
@@ -227,7 +227,7 @@
                     console.log('[AgencyDataTable] Row clicked, opening panel for ID:', data.DT_RowData.id);
 
                     // Trigger event for base panel system
-                    $(document).trigger('wpapp:open-panel', {
+                    $(document).trigger('wpdt:open-panel', {
                         id: data.DT_RowData.id,
                         entity: 'agency'
                     });
@@ -238,7 +238,7 @@
             /**
              * Handle edit button click
              */
-            $(document).on('click', '.wpapp-edit-agency', function(e) {
+            $(document).on('click', '.wpdt-edit-agency', function(e) {
                 e.stopPropagation(); // Prevent row click
 
                 const agencyId = $(this).data('id');
@@ -251,7 +251,7 @@
             /**
              * Handle delete button click
              */
-            $(document).on('click', '.wpapp-delete-agency', function(e) {
+            $(document).on('click', '.wpdt-delete-agency', function(e) {
                 e.stopPropagation(); // Prevent row click
 
                 const agencyId = $(this).data('id');

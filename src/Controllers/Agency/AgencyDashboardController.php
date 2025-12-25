@@ -4,22 +4,35 @@
  *
  * @package     WP_Agency
  * @subpackage  Controllers/Agency
- * @version     1.5.0
+ * @version     1.6.1
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Controllers/Agency/AgencyDashboardController.php
  *
- * Description: Controller untuk Agency dashboard dengan base panel system.
+ * Description: Controller untuk Agency dashboard dengan dual panel system.
  *              Registers hooks untuk DataTable, stats, dan tabs.
  *              Handles AJAX requests untuk panel content.
- *              Implements TODO-2179 base panel pattern.
+ *              Migrated to wp-datatable from wp-app-core.
  *
  * Dependencies:
- * - wp-app-core base panel system (DashboardTemplate)
+ * - wp-datatable dual panel system (DashboardTemplate)
  * - AgencyDataTableModel untuk DataTable processing
  * - AgencyModel untuk CRUD operations
  *
  * Changelog:
+ * 1.6.1 - 2025-12-25 (Security Fix)
+ * - FIXED: Nonce mismatch - changed from wpdt_panel_nonce to wpdt_nonce
+ * - REASON: BaseAssets uses wpdt_nonce, backend must match
+ * - BENEFIT: Security check now passes correctly
+ *
+ * 1.6.0 - 2025-12-25 (Migration to wp-datatable)
+ * - MIGRATED: From wp-app-core to wp-datatable framework
+ * - UPDATED: All hooks from wpapp_ to wpdt_ prefix
+ * - UPDATED: All nonces from wpapp_panel_nonce to wpdt_nonce
+ * - UPDATED: All filter hooks to use wpdt_ prefix
+ * - ADDED: signal_dual_panel() method for dual panel detection
+ * - PATTERN: Strategy-based asset loading via dual panel signal
+ *
  * 1.5.0 - 2025-11-01 (TODO-3097)
  * - ADDED: New tab "Perusahaan Baru" (new-companies)
  * - ADDED: render_new_companies_tab() method
@@ -29,13 +42,13 @@
  * - Following centralization pattern from TODO-3094/3095/3096
  *
  * 1.4.0 - 2025-10-29 (TODO-3087 Pembahasan-03)
- * - RESTORED: wpapp_tab_view_after_content hook in render_tab_contents()
+ * - RESTORED: wpdt_tab_view_after_content hook in render_tab_contents()
  * - REASON: Tab files use pure HTML pattern (not TabViewTemplate::render())
  * - DECISION: Entity controller provides extension hook directly
  * - BENEFIT: Extension content works, no dependency on TabViewTemplate
  *
  * 1.3.0 - 2025-10-29 (TODO-3087 Pembahasan-01)
- * - REMOVED: Duplicate wpapp_tab_view_after_content hook from render_tab_contents()
+ * - REMOVED: Duplicate wpdt_tab_view_after_content hook from render_tab_contents()
  * - REASON: TabViewTemplate already provides this hook (wp-app-core TODO-1188)
  * - BENEFIT: Eliminate duplication, single source of truth
  * - PATTERN: Consistent with wp-app-core framework design
@@ -48,7 +61,7 @@
  * - RENAMED: details.php → info.php (consistency with tab_id)
  *
  * 1.1.0 - 2025-10-29 (TODO-3086)
- * - ADDED: wpapp_tab_view_after_content hook in render_tab_contents()
+ * - ADDED: wpdt_tab_view_after_content hook in render_tab_contents()
  * - PATTERN: Separate core content from extension content injection
  * - BENEFIT: Consistent with TabViewTemplate pattern (wp-app-core TODO-1188)
  * - FIX: Prevents duplicate rendering from wp-customer statistics injection
@@ -112,39 +125,43 @@ class AgencyDashboardController {
      * Register all WordPress hooks
      *
      * Hooks registered:
-     * - wpapp_left_panel_content: Render DataTable
-     * - wpapp_datatable_stats: Register statistics boxes
-     * - wpapp_datatable_tabs: Register tabs
+     * - wpdt_left_panel_content: Render DataTable
+     * - wpdt_datatable_stats: Register statistics boxes
+     * - wpdt_datatable_tabs: Register tabs
+     * - wpdt_use_dual_panel: Signal dual panel usage
      * - AJAX actions: DataTable, panel details, stats, lazy tabs
      */
     private function register_hooks(): void {
 // error_log('=== REGISTERING HOOKS ===');
 
+        // Dual panel signal hook (wp-datatable)
+        add_filter('wpdt_use_dual_panel', [$this, 'signal_dual_panel'], 10, 1);
+
         // Panel content hook
-// error_log('Registering wpapp_left_panel_content hook');
-        add_action('wpapp_left_panel_content', [$this, 'render_datatable'], 10, 1);
+// error_log('Registering wpdt_left_panel_content hook');
+        add_action('wpdt_left_panel_content', [$this, 'render_datatable'], 10, 1);
 
         // Page header hooks (scope local - echo HTML sendiri)
-        add_action('wpapp_page_header_left', [$this, 'render_header_title'], 10, 2);
-        add_action('wpapp_page_header_right', [$this, 'render_header_buttons'], 10, 2);
+        add_action('wpdt_page_header_left', [$this, 'render_header_title'], 10, 2);
+        add_action('wpdt_page_header_right', [$this, 'render_header_buttons'], 10, 2);
 
-        // Stats cards hook - render inside wpapp-statistics-container
-        add_action('wpapp_statistics_cards_content', [$this, 'render_header_cards'], 10, 1);
+        // Stats cards hook - render inside wpdt-statistics-container
+        add_action('wpdt_statistics_cards_content', [$this, 'render_header_cards'], 10, 1);
 
         // Filter hooks (scope local - echo HTML sendiri)
-        add_action('wpapp_dashboard_filters', [$this, 'render_filters'], 10, 2);
+        add_action('wpdt_dashboard_filters', [$this, 'render_filters'], 10, 2);
 
         // Statistics hook
-        add_filter('wpapp_datatable_stats', [$this, 'register_stats'], 10, 2);
+        add_filter('wpdt_datatable_stats', [$this, 'register_stats'], 10, 2);
 
         // Tabs hook
-        add_filter('wpapp_datatable_tabs', [$this, 'register_tabs'], 10, 2);
+        add_filter('wpdt_datatable_tabs', [$this, 'register_tabs'], 10, 2);
 
         // Tab content injection hooks (per-tab registration for better decoupling)
-        add_action('wpapp_tab_view_content', [$this, 'render_info_tab'], 10, 3);
-        add_action('wpapp_tab_view_content', [$this, 'render_divisions_tab'], 10, 3);
-        add_action('wpapp_tab_view_content', [$this, 'render_employees_tab'], 10, 3);
-        add_action('wpapp_tab_view_content', [$this, 'render_new_companies_tab'], 10, 3);
+        add_action('wpdt_tab_view_content', [$this, 'render_info_tab'], 10, 3);
+        add_action('wpdt_tab_view_content', [$this, 'render_divisions_tab'], 10, 3);
+        add_action('wpdt_tab_view_content', [$this, 'render_employees_tab'], 10, 3);
+        add_action('wpdt_tab_view_content', [$this, 'render_new_companies_tab'], 10, 3);
 
         // AJAX handlers
         add_action('wp_ajax_get_agencies_datatable', [$this, 'handle_datatable_ajax']);
@@ -163,9 +180,27 @@ class AgencyDashboardController {
     }
 
     /**
+     * Signal dual panel usage for wp-agency-disnaker page
+     *
+     * Hooked to: wpdt_use_dual_panel (filter)
+     *
+     * Tells wp-datatable AssetController to load dual panel assets
+     * when on the Disnaker page (wp-agency-disnaker)
+     *
+     * @param bool $use Current signal state
+     * @return bool True if on Disnaker page, otherwise unchanged
+     */
+    public function signal_dual_panel($use): bool {
+        if (isset($_GET['page']) && $_GET['page'] === 'wp-agency-disnaker') {
+            return true;
+        }
+        return $use;
+    }
+
+    /**
      * Render DataTable HTML
      *
-     * Hooked to: wpapp_left_panel_content
+     * Hooked to: wpdt_left_panel_content
      *
      * Only renders for 'agency' entity
      *
@@ -206,7 +241,7 @@ class AgencyDashboardController {
     /**
      * Render page header title
      *
-     * Hooked to: wpapp_page_header_left (action)
+     * Hooked to: wpdt_page_header_left (action)
      *
      * @param array $config Dashboard configuration
      * @param string $entity Entity name
@@ -223,7 +258,7 @@ class AgencyDashboardController {
     /**
      * Render page header buttons
      *
-     * Hooked to: wpapp_page_header_right (action)
+     * Hooked to: wpdt_page_header_right (action)
      *
      * @param array $config Dashboard configuration
      * @param string $entity Entity name
@@ -240,9 +275,9 @@ class AgencyDashboardController {
     /**
      * Render statistics header cards
      *
-     * Hooked to: wpapp_statistics_cards_content (action)
+     * Hooked to: wpdt_statistics_cards_content (action)
      *
-     * Renders HTML cards inside wpapp-statistics-container (global scope wrapper)
+     * Renders HTML cards inside wpdt-statistics-container (global scope wrapper)
      * Uses statistics-cards wrapper (global scope) with agency-card items (local scope)
      *
      * @param string $entity Entity name
@@ -268,9 +303,9 @@ class AgencyDashboardController {
          *
          * @since 1.0.0
          */
-        $where_total = apply_filters('wpapp_agency_statistics_where', [], 'total');
-        $where_active = apply_filters('wpapp_agency_statistics_where', ['status' => 'active'], 'active');
-        $where_inactive = apply_filters('wpapp_agency_statistics_where', ['status' => 'inactive'], 'inactive');
+        $where_total = apply_filters('wpdt_agency_statistics_where', [], 'total');
+        $where_active = apply_filters('wpdt_agency_statistics_where', ['status' => 'active'], 'active');
+        $where_inactive = apply_filters('wpdt_agency_statistics_where', ['status' => 'inactive'], 'inactive');
 
         // Build WHERE clause
         $where_total_sql = $this->build_where_clause($where_total);
@@ -288,7 +323,7 @@ class AgencyDashboardController {
     /**
      * Render filter controls
      *
-     * Hooked to: wpapp_dashboard_filters (action)
+     * Hooked to: wpdt_dashboard_filters (action)
      *
      * Renders status filter select dengan class agency-* (scope local)
      *
@@ -312,7 +347,7 @@ class AgencyDashboardController {
     /**
      * Register statistics boxes
      *
-     * Hooked to: wpapp_datatable_stats
+     * Hooked to: wpdt_datatable_stats
      *
      * Registers 3 stats: Total, Active, Inactive
      *
@@ -358,12 +393,13 @@ class AgencyDashboardController {
     /**
      * Register tabs for right panel
      *
-     * Hooked to: wpapp_datatable_tabs
+     * Hooked to: wpdt_datatable_tabs
      *
-     * Registers 3 tabs:
+     * Registers 4 tabs:
      * - info: Agency information (immediate load)
      * - divisions: Divisions DataTable (lazy load on click)
      * - employees: Employees DataTable (lazy load on click)
+     * - new-companies: New Companies DataTable (lazy load on click)
      *
      * Pattern: Hook-based content injection (entity-owned)
      * - register_tabs() defines tab metadata (title, priority)
@@ -372,8 +408,8 @@ class AgencyDashboardController {
      *   respond to hooks and include template files
      *
      * Hook flow:
-     * 1. wpapp_tab_view_content (Priority 10) - Core content rendering
-     * 2. wpapp_tab_view_after_content (Priority 20+) - Extension content injection
+     * 1. wpdt_tab_view_content (Priority 10) - Core content rendering
+     * 2. wpdt_tab_view_after_content (Priority 20+) - Extension content injection
      *
      * @see render_tab_contents() Line 910-948
      * @see render_info_tab() Line 683-704
@@ -420,17 +456,17 @@ class AgencyDashboardController {
     /**
      * Render info tab HTML content
      *
-     * Hook handler for wpapp_tab_view_content (info tab).
+     * Hook handler for wpdt_tab_view_content (info tab).
      * Renders the actual HTML content for the info tab.
      *
      * Entity-owned hook implementation pattern:
-     * - render_tab_contents() triggers wpapp_tab_view_content hook
+     * - render_tab_contents() triggers wpdt_tab_view_content hook
      * - This method responds to that hook for 'agency' entity, 'info' tab
      * - Priority 10: Core content rendering
-     * - Priority 20+: Extension plugins use wpapp_tab_view_after_content
+     * - Priority 20+: Extension plugins use wpdt_tab_view_after_content
      *
      * Hook Flow:
-     * 1. render_tab_contents() → do_action('wpapp_tab_view_content')
+     * 1. render_tab_contents() → do_action('wpdt_tab_view_content')
      * 2. This method → Includes info.php template
      * 3. Extension hooks fire after (wp-customer can inject statistics)
      *
@@ -460,17 +496,17 @@ class AgencyDashboardController {
     /**
      * Render divisions tab content
      *
-     * Hook handler for wpapp_tab_view_content (divisions tab).
+     * Hook handler for wpdt_tab_view_content (divisions tab).
      * Each tab independently registered for better decoupling.
      *
      * Entity-owned hook implementation pattern:
-     * - render_tab_contents() triggers wpapp_tab_view_content hook
+     * - render_tab_contents() triggers wpdt_tab_view_content hook
      * - This method responds to that hook for 'agency' entity, 'divisions' tab
      * - Priority 10: Core content rendering
-     * - Priority 20+: Extension plugins use wpapp_tab_view_after_content
+     * - Priority 20+: Extension plugins use wpdt_tab_view_after_content
      *
      * Hook Flow:
-     * 1. render_tab_contents() → do_action('wpapp_tab_view_content')
+     * 1. render_tab_contents() → do_action('wpdt_tab_view_content')
      * 2. This method → Includes divisions.php template (DataTable)
      * 3. Extension hooks fire after (other plugins can inject additional content)
      *
@@ -500,17 +536,17 @@ class AgencyDashboardController {
     /**
      * Render employees tab content
      *
-     * Hook handler for wpapp_tab_view_content (employees tab).
+     * Hook handler for wpdt_tab_view_content (employees tab).
      * Each tab independently registered for better decoupling.
      *
      * Entity-owned hook implementation pattern:
-     * - render_tab_contents() triggers wpapp_tab_view_content hook
+     * - render_tab_contents() triggers wpdt_tab_view_content hook
      * - This method responds to that hook for 'agency' entity, 'employees' tab
      * - Priority 10: Core content rendering
-     * - Priority 20+: Extension plugins use wpapp_tab_view_after_content
+     * - Priority 20+: Extension plugins use wpdt_tab_view_after_content
      *
      * Hook Flow:
-     * 1. render_tab_contents() → do_action('wpapp_tab_view_content')
+     * 1. render_tab_contents() → do_action('wpdt_tab_view_content')
      * 2. This method → Includes employees.php template (DataTable)
      * 3. Extension hooks fire after (other plugins can inject additional content)
      *
@@ -540,18 +576,18 @@ class AgencyDashboardController {
     /**
      * Render new companies tab HTML content
      *
-     * Hook handler for wpapp_tab_view_content (new-companies tab).
+     * Hook handler for wpdt_tab_view_content (new-companies tab).
      * Renders the actual HTML content for the new companies tab.
      * Shows branches without inspector (inspector_id IS NULL).
      *
      * Entity-owned hook implementation pattern:
-     * - render_tab_contents() triggers wpapp_tab_view_content hook
+     * - render_tab_contents() triggers wpdt_tab_view_content hook
      * - This method responds to that hook for 'agency' entity, 'new-companies' tab
      * - Priority 10: Core content rendering
-     * - Priority 20+: Extension plugins use wpapp_tab_view_after_content
+     * - Priority 20+: Extension plugins use wpdt_tab_view_after_content
      *
      * Hook Flow:
-     * 1. render_tab_contents() → do_action('wpapp_tab_view_content')
+     * 1. render_tab_contents() → do_action('wpdt_tab_view_content')
      * 2. This method → Includes new-companies.php template
      * 3. Extension hooks fire after
      *
@@ -593,7 +629,7 @@ class AgencyDashboardController {
         // error_log('POST data: ' . print_r($_POST, true));
 
         // Verify nonce - use base panel system nonce
-        if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
             error_log('ERROR: Nonce verification failed');
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
@@ -648,7 +684,7 @@ class AgencyDashboardController {
         // error_log('POST data: ' . print_r($_POST, true));
 
         // Verify nonce - use base panel system nonce
-        if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
             error_log('Nonce verification FAILED');
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
@@ -734,7 +770,7 @@ class AgencyDashboardController {
      */
     public function handle_get_stats(): void {
         // Verify nonce - use base panel system nonce
-        if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
@@ -805,7 +841,7 @@ class AgencyDashboardController {
      */
     public function handle_load_divisions_tab(): void {
         // Verify nonce - use base panel system nonce
-        if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
@@ -855,7 +891,7 @@ class AgencyDashboardController {
      */
     public function handle_load_employees_tab(): void {
         // Verify nonce - use base panel system nonce
-        if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
@@ -906,7 +942,7 @@ class AgencyDashboardController {
      */
     public function handle_load_new_companies_tab(): void {
         // Verify nonce - use base panel system nonce
-        if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
@@ -961,7 +997,7 @@ class AgencyDashboardController {
         error_log('POST action: ' . ($_POST['action'] ?? 'NOT SET'));
 
         // Verify nonce
-        if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
             error_log('ERROR: Nonce verification failed');
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
@@ -1024,7 +1060,7 @@ class AgencyDashboardController {
      */
     public function handle_employees_datatable(): void {
         // Verify nonce
-        if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
@@ -1057,7 +1093,7 @@ class AgencyDashboardController {
      */
     public function handle_new_companies_datatable(): void {
         // Verify nonce
-        if (!check_ajax_referer('wpapp_panel_nonce', 'nonce', false)) {
+        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
@@ -1086,7 +1122,7 @@ class AgencyDashboardController {
     /**
      * Render tab contents using Hook-Based Content Injection Pattern
      *
-     * This method triggers the wpapp_tab_view_content hook, allowing:
+     * This method triggers the wpdt_tab_view_content hook, allowing:
      * - wp-agency to render core content (priority 10)
      * - Other plugins to inject additional content (priority 20+)
      *
@@ -1105,7 +1141,7 @@ class AgencyDashboardController {
         $tabs = [];
 
         // Get registered tabs
-        $registered_tabs = apply_filters('wpapp_datatable_tabs', [], 'agency');
+        $registered_tabs = apply_filters('wpdt_datatable_tabs', [], 'agency');
         // error_log('Registered tabs: ' . print_r(array_keys($registered_tabs), true));
 
         foreach ($registered_tabs as $tab_id => $tab_config) {
@@ -1121,14 +1157,14 @@ class AgencyDashboardController {
             ];
 
             // Trigger hooks - allows multiple plugins to inject content
-            // Priority 10: wp-agency core content (wpapp_tab_view_content)
-            // Priority 20+: wp-customer extension content (wpapp_tab_view_after_content)
-            do_action('wpapp_tab_view_content', 'agency', $tab_id, $data);
+            // Priority 10: wp-agency core content (wpdt_tab_view_content)
+            // Priority 20+: wp-customer extension content (wpdt_tab_view_after_content)
+            do_action('wpdt_tab_view_content', 'agency', $tab_id, $data);
 
             // Extension hook for additional content injection
             // This hook is provided here (not from TabViewTemplate) because
             // tab files use pure HTML pattern, not TabViewTemplate::render()
-            do_action('wpapp_tab_view_after_content', 'agency', $tab_id, $data);
+            do_action('wpdt_tab_view_after_content', 'agency', $tab_id, $data);
 
             // Capture combined output from all hooked functions
             $content = ob_get_clean();

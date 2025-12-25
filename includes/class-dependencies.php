@@ -372,7 +372,7 @@ public function enqueue_frontend_assets() {
             // Localize agency-datatable with translations (TODO-3077)
             wp_localize_script('agency-datatable', 'wpAgencyDataTable', [
                 'ajaxurl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('wpapp_panel_nonce'),
+                'nonce' => wp_create_nonce('wpdt_nonce'),
                 'i18n' => [
                     'processing' => __('Loading...', 'wp-agency'),
                     'search' => __('Search:', 'wp-agency'),

@@ -25,8 +25,8 @@
 *
 * 1.0.8 - 2025-10-26 (TODO-1180)
 * - Added handle_get_agency() method for centralized panel handler
-* - Integrates with wp-app-core panel-handler.js
-* - Uses wpapp_panel_nonce instead of wp_agency_nonce
+* - Integrates with wp-datatable panel-handler.js
+* - Uses wpdt_nonce instead of wp_agency_nonce
 * - Renders agency-right-panel.php template
 * - Returns HTML + data for panel injection
 * - FIXED: Changed getCountByAgency() to getTotalCount() (correct method name)
@@ -1384,7 +1384,7 @@ public function createPdfButton() {
     public function handle_get_agency() {
         try {
             // Verify nonce from wp-app-core panel handler
-            check_ajax_referer('wpapp_panel_nonce', 'nonce');
+            check_ajax_referer('wpdt_nonce', 'nonce');
 
             $this->debug_log("=== handle_get_agency() START ===");
 

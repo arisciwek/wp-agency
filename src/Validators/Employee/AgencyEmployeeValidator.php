@@ -82,9 +82,16 @@ class AgencyEmployeeValidator {
         $relation['is_division_admin'] = $this->isDivisionAdmin($current_user_id, $employee->division_id);
         $relation['is_creator'] = ((int)$employee->created_by === $current_user_id);
 
+        // Add access_type
+        $relation['access_type'] = $this->getAccessType($relation);
+
+        // Apply filter to allow plugins to extend relation data
+        // Example: wp-customer can add customer-specific data to employee relation
+        $relation = apply_filters('wp_agency_employee_user_relation', $relation, $employee_id, $current_user_id);
+
         // Simpan ke cache dengan waktu lebih singkat (10 menit)
         $this->cache->set($cache_key, $relation, 10 * MINUTE_IN_SECONDS);
-        
+
         return $relation;
     }
 

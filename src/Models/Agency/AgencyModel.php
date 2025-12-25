@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models
- * @version     1.0.11
+ * @version     1.0.12
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Agency/AgencyModel.php
@@ -14,6 +14,15 @@
  *              Pure CRUD model - DataTable operations moved to AgencyDataTableModel.
  *
  * Changelog:
+ * 1.0.12 - 2025-11-04 (FIX: Use province_id/regency_id instead of codes)
+ * - CRITICAL FIX: Changed from provinsi_code/regency_code to province_id/regency_id
+ * - Updated create() method: insert_data and format array
+ * - Updated find() method: JOIN conditions for provinces/regencies
+ * - Updated update() method: format switch cases for province_id/regency_id
+ * - Updated delete() method: agency_data array for hooks
+ * - Matches current AgencysDB schema (ID-based FKs, not code-based)
+ * - Fixes "Unknown column 'provinsi_code'" error in demo generation
+ *
  * 1.0.11 - 2025-11-01 (TODO-3098 Entity Static IDs)
  * - Added 'wp_agency_before_insert' filter hook in create() method
  * - Allows modification of insert data before database insertion
@@ -118,8 +127,8 @@
                 LEFT JOIN {$wpdb->users} u ON c.user_id = u.ID
                 LEFT JOIN {$wpdb->users} creator ON c.created_by = creator.ID
                 LEFT JOIN {$this->division_table} bp ON (c.id = bp.agency_id AND bp.type = 'pusat')
-                LEFT JOIN wp_wi_provinces wp ON c.provinsi_code = wp.code
-                LEFT JOIN wp_wi_regencies wr ON c.regency_code = wr.code
+                LEFT JOIN {$wpdb->prefix}wi_provinces wp ON c.province_id = wp.id
+                LEFT JOIN {$wpdb->prefix}wi_regencies wr ON c.regency_id = wr.id
                 WHERE c.id = %d
                 GROUP BY c.id
             ", $id);
@@ -254,8 +263,8 @@
             'name' => $data['name'],
             'status' => $data['status'] ?? 'active',
             'user_id' => $data['user_id'],
-            'provinsi_code' => $data['provinsi_code'] ?? null,
-            'regency_code' => $data['regency_code'] ?? null,
+            'province_id' => $data['province_id'] ?? null,
+            'regency_id' => $data['regency_id'] ?? null,
             'reg_type' => $data['reg_type'] ?? 'self',
             'created_by' => get_current_user_id(),
             'created_at' => current_time('mysql'),
@@ -301,8 +310,8 @@
             '%s',  // name
             '%s',  // status
             '%d',  // user_id
-            '%s',  // provinsi_code (nullable)
-            '%s',  // regency_code (nullable)
+            '%d',  // province_id (nullable)
+            '%d',  // regency_id (nullable)
             '%s',  // reg_type
             '%d',  // created_by
             '%s',  // created_at
@@ -356,10 +365,10 @@
         $formats = [];
         foreach ($updateData as $key => $value) {
             switch ($key) {
-                case 'provinsi_code':
-                case 'regency_code':
+                case 'province_id':
+                case 'regency_id':
                 case 'user_id':
-                    $formats[] = '%s';
+                    $formats[] = '%d';
                     break;
                 default:
                     $formats[] = '%s';
@@ -445,8 +454,8 @@
             'code' => $agency->code,
             'name' => $agency->name,
             'status' => $agency->status,
-            'provinsi_code' => $agency->provinsi_code ?? null,
-            'regency_code' => $agency->regency_code ?? null,
+            'province_id' => $agency->province_id ?? null,
+            'regency_id' => $agency->regency_id ?? null,
             'user_id' => $agency->user_id ?? null,
             'reg_type' => $agency->reg_type ?? 'self',
             'created_by' => $agency->created_by ?? null,

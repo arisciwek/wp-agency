@@ -194,6 +194,13 @@ class AgencyValidator {
             $relation['is_employee'] = (int)$is_employee > 0;
         }
 
+        // Add access_type
+        $relation['access_type'] = $this->getAccessType($relation);
+
+        // Apply filter to allow plugins to extend relation data
+        // Example: wp-customer can add customer-specific data to agency relation
+        $relation = apply_filters('wp_agency_user_relation', $relation, $agency_id, $current_user_id);
+
         // Save to cache with actual agency_id
         $this->relationCache[$agency_id] = $relation;
 

@@ -58,10 +58,11 @@ class WP_Agency_Activator {
             }
 
             // 2. Run database migration for wilayah code changes
-            if (!$installer->runMigration()) {
-                self::logError('Failed to run database migration');
-                return;
-            }
+            // DISABLED: Development mode - schema changes made directly to source files
+            // if (!$installer->runMigration()) {
+            //     self::logError('Failed to run database migration');
+            //     return;
+            // }
 
             // 3. Create roles if they don't exist
             $all_roles = WP_Agency_Role_Manager::getRoles();

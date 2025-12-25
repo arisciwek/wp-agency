@@ -14,7 +14,7 @@
  *              Called by: AgencyDashboardController::handle_load_employees_tab()
  *
  * Context: AJAX response (lazy-load)
- * Scope: MIXED (wpapp-* for DataTable structure)
+ * Scope: MIXED (wpdt-* for DataTable structure)
  *
  * Variables available:
  * @var int $agency_id Agency ID for DataTable filtering
@@ -47,7 +47,7 @@ if (!isset($agency_id)) {
 ?>
 
 <table id="employees-datatable"
-       class="wpapp-datatable agency-lazy-datatable"
+       class="wpdt-datatable agency-lazy-datatable"
        style="width:100%"
        data-entity="employee"
        data-agency-id="<?php echo esc_attr($agency_id); ?>"

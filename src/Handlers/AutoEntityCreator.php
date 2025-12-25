@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Handlers
- * @version     1.0.7
+ * @version     1.0.8
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Handlers/AutoEntityCreator.php
@@ -17,6 +17,13 @@
  *              Following wp-customer pattern for consistency
  *
  * Changelog:
+ * 1.0.8 - 2025-11-04 (FIX: Use province_id/regency_id for division pusat)
+ * - CRITICAL FIX: Changed from provinsi_code/regency_code to province_id/regency_id
+ * - Updated handleAgencyCreated(): division_data now uses province_id/regency_id from agency_data
+ * - Matches current DivisionsDB schema (ID-based FKs, not code-based)
+ * - Fixes division pusat created with NULL regency_id (causing jurisdiction validation error)
+ * - Auto-created division pusat now properly inherits location from parent agency
+ *
  * 2.1.0 - 2025-10-22
  * - Added handleDivisionDeleted() for cascade delete employees
  * - Demo mode (WP_AGENCY_DEVELOPMENT=true): HARD DELETE (remove from DB)
@@ -86,8 +93,8 @@ class AutoEntityCreator {
                 'name' => $agency->name . ' - Pusat',
                 'type' => 'pusat',
                 'status' => 'active',
-                'provinsi_code' => $agency_data['provinsi_code'] ?? null,
-                'regency_code' => $agency_data['regency_code'] ?? null,
+                'province_id' => $agency_data['province_id'] ?? null,
+                'regency_id' => $agency_data['regency_id'] ?? null,
                 'user_id' => $agency_data['user_id'] ?? null,
                 'created_by' => $agency_data['created_by'] ?? get_current_user_id()
             ];

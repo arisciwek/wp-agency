@@ -18,7 +18,7 @@
  * - Outer wrapper: Created by TabSystemTemplate (wp-app-core)
  * - This file: Only inner HTML content
  * - Classes: Added via JS after content inject
- * - Lazy-load: Triggered by wpapp-tab-manager.js
+ * - Lazy-load: Triggered by wpdt-tab-manager.js
  *
  * Changelog:
  * 1.0.0 - 2025-11-01 (TODO-3097)
@@ -44,30 +44,30 @@ if (!$agency_id) {
 }
 
 // Note: This template provides INNER content only
-// Outer <div id="new-companies" class="wpapp-tab-content"> is created by TabSystemTemplate
+// Outer <div id="new-companies" class="wpdt-tab-content"> is created by TabSystemTemplate
 // Classes and data attributes are added via JavaScript after content injection
 ?>
 <!-- Inner content for new companies tab (TODO-3097) -->
-<div class="wpapp-new-companies-tab wpapp-tab-autoload"
+<div class="wpdt-new-companies-tab wpdt-tab-autoload"
      data-agency-id="<?php echo esc_attr($agency_id); ?>"
      data-load-action="load_new_companies_tab"
-     data-content-target=".wpapp-new-companies-content"
+     data-content-target=".wpdt-new-companies-content"
      data-error-message="<?php esc_attr_e('Failed to load new companies', 'wp-agency'); ?>">
 
-    <div class="wpapp-tab-header">
+    <div class="wpdt-tab-header">
         <h3><?php esc_html_e('Perusahaan Baru', 'wp-agency'); ?></h3>
         <p class="description"><?php esc_html_e('Daftar perusahaan yang belum memiliki pengawas', 'wp-agency'); ?></p>
     </div>
 
-    <div class="wpapp-tab-loading">
+    <div class="wpdt-tab-loading">
         <p><?php esc_html_e('Memuat data perusahaan...', 'wp-agency'); ?></p>
     </div>
 
-    <div class="wpapp-new-companies-content wpapp-tab-loaded-content">
-        <!-- Content will be loaded via AJAX by wpapp-tab-manager.js -->
+    <div class="wpdt-new-companies-content wpdt-tab-loaded-content">
+        <!-- Content will be loaded via AJAX by wpdt-tab-manager.js -->
     </div>
 
-    <div class="wpapp-tab-error">
-        <p class="wpapp-error-message"></p>
+    <div class="wpdt-tab-error">
+        <p class="wpdt-error-message"></p>
     </div>
 </div>

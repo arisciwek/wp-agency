@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Division
- * @version     1.1.1
+ * @version     1.1.2
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Division/DivisionModel.php
@@ -14,6 +14,14 @@
  *              Pure CRUD model - DataTable operations moved to DivisionDataTableModel.
  *
  * Changelog:
+ * 1.1.2 - 2025-11-04 (FIX: Use province_id/regency_id instead of codes)
+ * - CRITICAL FIX: Changed from provinsi_code/regency_code to province_id/regency_id
+ * - Updated create() method: insertData and format array
+ * - Updated update() method: updateData and format switch cases
+ * - Updated delete() method: division_data array for hooks
+ * - Matches current DivisionsDB schema (ID-based FKs, not code-based)
+ * - Fixes "Unknown column 'provinsi_code'" error in demo generation
+ *
  * 1.1.1 - 2025-11-01 (TODO-3098 Entity Static IDs)
  * - Added 'wp_agency_division_before_insert' filter hook in create() method
  * - Allows modification of insert data before database insertion
@@ -177,8 +185,8 @@ class DivisionModel {
             'address' => $data['address'] ?? null,
             'phone' => $data['phone'] ?? null,
             'email' => $data['email'] ?? null,
-            'provinsi_code' => $data['provinsi_code'] ?? null,
-            'regency_code' => $data['regency_code'] ?? null,
+            'province_id' => $data['province_id'] ?? null,
+            'regency_id' => $data['regency_id'] ?? null,
             'user_id' => $data['user_id'] ?? null,
             'created_by' => $data['created_by'],
             'created_at' => current_time('mysql'),
@@ -229,8 +237,8 @@ class DivisionModel {
             '%s', // address
             '%s', // phone
             '%s', // email
-            '%s', // provinsi_code
-            '%s', // regency_code
+            '%d', // province_id
+            '%d', // regency_id
             '%d', // user_id
             '%d', // created_by
             '%s', // created_at
@@ -307,8 +315,8 @@ class DivisionModel {
             'address' => $data['address'] ?? null,
             'phone' => $data['phone'] ?? null,
             'email' => $data['email'] ?? null,
-            'provinsi_code' => $data['provinsi_code'] ?? null,
-            'regency_code' => $data['regency_code'] ?? null,
+            'province_id' => $data['province_id'] ?? null,
+            'regency_id' => $data['regency_id'] ?? null,
                 'user_id' => $data['user_id'] ?? null,
                 'status' => $data['status'] ?? null,
                 'updated_at' => current_time('mysql')
@@ -324,9 +332,10 @@ class DivisionModel {
                 case 'latitude':
                 case 'longitude':
                     return '%f';
-                case 'provinsi_code':
-                case 'regency_code':
-                    return '%s';
+                case 'province_id':
+                case 'regency_id':
+                case 'user_id':
+                    return '%d';
                 default:
                     return '%s';
             }
@@ -400,8 +409,8 @@ class DivisionModel {
             'address' => $division->address ?? null,
             'phone' => $division->phone ?? null,
             'email' => $division->email ?? null,
-            'provinsi_code' => $division->provinsi_code ?? null,
-            'regency_code' => $division->regency_code ?? null,
+            'province_id' => $division->province_id ?? null,
+            'regency_id' => $division->regency_id ?? null,
             'user_id' => $division->user_id ?? null,
             'created_by' => $division->created_by ?? null,
             'created_at' => $division->created_at ?? null,

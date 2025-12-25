@@ -24,7 +24,7 @@
         // Handle status filter change
         $('#agency-status-filter').on('change', function() {
             const status = $(this).val();
-            const $datatable = $('.wpapp-datatable').DataTable();
+            const $datatable = $('.wpdt-datatable').DataTable();
 
             if ($datatable) {
                 // Store status in DataTable settings for AJAX requests
