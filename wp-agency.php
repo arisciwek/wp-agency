@@ -287,6 +287,34 @@ class WPAgency {
 
         // 4. Employee Access Filter
         new \WPAgency\Integrations\EmployeeAccessFilter();
+
+        // 5. wp-customer integration: Bypass wp-agency filtering for customer employees
+        // Customer employees should be filtered by wp-customer's AgencyAccessFilter instead
+        add_filter('wpdt_agency_should_bypass_filter', function($should_bypass, $user_id, $user) {
+            // Check if user is customer employee (wp-customer table)
+            global $wpdb;
+            $customer_employee_table = $wpdb->prefix . 'app_customer_employees';
+
+            // Check if table exists (wp-customer plugin active)
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$customer_employee_table}'");
+
+            if (!$table_exists) {
+                return $should_bypass; // wp-customer not active
+            }
+
+            // Check if user is customer employee
+            $is_customer_employee = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$customer_employee_table} WHERE user_id = %d",
+                $user_id
+            ));
+
+            if ($is_customer_employee) {
+                // Customer employee - let wp-customer's AgencyAccessFilter handle filtering
+                return true;
+            }
+
+            return $should_bypass;
+        }, 10, 3);
     }
 
     /**
