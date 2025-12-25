@@ -492,14 +492,16 @@ class AgencyEmployeeController {
 		}
 
 		// Add additional roles if more than one selected
+		$user = new \WP_User($user_id);
 		if (count($selected_roles) > 1) {
-		    $user = new \WP_User($user_id);
 		    foreach ($selected_roles as $role) {
 		        if ($role !== $primary_role) {
 		            $user->add_role($role);
 		        }
 		    }
 		}
+		// Always add agency_employee role for tab visibility
+		$user->add_role('agency_employee');
 
 		// Remove roles from data array before database insert
 		unset($data['roles']);
@@ -589,11 +591,13 @@ class AgencyEmployeeController {
 		        foreach ($existing_roles as $role) {
 		            $user->remove_role($role);
 		        }
-		        
+
 		        // Add new roles
 		        foreach ($selected_roles as $role) {
 		            $user->add_role($role);
 		        }
+		        // Always add agency_employee role for tab visibility
+		        $user->add_role('agency_employee');
 
 		        // Update user email if changed
 		        if ($user->user_email !== $data['email']) {

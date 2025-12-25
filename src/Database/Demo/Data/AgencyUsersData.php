@@ -38,18 +38,21 @@ class AgencyUsersData {
      * Static agency user data
      * Names generated from $name_collection (2 words combination)
      * Each name is unique and uses only words from the collection
+     *
+     * IMPORTANT: All agency users must have 'agency_employee' role
+     * This role is used for tab visibility (e.g., 'Perusahaan Baru' tab)
      */
     public static $data = [
-        ['id' => 130, 'username' => 'ahmad_bambang', 'display_name' => 'Ahmad Bambang', 'roles' => ['agency', 'agency_admin_dinas']],
-        ['id' => 131, 'username' => 'cahyo_darmawan', 'display_name' => 'Cahyo Darmawan', 'roles' => ['agency', 'agency_admin_dinas']],
-        ['id' => 132, 'username' => 'edi_farid', 'display_name' => 'Edi Farid', 'roles' => ['agency', 'agency_admin_dinas']],
-        ['id' => 133, 'username' => 'guntur_hasan', 'display_name' => 'Guntur Hasan', 'roles' => ['agency', 'agency_admin_dinas']],
-        ['id' => 134, 'username' => 'irfan_jaya', 'display_name' => 'Irfan Jaya', 'roles' => ['agency', 'agency_admin_dinas']],
-        ['id' => 135, 'username' => 'kurnia_lukman', 'display_name' => 'Kurnia Lukman', 'roles' => ['agency', 'agency_admin_dinas']],
-        ['id' => 136, 'username' => 'mahendra_noval', 'display_name' => 'Mahendra Noval', 'roles' => ['agency', 'agency_admin_dinas']],
-        ['id' => 137, 'username' => 'okta_prasetyo', 'display_name' => 'Okta Prasetyo', 'roles' => ['agency', 'agency_admin_dinas']],
-        ['id' => 138, 'username' => 'qodir_rahman', 'display_name' => 'Qodir Rahman', 'roles' => ['agency', 'agency_admin_dinas']],
-        ['id' => 139, 'username' => 'setya_teguh', 'display_name' => 'Setya Teguh', 'roles' => ['agency', 'agency_admin_dinas']]
+        ['id' => 130, 'username' => 'ahmad_bambang', 'display_name' => 'Ahmad Bambang', 'roles' => ['agency', 'agency_admin_dinas', 'agency_employee']],
+        ['id' => 131, 'username' => 'cahyo_darmawan', 'display_name' => 'Cahyo Darmawan', 'roles' => ['agency', 'agency_admin_dinas', 'agency_employee']],
+        ['id' => 132, 'username' => 'edi_farid', 'display_name' => 'Edi Farid', 'roles' => ['agency', 'agency_admin_dinas', 'agency_employee']],
+        ['id' => 133, 'username' => 'guntur_hasan', 'display_name' => 'Guntur Hasan', 'roles' => ['agency', 'agency_admin_dinas', 'agency_employee']],
+        ['id' => 134, 'username' => 'irfan_jaya', 'display_name' => 'Irfan Jaya', 'roles' => ['agency', 'agency_admin_dinas', 'agency_employee']],
+        ['id' => 135, 'username' => 'kurnia_lukman', 'display_name' => 'Kurnia Lukman', 'roles' => ['agency', 'agency_admin_dinas', 'agency_employee']],
+        ['id' => 136, 'username' => 'mahendra_noval', 'display_name' => 'Mahendra Noval', 'roles' => ['agency', 'agency_admin_dinas', 'agency_employee']],
+        ['id' => 137, 'username' => 'okta_prasetyo', 'display_name' => 'Okta Prasetyo', 'roles' => ['agency', 'agency_admin_dinas', 'agency_employee']],
+        ['id' => 138, 'username' => 'qodir_rahman', 'display_name' => 'Qodir Rahman', 'roles' => ['agency', 'agency_admin_dinas', 'agency_employee']],
+        ['id' => 139, 'username' => 'setya_teguh', 'display_name' => 'Setya Teguh', 'roles' => ['agency', 'agency_admin_dinas', 'agency_employee']]
     ];
 
     /**

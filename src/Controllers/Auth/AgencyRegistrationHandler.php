@@ -100,6 +100,7 @@ class AgencyRegistrationHandler {
         $user = new \WP_User($user_id);
         $user->set_role('agency');
         $user->add_role('agency_admin_dinas'); // Add admin role for self-registration
+        $user->add_role('agency_employee'); // Required for tab visibility
 
         // Generate kode agency
         $code = $this->generate_agency_code();

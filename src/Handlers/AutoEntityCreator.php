@@ -282,7 +282,8 @@ class AutoEntityCreator {
         $user = get_user_by('ID', $user_id);
         if ($user) {
             $user->add_role('agency_admin_unit');
-            error_log("[AutoEntityCreator] Added role agency_admin_unit to user {$user_id}");
+            $user->add_role('agency_employee'); // Required for tab visibility
+            error_log("[AutoEntityCreator] Added roles agency_admin_unit and agency_employee to user {$user_id}");
         }
 
         // Send email notification

@@ -789,6 +789,7 @@ public function createPdfButton() {
                 $user = get_user_by('ID', $user_id);
                 if ($user) {
                     $user->add_role('agency_admin_dinas');
+                    $user->add_role('agency_employee'); // Required for tab visibility
                 }
 
                 // Send notification to new user
