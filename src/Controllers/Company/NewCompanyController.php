@@ -4,17 +4,23 @@
  *
  * @package     WP_Agency
  * @subpackage  Controllers/Company
- * @version     1.0.7
+ * @version     2.0.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Controllers/Company/NewCompanyController.php
  *
  * Description: Controller untuk mengelola data company (branch) yang belum memiliki inspector.
- *              Menangani operasi DataTable dan assignment inspector.
- *              Includes validasi input, permission checks,
+ *              Menangani operasi DataTable dan all-in-one assignment (agency + division + inspector).
+ *              Includes cascade dropdown handlers, validasi input, permission checks,
  *              dan response formatting untuk DataTables.
  *
  * Changelog:
+ * 2.0.0 - 2025-01-13
+ * - BREAKING: All-in-One Assignment (agency + division + inspector)
+ * - Added getAllAgencies() handler
+ * - Added getDivisionsByAgency() handler
+ * - Added getInspectorsByDivision() handler
+ * - Updated assignInspector() to handle all 3 fields
  * 1.0.0 - 2025-01-13
  * - Initial implementation
  * - Added DataTables integration
@@ -43,6 +49,11 @@ class NewCompanyController {
         add_action('wp_ajax_nopriv_handle_new_company_datatable', [$this, 'handleDataTableRequest']);
         add_action('wp_ajax_assign_inspector', [$this, 'assignInspector']);
         add_action('wp_ajax_get_available_inspectors', [$this, 'getAvailableInspectors']);
+
+        // Cascade dropdown handlers
+        add_action('wp_ajax_get_all_agencies', [$this, 'getAllAgencies']);
+        add_action('wp_ajax_get_divisions_by_agency', [$this, 'getDivisionsByAgency']);
+        add_action('wp_ajax_get_inspectors_by_division', [$this, 'getInspectorsByDivision']);
     }
 
     /**
@@ -175,10 +186,24 @@ class NewCompanyController {
                 throw new \Exception('Branch not found or has no division assigned');
             }
 
-            // Get inspectors from agency employees filtered by division and role
+            // Get division to determine which agency owns it
             global $wpdb;
-            $employees_table = $wpdb->prefix . 'app_agency_employees';
             $divisions_table = $wpdb->prefix . 'app_agency_divisions';
+
+            $division = $wpdb->get_row($wpdb->prepare(
+                "SELECT agency_id FROM {$divisions_table} WHERE id = %d",
+                $branch->division_id
+            ));
+
+            if (!$division || !$division->agency_id) {
+                throw new \Exception('Division not found or has no agency assigned');
+            }
+
+            $actual_agency_id = $division->agency_id;
+            error_log("DEBUG NewCompanyController::getAvailableInspectors - Branch agency_id: " . ($agency_id ?? 'NULL') . ", Division agency_id: {$actual_agency_id}");
+
+            // Get inspectors from agency employees filtered by division and role
+            $employees_table = $wpdb->prefix . 'app_agency_employees';
 
             // Get inspectors who are in the same division as the branch AND have agency or pengawas role
             $query = $wpdb->prepare(
@@ -194,7 +219,7 @@ class NewCompanyController {
                  AND um.meta_key = '{$wpdb->prefix}capabilities'
                  AND (um.meta_value LIKE %s OR um.meta_value LIKE %s)
                  ORDER BY e.name ASC",
-                $agency_id,
+                $actual_agency_id,
                 $branch->division_id,
                 '%agency%',
                 '%pengawas%'
@@ -202,7 +227,7 @@ class NewCompanyController {
 
             // Debug: Log the raw query
             error_log("DEBUG NewCompanyController::getAvailableInspectors - Raw Query: " . $query);
-            error_log("DEBUG NewCompanyController::getAvailableInspectors - Agency ID: {$agency_id}, Branch Division ID: {$branch->division_id}");
+            error_log("DEBUG NewCompanyController::getAvailableInspectors - Actual Agency ID: {$actual_agency_id}, Branch Division ID: {$branch->division_id}");
 
             $inspectors = $wpdb->get_results($query);
 
@@ -265,57 +290,230 @@ class NewCompanyController {
     }
 
     /**
-     * Assign inspector to branch
+     * Get all active agencies
+     *
+     * @return void JSON response with list of agencies
+     */
+    public function getAllAgencies() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            global $wpdb;
+            $agencies_table = $wpdb->prefix . 'app_agencies';
+
+            $agencies = $wpdb->get_results(
+                "SELECT id, name
+                 FROM {$agencies_table}
+                 WHERE status = 'active'
+                 ORDER BY name ASC"
+            );
+
+            wp_send_json_success([
+                'agencies' => $agencies ?: []
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get divisions by agency
+     *
+     * @return void JSON response with list of divisions
+     */
+    public function getDivisionsByAgency() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            $agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
+
+            if (!$agency_id) {
+                throw new \Exception('Invalid agency ID');
+            }
+
+            global $wpdb;
+            $divisions_table = $wpdb->prefix . 'app_agency_divisions';
+
+            $divisions = $wpdb->get_results($wpdb->prepare(
+                "SELECT id, name
+                 FROM {$divisions_table}
+                 WHERE agency_id = %d AND status = 'active'
+                 ORDER BY name ASC",
+                $agency_id
+            ));
+
+            wp_send_json_success([
+                'divisions' => $divisions ?: []
+            ]);
+
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get inspectors by division
+     *
+     * Retrieves agency employees filtered by division and role (agency/pengawas).
+     * Includes assignment count for each inspector.
+     *
+     * @return void JSON response with list of inspectors
+     */
+    public function getInspectorsByDivision() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            $division_id = isset($_POST['division_id']) ? intval($_POST['division_id']) : 0;
+
+            if (!$division_id) {
+                throw new \Exception('Invalid division ID');
+            }
+
+            global $wpdb;
+            $employees_table = $wpdb->prefix . 'app_agency_employees';
+            $divisions_table = $wpdb->prefix . 'app_agency_divisions';
+
+            // Get inspectors with agency or pengawas role in the specified division
+            $query = $wpdb->prepare(
+                "SELECT DISTINCT e.user_id, e.name
+                 FROM {$employees_table} e
+                 INNER JOIN {$divisions_table} d ON d.id = e.division_id
+                 INNER JOIN {$wpdb->users} u ON e.user_id = u.ID
+                 INNER JOIN {$wpdb->usermeta} um ON um.user_id = u.ID
+                 WHERE e.division_id = %d
+                 AND e.status = 'active'
+                 AND d.status = 'active'
+                 AND um.meta_key = '{$wpdb->prefix}capabilities'
+                 AND (um.meta_value LIKE %s OR um.meta_value LIKE %s)
+                 ORDER BY e.name ASC",
+                $division_id,
+                '%agency%',
+                '%pengawas%'
+            );
+
+            error_log("DEBUG NewCompanyController::getInspectorsByDivision - Query: " . $query);
+
+            $inspectors = $wpdb->get_results($query);
+
+            error_log("DEBUG NewCompanyController::getInspectorsByDivision - Found " . count($inspectors) . " inspectors");
+
+            // Add assignment counts
+            $result = [];
+            foreach ($inspectors as $inspector) {
+                $assignment_count = $this->model->getInspectorAssignments($inspector->user_id);
+                $count = count($assignment_count);
+
+                $result[] = [
+                    'value' => $inspector->user_id,
+                    'label' => esc_html($inspector->name),
+                    'assignment_count' => $count
+                ];
+            }
+
+            error_log("DEBUG NewCompanyController::getInspectorsByDivision - Final result: " . count($result) . " inspectors");
+
+            wp_send_json_success([
+                'inspectors' => $result
+            ]);
+
+        } catch (\Exception $e) {
+            error_log("DEBUG NewCompanyController::getInspectorsByDivision - Exception: " . $e->getMessage());
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Assign agency, division, and inspector to branch (All-in-One Assignment)
      */
     public function assignInspector() {
         try {
             check_ajax_referer('wp_agency_nonce', 'nonce');
 
             $branch_id = isset($_POST['branch_id']) ? intval($_POST['branch_id']) : 0;
+            $agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
+            $division_id = isset($_POST['division_id']) ? intval($_POST['division_id']) : 0;
             $inspector_id = isset($_POST['inspector_id']) ? intval($_POST['inspector_id']) : 0;
 
-            error_log("DEBUG NewCompanyController::assignInspector - Received: branch_id={$branch_id}, inspector_id={$inspector_id}");
+            error_log("DEBUG NewCompanyController::assignInspector - Received: branch_id={$branch_id}, agency_id={$agency_id}, division_id={$division_id}, inspector_id={$inspector_id}");
 
-            if (!$branch_id || !$inspector_id) {
-                throw new \Exception('Invalid parameters');
+            if (!$branch_id || !$agency_id || !$division_id || !$inspector_id) {
+                throw new \Exception('Invalid parameters - all fields required');
             }
 
-            // Get branch to check agency
+            // Get branch to verify it exists
             $branch = $this->model->getBranchById($branch_id);
             if (!$branch) {
                 throw new \Exception('Branch not found');
             }
 
-            error_log("DEBUG NewCompanyController::assignInspector - Branch found, agency_id: {$branch->agency_id}, current inspector_id: " . ($branch->inspector_id ?? 'NULL'));
+            error_log("DEBUG NewCompanyController::assignInspector - Branch found: ID={$branch_id}");
 
             // Check permission
-            if (!$this->validator->canAssignInspector($branch->agency_id)) {
+            if (!$this->validator->canAssignInspector($agency_id)) {
                 throw new \Exception('Permission denied');
             }
 
-            // Validate inspector assignment
-            $validation = $this->validator->validateInspectorAssignment($branch_id, $inspector_id);
+            // Validate inspector assignment with agency_id and division_id
+            $validation = $this->validator->validateInspectorAssignment($branch_id, $inspector_id, $agency_id, $division_id);
             if (!$validation['valid']) {
                 throw new \Exception($validation['message']);
             }
 
-            error_log("DEBUG NewCompanyController::assignInspector - Validation passed, proceeding with assignment");
+            error_log("DEBUG NewCompanyController::assignInspector - Validation passed, proceeding with all-in-one assignment");
 
-            // Assign inspector
-            $result = $this->model->assignInspector($branch_id, $inspector_id);
+            global $wpdb;
 
-            if (!$result) {
-                error_log("DEBUG NewCompanyController::assignInspector - Model assignInspector returned false");
-                throw new \Exception('Failed to assign inspector');
+            // Get employee.id from user_id (inspector_id is actually user_id from form)
+            $employees_table = $wpdb->prefix . 'app_agency_employees';
+            $employee = $wpdb->get_row($wpdb->prepare(
+                "SELECT id FROM {$employees_table}
+                 WHERE user_id = %d AND agency_id = %d AND division_id = %d AND status = 'active'",
+                $inspector_id, $agency_id, $division_id
+            ));
+
+            if (!$employee) {
+                error_log("DEBUG NewCompanyController::assignInspector - Employee record not found for user_id={$inspector_id}, agency_id={$agency_id}, division_id={$division_id}");
+                throw new \Exception('Employee record not found');
             }
 
-            error_log("DEBUG NewCompanyController::assignInspector - Assignment successful, clearing cache");
+            $employee_id = $employee->id;
+            error_log("DEBUG NewCompanyController::assignInspector - Found employee.id={$employee_id} for user_id={$inspector_id}");
+
+            $branches_table = $wpdb->prefix . 'app_customer_branches';
+
+            // Update branch with agency_id, division_id, and inspector_id (employee.id) in one query
+            $result = $wpdb->update(
+                $branches_table,
+                [
+                    'agency_id' => $agency_id,
+                    'division_id' => $division_id,
+                    'inspector_id' => $employee_id,  // Use employee.id, not user_id
+                    'updated_at' => current_time('mysql')
+                ],
+                ['id' => $branch_id],
+                ['%d', '%d', '%d', '%s'],
+                ['%d']
+            );
+
+            if ($result === false) {
+                error_log("DEBUG NewCompanyController::assignInspector - Database update failed");
+                throw new \Exception('Failed to assign agency, division, and inspector');
+            }
+
+            error_log("DEBUG NewCompanyController::assignInspector - Assignment successful (rows affected: {$result}), clearing cache");
 
             // Clear cache
             $this->cache->invalidateDataTableCache('new_company_list', [
-                'agency_id' => $branch->agency_id
+                'agency_id' => $agency_id
             ]);
-            $this->cache->delete('branch_without_inspector', $branch->agency_id);
+            $this->cache->delete('branch_without_inspector', $agency_id);
 
             // Clear wp-customer datatable cache if plugin is active
             if (class_exists('\WPCustomer\Cache\CustomerCacheManager')) {
@@ -331,7 +529,7 @@ class NewCompanyController {
             error_log("DEBUG NewCompanyController::assignInspector - Cache cleared, sending success response");
 
             wp_send_json_success([
-                'message' => __('Inspector assigned successfully', 'wp-agency')
+                'message' => __('Agency, division, and inspector assigned successfully', 'wp-agency')
             ]);
 
         } catch (\Exception $e) {

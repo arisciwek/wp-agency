@@ -3,12 +3,13 @@
  *
  * @package     WP_Agency
  * @subpackage  Assets/JS/Company
- * @version     3.0.0
+ * @version     4.0.0
  * @author      arisciwek
  *
  * Path: /wp-agency/assets/js/company/new-company-datatable.js
  *
- * Description: Handler untuk assign inspector menggunakan WPModal system.
+ * Description: Handler untuk assign agency, division, dan inspector menggunakan WPModal system.
+ *              Implements cascade dropdowns for all-in-one assignment.
  *              DataTable initialization handled by agency-datatable.js.
  *              Modal managed by wp-modal plugin (WPModal API).
  *
@@ -19,6 +20,14 @@
  * - wpAgencyNewCompany object (localized data)
  *
  * Changelog:
+ * 4.0.0 - 2025-01-13
+ * - BREAKING: All-in-One Assignment (agency + division + inspector)
+ * - Implemented cascade dropdowns (Agency → Division → Inspector)
+ * - Agency auto-detected from page context and pre-selected (disabled)
+ * - Auto-load divisions on modal open
+ * - Added loadAgencies(), loadDivisions(), loadInspectorsByDivision()
+ * - Updated handleAssignment() to submit all 3 fields
+ * - Modal title changed to "Assign to Agency"
  * 3.0.0 - 2025-01-13
  * - BREAKING: Migrated to WPModal system (wp-modal plugin)
  * - Removed custom modal HTML and management
@@ -116,15 +125,18 @@
             this.selectedBranchId = branchId;
             this.selectedCompanyName = companyName;
 
-            // Load inspectors first, then show modal
-            this.loadInspectors(branchId, function() {
+            // Get current agency ID from context
+            const currentAgencyId = this.getAgencyId();
+
+            // Load agencies first, then show modal
+            this.loadAgencies(function() {
                 // Build modal content
-                const content = self.buildModalContent(companyName);
+                const content = self.buildModalContent(companyName, currentAgencyId);
 
                 // Show modal using WPModal API
                 WPModal.show({
                     type: 'form',
-                    title: 'Assign Inspector',
+                    title: 'Assign to Agency',
                     body: content,
                     size: 'medium',
                     buttons: {
@@ -145,41 +157,65 @@
                     }
                 });
 
-                // Bind inspector select change event
-                $('#inspector-select').off('change').on('change', function() {
-                    self.onInspectorChange();
-                });
+                // Bind cascade dropdown events
+                self.bindModalEvents();
+
+                // Auto-load divisions for current agency
+                if (currentAgencyId) {
+                    console.log('[NewCompanyAssignment] Auto-loading divisions for agency:', currentAgencyId);
+                    self.loadDivisions(currentAgencyId);
+                }
             });
         },
 
-        buildModalContent(companyName) {
-            let html = '<form id="assign-inspector-form">';
+        buildModalContent(companyName, currentAgencyId) {
+            let html = '<form id="assign-agency-form">';
             html += '<input type="hidden" id="assign-branch-id" value="' + this.selectedBranchId + '" />';
+            html += '<input type="hidden" id="assign-agency-id" value="' + (currentAgencyId || '') + '" />';
 
+            // Company name (readonly)
             html += '<div class="form-group" style="margin-bottom: 15px;">';
             html += '<label for="company-name-display">Perusahaan:</label>';
             html += '<input type="text" id="company-name-display" value="' + companyName + '" readonly class="regular-text" style="width: 100%;" />';
             html += '</div>';
 
+            // Agency select (auto-selected and disabled)
             html += '<div class="form-group" style="margin-bottom: 15px;">';
-            html += '<label for="inspector-select">Pilih Pengawas:</label>';
-            html += '<select id="inspector-select" name="inspector_id" class="regular-text" required style="width: 100%;">';
-            html += '<option value="">-- Pilih Pengawas --</option>';
+            html += '<label for="agency-select-display">Disnaker: <span style="color: red;">*</span></label>';
+            html += '<select id="agency-select-display" class="regular-text" style="width: 100%;" disabled>';
+            html += '<option value="">-- Pilih Disnaker --</option>';
 
-            // Add inspector options
-            if (this.inspectorsList && this.inspectorsList.length > 0) {
-                this.inspectorsList.forEach(function(inspector) {
-                    const count = inspector.assignment_count || 0;
-                    html += '<option value="' + inspector.value + '" data-count="' + count + '">';
-                    html += inspector.label + ' (' + count + ' penugasan)';
-                    html += '</option>';
+            // Add agency options from loaded list
+            if (this.agenciesList && this.agenciesList.length > 0) {
+                this.agenciesList.forEach(function(agency) {
+                    const selected = (currentAgencyId && agency.id == currentAgencyId) ? ' selected' : '';
+                    html += '<option value="' + agency.id + '"' + selected + '>' + agency.name + '</option>';
                 });
             }
 
             html += '</select>';
-            html += '<p class="description">Pilih karyawan yang akan menjadi pengawas untuk perusahaan ini.</p>';
+            html += '<p class="description">Disnaker yang akan mengawasi perusahaan ini (otomatis terdeteksi).</p>';
             html += '</div>';
 
+            // Division select (will be auto-populated)
+            html += '<div class="form-group" style="margin-bottom: 15px;">';
+            html += '<label for="division-select">Pilih Unit Kerja: <span style="color: red;">*</span></label>';
+            html += '<select id="division-select" name="division_id" class="regular-text" required style="width: 100%;" disabled>';
+            html += '<option value="">Memuat unit kerja...</option>';
+            html += '</select>';
+            html += '<p class="description">Unit kerja/yuridiksi dalam disnaker.</p>';
+            html += '</div>';
+
+            // Inspector select (will be populated after division selection)
+            html += '<div class="form-group" style="margin-bottom: 15px;">';
+            html += '<label for="inspector-select">Pilih Pengawas: <span style="color: red;">*</span></label>';
+            html += '<select id="inspector-select" name="inspector_id" class="regular-text" required style="width: 100%;" disabled>';
+            html += '<option value="">-- Pilih Unit Kerja Dulu --</option>';
+            html += '</select>';
+            html += '<p class="description">Karyawan yang akan menjadi pengawas untuk perusahaan ini.</p>';
+            html += '</div>';
+
+            // Inspector info (assignment count)
             html += '<div class="form-group" id="inspector-info" style="display: none; margin-bottom: 15px;">';
             html += '<div class="notice notice-info inline" style="padding: 10px;">';
             html += '<p id="inspector-assignments-count"></p>';
@@ -191,7 +227,134 @@
             return html;
         },
 
+        bindModalEvents() {
+            const self = this;
+
+            // Division change → Load inspectors
+            $('#division-select').off('change').on('change', function() {
+                const divisionId = $(this).val();
+
+                // Reset inspector dropdown
+                $('#inspector-select').html('<option value="">Memuat pengawas...</option>').prop('disabled', true);
+                $('#inspector-info').hide();
+
+                if (divisionId) {
+                    self.loadInspectorsByDivision(divisionId);
+                } else {
+                    $('#inspector-select').html('<option value="">-- Pilih Unit Kerja Dulu --</option>');
+                }
+            });
+
+            // Inspector change → Show assignment count
+            $('#inspector-select').off('change').on('change', function() {
+                self.onInspectorChange();
+            });
+        },
+
+        loadAgencies(callback) {
+            const self = this;
+
+            console.log('[NewCompanyAssignment] Loading agencies...');
+
+            $.ajax({
+                url: wpAgencyNewCompany.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'get_all_agencies',
+                    nonce: wpAgencyNewCompany.nonce
+                },
+                success: function(response) {
+                    console.log('[NewCompanyAssignment] Agencies loaded:', response);
+
+                    if (response.success && response.data.agencies) {
+                        self.agenciesList = response.data.agencies;
+                    } else {
+                        self.agenciesList = [];
+                    }
+
+                    if (callback) callback();
+                },
+                error: function(xhr, status, error) {
+                    console.error('[NewCompanyAssignment] Failed to load agencies:', error);
+                    self.agenciesList = [];
+                    if (callback) callback();
+                }
+            });
+        },
+
+        loadDivisions(agencyId) {
+            const self = this;
+
+            console.log('[NewCompanyAssignment] Loading divisions for agency:', agencyId);
+
+            $.ajax({
+                url: wpAgencyNewCompany.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'get_divisions_by_agency',
+                    agency_id: agencyId,
+                    nonce: wpAgencyNewCompany.nonce
+                },
+                success: function(response) {
+                    console.log('[NewCompanyAssignment] Divisions loaded:', response);
+
+                    const $select = $('#division-select');
+                    $select.empty().append('<option value="">-- Pilih Unit Kerja --</option>');
+
+                    if (response.success && response.data.divisions && response.data.divisions.length > 0) {
+                        response.data.divisions.forEach(function(division) {
+                            $select.append('<option value="' + division.id + '">' + division.name + '</option>');
+                        });
+                        $select.prop('disabled', false);
+                    } else {
+                        $select.append('<option value="" disabled>Tidak ada unit kerja tersedia</option>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('[NewCompanyAssignment] Failed to load divisions:', error);
+                    $('#division-select').html('<option value="" disabled>Gagal memuat unit kerja</option>');
+                }
+            });
+        },
+
+        loadInspectorsByDivision(divisionId) {
+            const self = this;
+
+            console.log('[NewCompanyAssignment] Loading inspectors for division:', divisionId);
+
+            $.ajax({
+                url: wpAgencyNewCompany.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'get_inspectors_by_division',
+                    division_id: divisionId,
+                    nonce: wpAgencyNewCompany.nonce
+                },
+                success: function(response) {
+                    console.log('[NewCompanyAssignment] Inspectors loaded:', response);
+
+                    const $select = $('#inspector-select');
+                    $select.empty().append('<option value="">-- Pilih Pengawas --</option>');
+
+                    if (response.success && response.data.inspectors && response.data.inspectors.length > 0) {
+                        response.data.inspectors.forEach(function(inspector) {
+                            const count = inspector.assignment_count || 0;
+                            $select.append('<option value="' + inspector.value + '" data-count="' + count + '">' + inspector.label + ' (' + count + ' penugasan)</option>');
+                        });
+                        $select.prop('disabled', false);
+                    } else {
+                        $select.append('<option value="" disabled>Tidak ada pengawas tersedia</option>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('[NewCompanyAssignment] Failed to load inspectors:', error);
+                    $('#inspector-select').html('<option value="" disabled>Gagal memuat pengawas</option>');
+                }
+            });
+        },
+
         loadInspectors(branchId, callback) {
+            // DEPRECATED: Old method, kept for backward compatibility
             const self = this;
             const agencyId = this.getAgencyId();
 
@@ -244,12 +407,14 @@
         handleAssignment() {
             const self = this;
             const branchId = $('#assign-branch-id').val();
+            const agencyId = $('#assign-agency-id').val();
+            const divisionId = $('#division-select').val();
             const inspectorId = $('#inspector-select').val();
 
-            console.log('[NewCompanyAssignment] Handling assignment:', { branchId, inspectorId });
+            console.log('[NewCompanyAssignment] Handling assignment:', { branchId, agencyId, divisionId, inspectorId });
 
-            if (!branchId || !inspectorId) {
-                this.showToast('error', 'Silakan pilih pengawas');
+            if (!branchId || !agencyId || !divisionId || !inspectorId) {
+                this.showToast('error', 'Silakan lengkapi semua field');
                 return;
             }
 
@@ -264,6 +429,8 @@
                 data: {
                     action: 'assign_inspector',
                     branch_id: branchId,
+                    agency_id: agencyId,
+                    division_id: divisionId,
                     inspector_id: inspectorId,
                     nonce: wpAgencyNewCompany.nonce
                 },
@@ -271,7 +438,7 @@
                     console.log('[NewCompanyAssignment] Assignment response:', response);
 
                     if (response.success) {
-                        self.showToast('success', response.data.message || 'Inspector berhasil ditugaskan');
+                        self.showToast('success', response.data.message || 'Agency, division, dan inspector berhasil ditugaskan');
 
                         // Close modal
                         WPModal.hide();
@@ -279,13 +446,13 @@
                         // Trigger event for table reload
                         $(document).trigger('inspector:assigned.newcompany', [branchId, inspectorId]);
                     } else {
-                        self.showToast('error', response.data.message || 'Gagal menugaskan inspector');
+                        self.showToast('error', response.data.message || 'Gagal menugaskan agency, division, dan inspector');
                         $submitBtn.prop('disabled', false).html(originalText);
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('[NewCompanyAssignment] Assignment error:', error);
-                    self.showToast('error', 'Terjadi kesalahan saat menugaskan inspector');
+                    self.showToast('error', 'Terjadi kesalahan saat menugaskan');
                     $submitBtn.prop('disabled', false).html(originalText);
                 }
             });

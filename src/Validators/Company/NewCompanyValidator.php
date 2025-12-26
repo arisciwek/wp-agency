@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Validators/Company
- * @version     1.0.7
+ * @version     2.0.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Validators/Company/NewCompanyValidator.php
@@ -15,6 +15,10 @@
  *              dan inspector assignment validation.
  *
  * Changelog:
+ * 2.0.0 - 2025-01-13
+ * - Updated validateInspectorAssignment() to accept agency_id and division_id
+ * - Fix validation for new companies where branch->agency_id is NULL
+ * - Added division_id validation for stricter employee checking
  * 1.0.0 - 2025-01-13
  * - Initial implementation
  * - Added permission checks
@@ -152,12 +156,14 @@ class NewCompanyValidator {
 
     /**
      * Validate inspector assignment
-     * 
+     *
      * @param int $branch_id Branch ID
      * @param int $inspector_id Inspector user ID
+     * @param int|null $agency_id Agency ID to assign (optional, will use branch agency if not provided)
+     * @param int|null $division_id Division ID to assign (optional, for additional validation)
      * @return array Validation result with 'valid' and 'message' keys
      */
-    public function validateInspectorAssignment(int $branch_id, int $inspector_id): array {
+    public function validateInspectorAssignment(int $branch_id, int $inspector_id, ?int $agency_id = null, ?int $division_id = null): array {
         global $wpdb;
 
         // Check if branch exists
@@ -186,19 +192,35 @@ class NewCompanyValidator {
             ];
         }
 
+        // Determine which agency_id to use for validation
+        $target_agency_id = $agency_id ?? $branch->agency_id;
+
+        if (!$target_agency_id) {
+            return [
+                'valid' => false,
+                'message' => __('Agency ID is required for validation', 'wp-agency')
+            ];
+        }
+
         // Check if inspector is an agency employee
         $employees_table = $wpdb->prefix . 'app_agency_employees';
-        
-        $is_employee = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$employees_table} 
-             WHERE user_id = %d AND agency_id = %d AND status = 'active'",
-            $inspector_id, $branch->agency_id
-        ));
+
+        $query = "SELECT COUNT(*) FROM {$employees_table}
+                  WHERE user_id = %d AND agency_id = %d AND status = 'active'";
+        $params = [$inspector_id, $target_agency_id];
+
+        // If division_id provided, also check division match
+        if ($division_id) {
+            $query .= " AND division_id = %d";
+            $params[] = $division_id;
+        }
+
+        $is_employee = $wpdb->get_var($wpdb->prepare($query, ...$params));
 
         if ($is_employee == 0) {
             return [
                 'valid' => false,
-                'message' => __('Selected user is not an employee of this agency', 'wp-agency')
+                'message' => __('Selected user is not an employee of this agency/division', 'wp-agency')
             ];
         }
 
