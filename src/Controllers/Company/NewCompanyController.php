@@ -54,6 +54,9 @@ class NewCompanyController {
         add_action('wp_ajax_get_all_agencies', [$this, 'getAllAgencies']);
         add_action('wp_ajax_get_divisions_by_agency', [$this, 'getDivisionsByAgency']);
         add_action('wp_ajax_get_inspectors_by_division', [$this, 'getInspectorsByDivision']);
+
+        // Form template loader
+        add_action('wp_ajax_get_assignment_form', [$this, 'getAssignmentForm']);
     }
 
     /**
@@ -429,6 +432,63 @@ class NewCompanyController {
 
         } catch (\Exception $e) {
             error_log("DEBUG NewCompanyController::getInspectorsByDivision - Exception: " . $e->getMessage());
+            wp_send_json_error([
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get assignment form template
+     */
+    public function getAssignmentForm() {
+        try {
+            check_ajax_referer('wp_agency_nonce', 'nonce');
+
+            $branch_id = isset($_POST['branch_id']) ? intval($_POST['branch_id']) : 0;
+            $company_name = isset($_POST['company_name']) ? sanitize_text_field($_POST['company_name']) : '';
+            $current_agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
+
+            if (!$branch_id) {
+                throw new \Exception('Branch ID required');
+            }
+
+            global $wpdb;
+
+            // Get all agencies
+            $agencies = $wpdb->get_results(
+                "SELECT id, name FROM {$wpdb->prefix}app_agencies
+                 WHERE status = 'active'
+                 ORDER BY name ASC"
+            );
+
+            // Get divisions for current agency (if any)
+            $divisions = [];
+            if ($current_agency_id) {
+                $divisions = $wpdb->get_results($wpdb->prepare(
+                    "SELECT id, name FROM {$wpdb->prefix}app_agency_divisions
+                     WHERE agency_id = %d AND status = 'active'
+                     ORDER BY name ASC",
+                    $current_agency_id
+                ));
+            }
+
+            // Check if template exists
+            $template_path = WP_AGENCY_PATH . 'src/Views/company/assignment-form.php';
+            if (!file_exists($template_path)) {
+                throw new \Exception('Template not found');
+            }
+
+            // Render form template
+            ob_start();
+            include $template_path;
+            $form_html = ob_get_clean();
+
+            wp_send_json_success([
+                'html' => $form_html
+            ]);
+
+        } catch (\Exception $e) {
             wp_send_json_error([
                 'message' => $e->getMessage()
             ]);
