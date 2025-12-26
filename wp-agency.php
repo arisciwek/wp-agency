@@ -460,5 +460,87 @@ function wp_agency() {
     return WPAgency::getInstance();
 }
 
+/**
+ * Add agency data to WP Admin Bar
+ *
+ * Hook into: wp_admin_bar_user_data
+ *
+ * Displays:
+ * - Agency name (Disnaker)
+ * - Division name (Unit Kerja)
+ * - Employee position/name
+ *
+ * @param array $data Current user data
+ * @param int $user_id WordPress user ID
+ * @param WP_User $user WordPress user object
+ * @return array Enhanced user data
+ */
+function wp_agency_add_admin_bar_user_data($data, $user_id, $user) {
+    global $wpdb;
+
+    // Check if user is agency employee
+    $employee = $wpdb->get_row($wpdb->prepare(
+        "SELECT ae.name as employee_name,
+                ae.position,
+                a.name as agency_name,
+                d.name as division_name
+         FROM {$wpdb->prefix}app_agency_employees ae
+         LEFT JOIN {$wpdb->prefix}app_agencies a ON ae.agency_id = a.id
+         LEFT JOIN {$wpdb->prefix}app_agency_divisions d ON ae.division_id = d.id
+         WHERE ae.user_id = %d
+         LIMIT 1",
+        $user_id
+    ));
+
+    // If not employee, check if user is agency owner/admin
+    if (!$employee) {
+        $agency = $wpdb->get_row($wpdb->prepare(
+            "SELECT name as agency_name
+             FROM {$wpdb->prefix}app_agencies
+             WHERE user_id = %d
+             LIMIT 1",
+            $user_id
+        ));
+
+        if (!$agency) {
+            return $data; // Not an agency user
+        }
+
+        // Agency owner/admin - use custom_fields for custom labels
+        return array_merge($data, [
+            'entity_icon' => '🏛️',
+            'custom_fields' => [
+                'Kantor Dinas' => $agency->agency_name,
+                'Jabatan' => 'Admin Dinas',
+            ]
+        ]);
+    }
+
+    // Prepare enhanced data for agency employee
+    $custom_fields = [
+        'Kantor Dinas' => $employee->agency_name,
+    ];
+
+    // Add Unit Kerja (division) if available
+    if (!empty($employee->division_name)) {
+        $custom_fields['Unit Kerja'] = $employee->division_name;
+    }
+
+    // Add position/jabatan
+    if (!empty($employee->position)) {
+        $custom_fields['Jabatan'] = $employee->position;
+    } elseif (!empty($employee->employee_name)) {
+        $custom_fields['Jabatan'] = $employee->employee_name;
+    }
+
+    return array_merge($data, [
+        'entity_icon' => '🏛️',
+        'custom_fields' => $custom_fields
+    ]);
+}
+
+// WP Admin Bar Integration - Add agency info to admin bar
+add_filter('wp_admin_bar_user_data', 'wp_agency_add_admin_bar_user_data', 10, 3);
+
 // Initialize the plugin
 wp_agency()->run();
