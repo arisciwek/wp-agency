@@ -967,7 +967,13 @@ class DivisionController {
     
     public function getAgencyDivisions() {
         try {
-            check_ajax_referer('wp_agency_nonce', 'nonce');
+            // Accept both wp_agency_nonce and wpdt_nonce (for wp-customer integration)
+            $nonce_valid = check_ajax_referer('wp_agency_nonce', 'nonce', false) ||
+                          check_ajax_referer('wpdt_nonce', 'nonce', false);
+
+            if (!$nonce_valid) {
+                throw new \Exception('Security check failed');
+            }
 
             $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
             if (!$agency_id) {

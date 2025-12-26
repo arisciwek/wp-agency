@@ -366,7 +366,13 @@ class NewCompanyController {
      */
     public function getInspectorsByDivision() {
         try {
-            check_ajax_referer('wp_agency_nonce', 'nonce');
+            // Accept both wp_agency_nonce and wpdt_nonce (for wp-customer integration)
+            $nonce_valid = check_ajax_referer('wp_agency_nonce', 'nonce', false) ||
+                          check_ajax_referer('wpdt_nonce', 'nonce', false);
+
+            if (!$nonce_valid) {
+                throw new \Exception('Security check failed');
+            }
 
             $division_id = isset($_POST['division_id']) ? intval($_POST['division_id']) : 0;
 

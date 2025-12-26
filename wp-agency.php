@@ -150,6 +150,14 @@ class WPAgency {
         add_action('wp_agency_division_created', [$auto_entity_creator, 'handleDivisionCreated'], 10, 2);
         add_action('wp_agency_division_deleted', [$auto_entity_creator, 'handleDivisionDeleted'], 10, 3);
 
+        // Integration with wp-customer for company agency assignment
+        // Delay initialization until after wp-customer is loaded
+        add_action('plugins_loaded', function() {
+            if (defined('WP_CUSTOMER_VERSION')) {
+                new \WPAgency\Integrations\CompanyAgencyIntegration();
+            }
+        }, 20);
+
         /**
          * Hook: wp_agency_employee_created
          *
