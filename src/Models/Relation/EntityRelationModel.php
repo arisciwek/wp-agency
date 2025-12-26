@@ -75,6 +75,9 @@ class EntityRelationModel {
             case 'employee':
                 return $this->get_accessible_employee_ids($user_id);
 
+            case 'company':
+                return $this->get_accessible_company_ids($user_id);
+
             default:
                 return [0]; // Invalid entity type - block all
         }
@@ -287,5 +290,133 @@ class EntityRelationModel {
         ", $user_id));
 
         return $count > 0;
+    }
+
+    /**
+     * Get accessible company IDs for agency user
+     *
+     * Returns company (branch) IDs based on role:
+     * - agency_admin_unit: Companies in jurisdiction regencies
+     * - Other roles (admin_dinas, etc): Companies in same province
+     *
+     * @param int $user_id User ID
+     * @return array Company IDs
+     */
+    private function get_accessible_company_ids(int $user_id): array {
+        $user = get_user_by('id', $user_id);
+        if (!$user) {
+            return [0];
+        }
+
+        $user_roles = (array) $user->roles;
+
+        // Check if user is agency_admin_unit - filter by jurisdiction regencies
+        if (in_array('agency_admin_unit', $user_roles)) {
+            return $this->get_companies_by_jurisdiction($user_id);
+        }
+
+        // Other agency roles (admin_dinas, kepala_dinas, etc) - filter by province
+        return $this->get_companies_by_province($user_id);
+    }
+
+    /**
+     * Get companies by jurisdiction (for agency_admin_unit)
+     *
+     * Returns company IDs in regencies that are within user's division jurisdiction.
+     *
+     * Logic:
+     * 1. Get user's division_id
+     * 2. Get regency_ids from jurisdictions for that division
+     * 3. Return companies in those regencies
+     *
+     * @param int $user_id User ID
+     * @return array Company IDs
+     */
+    private function get_companies_by_jurisdiction(int $user_id): array {
+        global $wpdb;
+
+        // Get user's division_id
+        $division_id = $this->get_user_division_id($user_id);
+
+        if (!$division_id) {
+            return [0]; // No division = no access
+        }
+
+        // Get jurisdiction regency IDs for this division
+        $jurisdiction_table = $wpdb->prefix . 'app_agency_jurisdictions';
+
+        $regency_ids = $wpdb->get_col($wpdb->prepare("
+            SELECT jurisdiction_regency_id
+            FROM {$jurisdiction_table}
+            WHERE division_id = %d
+        ", $division_id));
+
+        if (empty($regency_ids)) {
+            return [0]; // No jurisdictions defined = no access
+        }
+
+        // Get companies in these regencies
+        $branches_table = $wpdb->prefix . 'app_customer_branches';
+        $placeholders = implode(',', array_fill(0, count($regency_ids), '%d'));
+
+        $company_ids = $wpdb->get_col($wpdb->prepare("
+            SELECT DISTINCT id
+            FROM {$branches_table}
+            WHERE regency_id IN ($placeholders)
+            AND status = 'active'
+        ", ...$regency_ids));
+
+        if (empty($company_ids)) {
+            return [0];
+        }
+
+        return $company_ids;
+    }
+
+    /**
+     * Get companies by province (for agency_admin_dinas and other roles)
+     *
+     * Returns company IDs in the same province as user's agency.
+     *
+     * @param int $user_id User ID
+     * @return array Company IDs
+     */
+    private function get_companies_by_province(int $user_id): array {
+        global $wpdb;
+
+        // Get user's agency province
+        $agency_id = $this->get_user_agency_id($user_id);
+
+        if (!$agency_id) {
+            return [0]; // No agency = no access
+        }
+
+        // Get province_id from agency
+        $province_id = $wpdb->get_var($wpdb->prepare("
+            SELECT province_id
+            FROM {$wpdb->prefix}app_agencies
+            WHERE id = %d
+            LIMIT 1
+        ", $agency_id));
+
+        if (!$province_id) {
+            return [0]; // No province = no access
+        }
+
+        // Get all companies (branches) in this province
+        $branches_table = $wpdb->prefix . 'app_customer_branches';
+
+        $company_ids = $wpdb->get_col($wpdb->prepare("
+            SELECT DISTINCT id
+            FROM {$branches_table}
+            WHERE province_id = %d
+            AND status = 'active'
+        ", $province_id));
+
+        if (empty($company_ids)) {
+            return [0];
+        }
+
+        return $company_ids;
     }
 }

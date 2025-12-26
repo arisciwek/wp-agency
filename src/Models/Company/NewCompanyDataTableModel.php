@@ -166,7 +166,7 @@ class NewCompanyDataTableModel extends DataTableModel {
      *
      * Hook callback for wpapp_datatable_{table}_where filter.
      * Applies filters:
-     * 1. Province filter (same province as agency)
+     * 1. Role-based access control (province OR jurisdiction)
      * 2. Agency filter (branches WITHOUT agency assignment)
      * 3. Inspector filter (branches without inspector)
      * 4. Status filter (active only)
@@ -179,18 +179,22 @@ class NewCompanyDataTableModel extends DataTableModel {
     public function filter_where($where_conditions, $request_data, $model): array {
         global $wpdb;
 
-        // 1. Filter by province (same as agency province)
-        if (isset($request_data['agency_id'])) {
-            $agency_id = (int) $request_data['agency_id'];
+        // 1. Role-based access control using EntityRelationModel
+        // Platform staff (WordPress admin) bypass filtering
+        if (!current_user_can('manage_options')) {
+            $entity_model = new \WPAgency\Models\Relation\EntityRelationModel();
+            $accessible_company_ids = $entity_model->get_accessible_entity_ids('company');
 
-            // Get agency province_id
-            $agency_province = $wpdb->get_var($wpdb->prepare(
-                "SELECT province_id FROM {$wpdb->prefix}app_agencies WHERE id = %d",
-                $agency_id
-            ));
-
-            if ($agency_province) {
-                $where_conditions[] = $wpdb->prepare('b.province_id = %d', $agency_province);
+            // If not empty array (empty = see all), apply filter
+            if (!empty($accessible_company_ids)) {
+                // If [0], no access
+                if ($accessible_company_ids === [0]) {
+                    $where_conditions[] = '1=0'; // Block all
+                } else {
+                    // Filter by accessible company IDs
+                    $placeholders = implode(',', array_fill(0, count($accessible_company_ids), '%d'));
+                    $where_conditions[] = $wpdb->prepare("b.id IN ($placeholders)", ...$accessible_company_ids);
+                }
             }
         }
 
