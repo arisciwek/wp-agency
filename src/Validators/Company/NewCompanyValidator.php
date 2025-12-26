@@ -111,8 +111,8 @@ class NewCompanyValidator {
             return true;
         }
 
-        // Check specific capability
-        if (current_user_can('assign_inspector')) {
+        // Check specific capability - NEW: use assign_inspector_to_branch
+        if (current_user_can('assign_inspector_to_branch')) {
             return true;
         }
 

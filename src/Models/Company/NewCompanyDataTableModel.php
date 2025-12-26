@@ -76,6 +76,16 @@ class NewCompanyDataTableModel extends DataTableModel {
     }
 
     /**
+     * Get table alias used in queries
+     * Required by BranchAccessFilter from wp-customer plugin
+     *
+     * @return string Table alias
+     */
+    public function get_table_alias(): string {
+        return 'b';
+    }
+
+    /**
      * Get columns for SELECT clause
      *
      * @return array Column definitions
@@ -135,10 +145,9 @@ class NewCompanyDataTableModel extends DataTableModel {
         );
 
         // Assign inspector button - check permission
-        // agency_admin can assign to all, agency_division_admin only to same division
-        $can_assign = current_user_can('edit_all_agencies') || current_user_can('edit_agency', $agency_id);
-
-        if ($can_assign) {
+        // Only users with assign_inspector_to_branch capability can see this button
+        // (agency_admin_dinas and agency_admin_unit have this capability)
+        if (current_user_can('assign_inspector_to_branch')) {
             $actions .= sprintf(
                 '<button type="button" class="button button-small button-primary assign-inspector" data-id="%d" data-company="%s" title="%s">
                     <span class="dashicons dashicons-admin-users" style="font-size: 16px; width: 16px; height: 16px;"></span>
@@ -157,9 +166,10 @@ class NewCompanyDataTableModel extends DataTableModel {
      *
      * Hook callback for wpapp_datatable_{table}_where filter.
      * Applies filters:
-     * 1. Agency filter (required - from request_data)
-     * 2. Inspector filter (branches without inspector)
-     * 3. Status filter (active only)
+     * 1. Province filter (same province as agency)
+     * 2. Agency filter (branches WITHOUT agency assignment)
+     * 3. Inspector filter (branches without inspector)
+     * 4. Status filter (active only)
      *
      * @param array $where_conditions Current WHERE conditions
      * @param array $request_data DataTables request data
@@ -169,16 +179,28 @@ class NewCompanyDataTableModel extends DataTableModel {
     public function filter_where($where_conditions, $request_data, $model): array {
         global $wpdb;
 
-        // 1. Filter by agency_id (required)
+        // 1. Filter by province (same as agency province)
         if (isset($request_data['agency_id'])) {
             $agency_id = (int) $request_data['agency_id'];
-            $where_conditions[] = $wpdb->prepare('b.agency_id = %d', $agency_id);
+
+            // Get agency province_id
+            $agency_province = $wpdb->get_var($wpdb->prepare(
+                "SELECT province_id FROM {$wpdb->prefix}app_agencies WHERE id = %d",
+                $agency_id
+            ));
+
+            if ($agency_province) {
+                $where_conditions[] = $wpdb->prepare('b.province_id = %d', $agency_province);
+            }
         }
 
-        // 2. Filter branches without inspector
+        // 2. Filter branches WITHOUT agency (new companies)
+        $where_conditions[] = '(b.agency_id IS NULL OR b.agency_id = 0)';
+
+        // 3. Filter branches without inspector
         $where_conditions[] = 'b.inspector_id IS NULL';
 
-        // 3. Filter active branches only
+        // 4. Filter active branches only
         $where_conditions[] = $wpdb->prepare('b.status = %s', 'active');
 
         return $where_conditions;

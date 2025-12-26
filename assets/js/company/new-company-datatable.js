@@ -1,279 +1,232 @@
 /**
- * New Company DataTable Handler
+ * New Company Assignment Handler
  *
  * @package     WP_Agency
  * @subpackage  Assets/JS/Company
- * @version     1.0.0
+ * @version     3.0.0
  * @author      arisciwek
  *
  * Path: /wp-agency/assets/js/company/new-company-datatable.js
  *
- * Description: Komponen untuk mengelola DataTables company yang belum memiliki inspector.
- *              Includes state management, inspector assignment,
- *              dan error handling yang lebih baik.
+ * Description: Handler untuk assign inspector menggunakan WPModal system.
+ *              DataTable initialization handled by agency-datatable.js.
+ *              Modal managed by wp-modal plugin (WPModal API).
  *
  * Dependencies:
  * - jQuery
- * - DataTables library
- * - AgencyToast for notifications
+ * - WPModal (wp-modal plugin)
+ * - agency-datatable.js (handles table initialization)
+ * - wpAgencyNewCompany object (localized data)
  *
  * Changelog:
+ * 3.0.0 - 2025-01-13
+ * - BREAKING: Migrated to WPModal system (wp-modal plugin)
+ * - Removed custom modal HTML and management
+ * - Use WPModal.show() API for modal display
+ * - Cleaner code, better maintainability
+ * 2.0.0 - 2025-01-13
+ * - Removed table initialization (now in agency-datatable.js)
  * 1.0.0 - 2025-01-13
  * - Initial implementation
- * - Added state management
- * - Added inspector assignment functionality
- * - Enhanced error handling
- * - Improved loading states
  */
 
 (function($) {
     'use strict';
 
-    const NewCompanyDataTable = {
-        table: null,
+    const NewCompanyAssignment = {
         initialized: false,
-        agencyId: null,
-        $container: null,
-        $tableContainer: null,
-        $loadingState: null,
-        $emptyState: null,
-        $errorState: null,
-        $assignModal: null,
-        $viewModal: null,
         selectedBranchId: null,
         selectedCompanyName: null,
+        inspectorsList: [],
 
-        init(agencyId) {
-            // Cache DOM elements
-            this.$container = $('#new-company');
-            this.$tableContainer = this.$container.find('.wi-table-container');
-            this.$loadingState = this.$container.find('.new-company-loading-state');
-            this.$emptyState = this.$container.find('.new-company-empty-state');
-            this.$errorState = this.$container.find('.new-company-error-state');
-            this.$assignModal = $('#assign-inspector-modal');
-            this.$viewModal = $('#view-company-modal');
+        init() {
+            if (this.initialized) {
+                console.log('[NewCompanyAssignment] Already initialized');
+                return;
+            }
 
-            // Always reinitialize when called to ensure fresh data
-            this.agencyId = agencyId;
-            this.showLoading();
-            this.initDataTable();
+            console.log('[NewCompanyAssignment] Initializing...');
+
+            // Check dependencies
+            if (typeof wpAgencyNewCompany === 'undefined') {
+                console.error('[NewCompanyAssignment] wpAgencyNewCompany not found');
+                return;
+            }
+
+            if (typeof WPModal === 'undefined') {
+                console.error('[NewCompanyAssignment] WPModal not found - wp-modal plugin required');
+                return;
+            }
+
             this.bindEvents();
+            this.initialized = true;
+
+            console.log('[NewCompanyAssignment] Initialized successfully');
+        },
+
+        /**
+         * Get agency ID from table data attribute
+         */
+        getAgencyId() {
+            const $table = $('#new-companies-datatable');
+            if ($table.length > 0) {
+                return parseInt($table.attr('data-agency-id')) || 0;
+            }
+            return 0;
         },
 
         bindEvents() {
-            // Modal events
-            this.$assignModal.find('.wp-agency-modal-close, .wp-agency-modal-cancel')
-                .off('click')
-                .on('click', () => this.closeAssignModal());
+            const self = this;
 
-            this.$viewModal.find('.wp-agency-modal-close')
-                .off('click')
-                .on('click', () => this.closeViewModal());
+            console.log('[NewCompanyAssignment] Binding events...');
 
-            // Confirm assignment button
-            $('#confirm-assign-inspector')
-                .off('click')
-                .on('click', () => this.confirmAssignment());
-
-            // Inspector selection change
-            $('#inspector-select')
-                .off('change')
-                .on('change', (e) => this.onInspectorChange(e));
-
-            // Reload button handler
-            this.$errorState.find('.reload-table')
-                .off('click')
-                .on('click', () => this.refresh());
-
-            // Event delegation for action buttons
-            $('#new-company-table')
-                .off('click', '.assign-inspector, .view-company')
-                .on('click', '.assign-inspector', (e) => {
+            // Event delegation for assign button on the DataTable
+            $(document)
+                .off('click.newcompany', '#new-companies-datatable .assign-inspector')
+                .on('click.newcompany', '#new-companies-datatable .assign-inspector', function(e) {
                     e.preventDefault();
-                    const id = $(e.currentTarget).data('id');
-                    const companyName = $(e.currentTarget).data('company');
+                    e.stopPropagation();
+
+                    const id = $(this).data('id');
+                    const companyName = $(this).data('company');
+
+                    console.log('[NewCompanyAssignment] Assign button clicked:', { id, companyName });
+
                     if (id) {
-                        this.showAssignModal(id, companyName);
-                    }
-                })
-                .on('click', '.view-company', (e) => {
-                    e.preventDefault();
-                    const id = $(e.currentTarget).data('id');
-                    if (id) {
-                        this.showViewModal(id);
+                        self.showAssignModal(id, companyName);
                     }
                 });
 
-            // CRUD event listeners
+            // Listen for inspector assignment success to reload table
             $(document)
-                .off('inspector:assigned.datatable')
-                .on('inspector:assigned.datatable', () => this.refresh());
+                .off('inspector:assigned.newcompany')
+                .on('inspector:assigned.newcompany', function(e, branchId, inspectorId) {
+                    console.log('[NewCompanyAssignment] Inspector assigned, reloading table...');
+                    self.reloadTable();
+                });
+
+            console.log('[NewCompanyAssignment] Events bound successfully');
         },
-
-        initDataTable() {
-            if ($.fn.DataTable.isDataTable('#new-company-table')) {
-                $('#new-company-table').DataTable().destroy();
-            }
-
-            $('#new-company-table').empty().html(`
-                <thead>
-                    <tr>
-                        <th>Kode</th>
-                        <th>Perusahaan</th>
-                        <th>Unit</th>
-                        <th>Yuridiksi</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            `);
-
-            const self = this;
-            this.table = $('#new-company-table').DataTable({
-                processing: true,
-                serverSide: true,
-                ajax: {
-                    url: wpAgencyData.ajaxUrl,
-                    type: 'POST',
-                    cache: false,
-                    data: (d) => {
-                        return {
-                            ...d,
-                            action: 'handle_new_company_datatable',
-                            agency_id: this.agencyId,
-                            nonce: wpAgencyData.nonce
-                        };
-                    },
-                    error: (xhr, error, thrown) => {
-                        console.error('DataTables Error:', error);
-                        this.showError();
-                    },
-                    dataSrc: function(response) {
-                        if (!response.data || response.data.length === 0) {
-                            self.showEmpty();
-                        } else {
-                            self.showTable();
-                        }
-                        return response.data;
-                    }
-                },
-                columns: [
-                    { data: 'code', width: '10%', className: 'column-code' },
-                    { data: 'company_name', width: '30%', className: 'column-company' },
-                    { data: 'division_name', width: '25%', className: 'column-division' },
-                    { data: 'regency_name', width: '20%', className: 'column-regency' },
-                    {
-                        data: 'actions',
-                        width: '15%',
-                        orderable: false,
-                        className: 'column-actions text-center'
-                    }
-                ],
-                order: [[0, 'asc']],
-                pageLength: wpAgencyData.perPage || 10,
-                language: {
-                    "emptyTable": "Tidak ada data yang tersedia",
-                    "info": "Menampilkan _START_ hingga _END_ dari _TOTAL_ entri",
-                    "infoEmpty": "Menampilkan 0 hingga 0 dari 0 entri",
-                    "infoFiltered": "(disaring dari _MAX_ total entri)",
-                    "lengthMenu": "Tampilkan _MENU_ entri",
-                    "loadingRecords": "Memuat...",
-                    "processing": "Memproses...",
-                    "search": "Cari:",
-                    "zeroRecords": "Tidak ditemukan data yang sesuai",
-                    "paginate": {
-                        "first": "Pertama",
-                        "last": "Terakhir",
-                        "next": "Selanjutnya",
-                        "previous": "Sebelumnya"
-                    }
-                },
-                drawCallback: (settings) => {
-                    // Any post-draw actions
-                }
-            });
-
-            this.initialized = true;
-        },
-
-
 
         showAssignModal(branchId, companyName) {
+            const self = this;
+
+            console.log('[NewCompanyAssignment] Opening assign modal:', { branchId, companyName });
+
             this.selectedBranchId = branchId;
             this.selectedCompanyName = companyName;
 
-            $('#assign-branch-id').val(branchId);
-            $('#company-name-display').val(companyName);
-            $('#inspector-select').val('').trigger('change');
-            $('#inspector-info').hide();
+            // Load inspectors first, then show modal
+            this.loadInspectors(branchId, function() {
+                // Build modal content
+                const content = self.buildModalContent(companyName);
 
-            // Load inspectors for this specific branch
-            this.loadInspectorsForBranch(branchId);
+                // Show modal using WPModal API
+                WPModal.show({
+                    type: 'form',
+                    title: 'Assign Inspector',
+                    body: content,
+                    size: 'medium',
+                    buttons: {
+                        cancel: {
+                            label: 'Batal',
+                            class: 'button',
+                            data: { action: 'cancel' }
+                        },
+                        submit: {
+                            label: 'Assign',
+                            class: 'button button-primary',
+                            data: { action: 'submit' }
+                        }
+                    },
+                    onSubmit: function() {
+                        self.handleAssignment();
+                        return false; // Prevent modal from closing automatically
+                    }
+                });
 
-            this.$assignModal.fadeIn();
+                // Bind inspector select change event
+                $('#inspector-select').off('change').on('change', function() {
+                    self.onInspectorChange();
+                });
+            });
         },
 
-        loadInspectorsForBranch(branchId) {
-            const $select = $('#inspector-select');
-            $select.empty().append('<option value="">Memuat pengawas...</option>');
+        buildModalContent(companyName) {
+            let html = '<form id="assign-inspector-form">';
+            html += '<input type="hidden" id="assign-branch-id" value="' + this.selectedBranchId + '" />';
+
+            html += '<div class="form-group" style="margin-bottom: 15px;">';
+            html += '<label for="company-name-display">Perusahaan:</label>';
+            html += '<input type="text" id="company-name-display" value="' + companyName + '" readonly class="regular-text" style="width: 100%;" />';
+            html += '</div>';
+
+            html += '<div class="form-group" style="margin-bottom: 15px;">';
+            html += '<label for="inspector-select">Pilih Pengawas:</label>';
+            html += '<select id="inspector-select" name="inspector_id" class="regular-text" required style="width: 100%;">';
+            html += '<option value="">-- Pilih Pengawas --</option>';
+
+            // Add inspector options
+            if (this.inspectorsList && this.inspectorsList.length > 0) {
+                this.inspectorsList.forEach(function(inspector) {
+                    const count = inspector.assignment_count || 0;
+                    html += '<option value="' + inspector.value + '" data-count="' + count + '">';
+                    html += inspector.label + ' (' + count + ' penugasan)';
+                    html += '</option>';
+                });
+            }
+
+            html += '</select>';
+            html += '<p class="description">Pilih karyawan yang akan menjadi pengawas untuk perusahaan ini.</p>';
+            html += '</div>';
+
+            html += '<div class="form-group" id="inspector-info" style="display: none; margin-bottom: 15px;">';
+            html += '<div class="notice notice-info inline" style="padding: 10px;">';
+            html += '<p id="inspector-assignments-count"></p>';
+            html += '</div>';
+            html += '</div>';
+
+            html += '</form>';
+
+            return html;
+        },
+
+        loadInspectors(branchId, callback) {
+            const self = this;
+            const agencyId = this.getAgencyId();
+
+            console.log('[NewCompanyAssignment] Loading inspectors for branch:', branchId, 'agency:', agencyId);
 
             $.ajax({
-                url: wpAgencyData.ajaxUrl,
+                url: wpAgencyNewCompany.ajax_url,
                 type: 'POST',
                 data: {
                     action: 'get_available_inspectors',
-                    agency_id: this.agencyId,
+                    agency_id: agencyId,
                     branch_id: branchId,
-                    nonce: wpAgencyData.nonce
+                    nonce: wpAgencyNewCompany.nonce
                 },
-                success: (response) => {
-                    $select.empty().append('<option value="">-- Pilih Pengawas --</option>');
+                success: function(response) {
+                    console.log('[NewCompanyAssignment] Inspectors loaded:', response);
 
                     if (response.success && response.data.inspectors) {
-                        response.data.inspectors.forEach(inspector => {
-                            const count = inspector.assignment_count || 0;
-                            $select.append(`<option value="${inspector.value}" data-count="${count}">${inspector.label} (${count} penugasan)</option>`);
-                        });
+                        self.inspectorsList = response.data.inspectors;
                     } else {
-                        $select.append('<option value="" disabled>Tidak ada pengawas tersedia</option>');
+                        self.inspectorsList = [];
                     }
+
+                    if (callback) callback();
                 },
-                error: () => {
-                    $select.empty().append('<option value="" disabled>Gagal memuat pengawas</option>');
-                    console.error('Failed to load inspectors for branch');
+                error: function(xhr, status, error) {
+                    console.error('[NewCompanyAssignment] Failed to load inspectors:', error);
+                    self.inspectorsList = [];
+                    if (callback) callback();
                 }
             });
         },
 
-        closeAssignModal() {
-            this.$assignModal.fadeOut();
-            this.selectedBranchId = null;
-            this.selectedCompanyName = null;
-            $('#assign-inspector-form')[0].reset();
-        },
-
-        showViewModal(branchId) {
-            // Load company details via AJAX
-            $('#company-details-content').html('<div class="spinner is-active"></div>');
-            this.$viewModal.fadeIn();
-            
-            // Here you would typically load the company details
-            // For now, just show a placeholder
-            setTimeout(() => {
-                $('#company-details-content').html(`
-                    <p>Company details for ID: ${branchId}</p>
-                    <p>This feature will be implemented to show full company information.</p>
-                `);
-            }, 500);
-        },
-
-        closeViewModal() {
-            this.$viewModal.fadeOut();
-            $('#company-details-content').empty();
-        },
-
-        onInspectorChange(e) {
-            const inspectorId = $(e.target).val();
+        onInspectorChange() {
+            const inspectorId = $('#inspector-select').val();
 
             if (!inspectorId) {
                 $('#inspector-info').hide();
@@ -281,99 +234,78 @@
             }
 
             // Get assignment count from the selected option's data attribute
-            const $selectedOption = $(e.target).find('option:selected');
+            const $selectedOption = $('#inspector-select option:selected');
             const count = $selectedOption.data('count') || 0;
 
-            $('#inspector-assignments-count').text(`Pengawas ini saat ini memiliki ${count} penugasan.`);
+            $('#inspector-assignments-count').text('Pengawas ini saat ini memiliki ' + count + ' penugasan.');
             $('#inspector-info').show();
         },
 
-        confirmAssignment() {
+        handleAssignment() {
+            const self = this;
             const branchId = $('#assign-branch-id').val();
             const inspectorId = $('#inspector-select').val();
-            
+
+            console.log('[NewCompanyAssignment] Handling assignment:', { branchId, inspectorId });
+
             if (!branchId || !inspectorId) {
                 this.showToast('error', 'Silakan pilih pengawas');
                 return;
             }
 
-            // Disable button and show loading
-            const $button = $('#confirm-assign-inspector');
-            const originalText = $button.html();
-            $button.prop('disabled', true).html('<span class="spinner is-active"></span> Processing...');
+            // Disable submit button
+            const $submitBtn = $('.wpmodal-footer button[data-action="submit"]');
+            const originalText = $submitBtn.html();
+            $submitBtn.prop('disabled', true).html('Processing...');
 
             $.ajax({
-                url: wpAgencyData.ajaxUrl,
+                url: wpAgencyNewCompany.ajax_url,
                 type: 'POST',
                 data: {
                     action: 'assign_inspector',
                     branch_id: branchId,
                     inspector_id: inspectorId,
-                    nonce: wpAgencyData.nonce
+                    nonce: wpAgencyNewCompany.nonce
                 },
-                success: (response) => {
+                success: function(response) {
+                    console.log('[NewCompanyAssignment] Assignment response:', response);
+
                     if (response.success) {
-                        this.showToast('success', response.data.message || 'Inspector berhasil ditugaskan');
-                        this.closeAssignModal();
-                        this.refresh();
-                        $(document).trigger('inspector:assigned', [branchId, inspectorId]);
+                        self.showToast('success', response.data.message || 'Inspector berhasil ditugaskan');
+
+                        // Close modal
+                        WPModal.hide();
+
+                        // Trigger event for table reload
+                        $(document).trigger('inspector:assigned.newcompany', [branchId, inspectorId]);
                     } else {
-                        this.showToast('error', response.data.message || 'Gagal menugaskan inspector');
+                        self.showToast('error', response.data.message || 'Gagal menugaskan inspector');
+                        $submitBtn.prop('disabled', false).html(originalText);
                     }
                 },
-                error: () => {
-                    this.showToast('error', 'Terjadi kesalahan saat menugaskan inspector');
-                },
-                complete: () => {
-                    $button.prop('disabled', false).html(originalText);
+                error: function(xhr, status, error) {
+                    console.error('[NewCompanyAssignment] Assignment error:', error);
+                    self.showToast('error', 'Terjadi kesalahan saat menugaskan inspector');
+                    $submitBtn.prop('disabled', false).html(originalText);
                 }
             });
         },
 
-        showLoading() {
-            this.$tableContainer.hide();
-            this.$emptyState.hide();
-            this.$errorState.hide();
-            this.$loadingState.show();
-        },
+        reloadTable() {
+            const $table = $('#new-companies-datatable');
 
-        showEmpty() {
-            this.$tableContainer.hide();
-            this.$loadingState.hide();
-            this.$errorState.hide();
-            this.$emptyState.show();
-        },
-
-        showError() {
-            this.$tableContainer.hide();
-            this.$loadingState.hide();
-            this.$emptyState.hide();
-            this.$errorState.show();
-        },
-
-        showTable() {
-            this.$loadingState.hide();
-            this.$emptyState.hide();
-            this.$errorState.hide();
-            this.$tableContainer.show();
-        },
-
-        refresh() {
-            if (this.table) {
-                this.showLoading();
-                this.table.ajax.reload(() => {
-                    const info = this.table.page.info();
-                    if (info.recordsTotal === 0) {
-                        this.showEmpty();
-                    } else {
-                        this.showTable();
-                    }
-                }, false);
+            if ($.fn.DataTable.isDataTable($table)) {
+                console.log('[NewCompanyAssignment] Reloading table...');
+                $table.DataTable().ajax.reload(null, false);
+            } else {
+                console.warn('[NewCompanyAssignment] Table not initialized yet');
             }
         },
 
         showToast(type, message) {
-            // Use AgencyToast if available, otherwise use console
+            console.log('[NewCompanyAssignment] Toast [' + type + ']:', message);
+
+            // Use AgencyToast if available
             if (typeof AgencyToast !== 'undefined') {
                 if (type === 'success') {
                     AgencyToast.success(message);
@@ -383,19 +315,25 @@
                     AgencyToast.info(message);
                 }
             } else {
-                console.log(`[${type.toUpperCase()}] ${message}`);
-                
-                // Fallback to basic alert for errors
-                if (type === 'error') {
+                // Fallback to basic alert
+                if (type === 'error' || type === 'success') {
                     alert(message);
                 }
             }
         }
     };
 
-    // Initialize when document is ready
-    $(document).ready(() => {
-        window.NewCompanyDataTable = NewCompanyDataTable;
+    /**
+     * Initialize on document ready
+     */
+    $(document).ready(function() {
+        console.log('[NewCompanyAssignment] Document ready, initializing...');
+        NewCompanyAssignment.init();
     });
+
+    /**
+     * Expose to global scope
+     */
+    window.NewCompanyAssignment = NewCompanyAssignment;
 
 })(jQuery);

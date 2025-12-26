@@ -149,9 +149,10 @@ class WPUserGenerator {
         $this->debug("User created successfully with auto ID: {$user_id}");
 
         // 4. Add additional roles (agency pattern: base + admin role)
-        if (isset($data['roles']) && is_array($data['roles'])) {
-            $user = get_user_by('ID', $user_id);
-            if ($user) {
+        $user = get_user_by('ID', $user_id);
+        if ($user) {
+            // Add roles from data array
+            if (isset($data['roles']) && is_array($data['roles'])) {
                 foreach ($data['roles'] as $role) {
                     if ($role !== 'agency') {  // Skip base role already set
                         $user->add_role($role);
@@ -159,6 +160,10 @@ class WPUserGenerator {
                     }
                 }
             }
+
+            // ALWAYS add agency_employee role (required for tab visibility)
+            $user->add_role('agency_employee');
+            $this->debug("Added role: agency_employee (required)");
         }
 
         // 5. Now update the ID to match static ID from data

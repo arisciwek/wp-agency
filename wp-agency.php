@@ -176,6 +176,44 @@ class WPAgency {
         // Custom role names for wp-agency roles
         add_filter('wp_app_core_role_display_name', [$this, 'get_role_display_name'], 10, 2);
 
+        // Fix wp-customer DataTableAccessFilter config for customer_branches
+        // Override hardcoded alias 'cb' to 'b' (NewCompanyDataTableModel uses 'b')
+        add_filter('wp_customer_datatable_access_configs', function($configs) {
+            if (isset($configs['customer_branches'])) {
+                $configs['customer_branches']['table_alias'] = 'b';
+            }
+            return $configs;
+        }, 1, 1); // Priority 1 to run early, before DataTableAccessFilter init
+
+        // Bypass wp-customer DataTableAccessFilter for agency users
+        // Agency users should see branches in their province, not filtered by customer_id
+        add_filter('wp_customer_should_filter_datatable', function($should_filter, $user_id, $entity_type, $config) {
+            // Only for customer_branches entity
+            if ($entity_type !== 'customer_branches') {
+                return $should_filter;
+            }
+
+            // Check if user is agency employee
+            global $wpdb;
+            $is_agency_employee = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_employees WHERE user_id = %d",
+                $user_id
+            ));
+
+            // Also check if user is agency owner
+            $is_agency_owner = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}app_agencies WHERE user_id = %d",
+                $user_id
+            ));
+
+            // Agency users should NOT be filtered by customer access control
+            if ($is_agency_employee || $is_agency_owner) {
+                return false; // Don't filter agency users
+            }
+
+            return $should_filter;
+        }, 10, 4);
+
         // DEBUG: Log DataTable queries (development only)
         if (WP_AGENCY_DEVELOPMENT || (defined('WP_DEBUG') && WP_DEBUG)) {
             add_filter('query', [$this, 'log_datatable_queries']);

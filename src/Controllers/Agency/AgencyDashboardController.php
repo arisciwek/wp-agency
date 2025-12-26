@@ -224,6 +224,38 @@ class AgencyDashboardController {
             return;
         }
 
+        // Enqueue New Company Assignment scripts and styles
+        // These are needed for the "Perusahaan Baru" tab
+        // Loaded on main page so modal and events are always ready
+        wp_enqueue_script(
+            'wp-agency-new-company-datatable',
+            WP_AGENCY_URL . 'assets/js/company/new-company-datatable.js',
+            array('jquery', 'datatables', 'agency-datatable', 'wp-modal'),
+            WP_AGENCY_VERSION,
+            true
+        );
+
+        wp_enqueue_style(
+            'wp-agency-new-company-style',
+            WP_AGENCY_URL . 'assets/css/company/new-company-style.css',
+            array(),
+            WP_AGENCY_VERSION
+        );
+
+        // Localize script - agency_id will be set when tab is clicked
+        // For now, use 0 as placeholder - will be updated via AJAX response
+        wp_localize_script('wp-agency-new-company-datatable', 'wpAgencyNewCompany', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('wp_agency_nonce'),
+            'agency_id' => 0, // Placeholder - actual ID from tab data-agency-id
+            'i18n' => array(
+                'loading' => __('Loading...', 'wp-agency'),
+                'error' => __('Error loading data', 'wp-agency'),
+                'success' => __('Inspector assigned successfully', 'wp-agency'),
+                'confirm' => __('Are you sure?', 'wp-agency')
+            )
+        ));
+
         // Include DataTable view file
         $datatable_file = WP_AGENCY_PATH . 'src/Views/DataTable/Templates/datatable.php';
 // error_log('DataTable file path: ' . $datatable_file);
@@ -950,12 +982,17 @@ class AgencyDashboardController {
         }
 
         try {
+            // Scripts and styles already enqueued in render_datatable()
+            // Just return the HTML content
+
             // Generate new companies DataTable HTML using template
             ob_start();
             $this->render_partial('ajax-new-companies-datatable', compact('agency_id'), 'agency');
             $html = ob_get_clean();
 
-            wp_send_json_success(['html' => $html]);
+            wp_send_json_success([
+                'html' => $html
+            ]);
 
         } catch (\Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -1256,7 +1293,8 @@ class AgencyDashboardController {
 
         // List of all agency-related roles
         $agency_roles = [
-            'agency_employee'
+            'agency_employee',
+            'administrator'
         ];
 
         // Check if user has any agency role

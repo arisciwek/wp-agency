@@ -37,6 +37,7 @@ class WP_Agency_Role_Manager {
     public static function getRoles(): array {
         return [
             'agency' => __('Disnaker', 'wp-agency'),
+            'agency_employee' => __('Staff Disnaker', 'wp-agency'),
             'agency_admin_dinas' => __('Admin Dinas', 'wp-agency'),
             'agency_admin_unit' => __('Admin Unit', 'wp-agency'),
             'agency_pengawas' => __('Pengawas', 'wp-agency'),

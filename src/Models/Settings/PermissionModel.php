@@ -73,7 +73,11 @@ class PermissionModel {
 
         // Customer Plugin - Staff (wp-agency TODO-2064)
         'view_customer_employee_list' => 'Lihat Daftar Karyawan Customer',
-        'view_customer_employee_detail' => 'Lihat Detail Karyawan Customer',     
+        'view_customer_employee_detail' => 'Lihat Detail Karyawan Customer',
+
+        // Branch Assignment capabilities
+        'assign_branch_to_agency' => 'Assign Cabang ke Disnaker',
+        'assign_inspector_to_branch' => 'Assign Pengawas ke Cabang',
 
     ];
 
@@ -129,7 +133,10 @@ class PermissionModel {
                 'view_customer_branch_detail',
                 // Staff
                 'view_customer_employee_list',
-                'view_customer_employee_detail'
+                'view_customer_employee_detail',
+                // Assignment
+                'assign_branch_to_agency',
+                'assign_inspector_to_branch'
             ]
         ]
     ];
@@ -181,6 +188,10 @@ class PermissionModel {
             'edit_all_employees' => __('Memungkinkan mengedit semua data karyawan', 'wp-agency'),
             'edit_own_employee' => __('Memungkinkan mengedit hanya karyawan yang ditugaskan', 'wp-agency'),
             'delete_employee' => __('Memungkinkan menghapus data karyawan', 'wp-agency'),
+
+            // Branch Assignment capabilities
+            'assign_branch_to_agency' => __('Memungkinkan assign cabang customer ke disnaker', 'wp-agency'),
+            'assign_inspector_to_branch' => __('Memungkinkan assign pengawas ke cabang customer', 'wp-agency'),
         ];
     }
 
@@ -433,6 +444,10 @@ class PermissionModel {
                 'view_customer_branch_detail' => true,
                 'view_customer_employee_list' => true,
                 'view_customer_employee_detail' => true,
+
+                // Assignment capabilities - Only Admin Dinas
+                'assign_branch_to_agency' => true,
+                'assign_inspector_to_branch' => true,
             ],
             'agency_admin_unit' => [
                 // Disnaker capabilities - View only
@@ -465,6 +480,9 @@ class PermissionModel {
                 'view_customer_branch_detail' => true,
                 'view_customer_employee_list' => true,
                 'view_customer_employee_detail' => true,
+
+                // Assignment capabilities - Admin Unit can assign inspector in their division
+                'assign_inspector_to_branch' => true,
             ],
             'agency_kepala_dinas' => [
                 // Disnaker capabilities - View and manage
