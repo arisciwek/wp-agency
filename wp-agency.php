@@ -278,61 +278,29 @@ class WPAgency {
         // Updated for centralized panel handler (TODO-1180)
         add_action('wp_ajax_get_agency', [$this->agency_controller, 'handle_get_agency']);
 
-        // Check setiap request apakah WP Customer sudah available
-        add_action('init', function() {
-            // Skip jika sudah diinit via custom hook
-            static $initialized = false;
-            if ($initialized) {
-                return;
-            }
-            
-            // Check if WP Customer available
-            if (!class_exists('WPCustomer\\Validators\\Company\\CompanyValidator')) {
-                return; // WP Customer belum loaded atau tidak ada
-            }
-            
-            // Check if filters class exists
-            if (!class_exists('WPAgency\\Filters\\CompanyFilters')) {
-                return;
-            }
-            
-            // Initialize
-            new \WPAgency\Filters\CompanyFilters();
-            $initialized = true;
-            
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('WP Agency: Company filters initialized via init fallback');
-            }
-        }, 999); // Priority 999 untuk memastikan plugin lain sudah loaded
+        // OLD: CompanyFilters integration with wp-customer - REMOVED
+        // File AgencyCompanyFilters.php deleted - hooks no longer used
+        // Replaced by RoleBasedFilter for all cross-plugin filtering
 
     }
 
     /**
      * Initialize role-based filtering classes
      *
-     * Implements wp-customer pattern for DataTable filtering.
-     * Uses wpdt_ prefix for wp-datatable framework.
-     *
-     * Filters initialized:
-     * - DataTableAccessFilter: Generic framework for all entities
-     * - AgencyRoleFilter: Agency DataTable filtering
-     * - DivisionAccessFilter: Division DataTable filtering
-     * - EmployeeAccessFilter: Employee DataTable filtering
+     * NEW: Role-based filter system (simplified)
+     * Single unified filter for all agency entities based on user role
+     * Handles: agency, division, employee, company
+     * Supports: agency_admin_dinas, agency_admin_unit roles
      *
      * @since 1.0.0
      */
     private function initFilters() {
-        // 1. Generic DataTable Access Filter (framework)
-        new \WPAgency\Controllers\Integration\DataTableAccessFilter();
+        // 1. Generic DataTable Access Filter (framework) - REMOVED
+        // Replaced by RoleBasedFilter (role-based hooks instead of entity-based)
+        // new \WPAgency\Controllers\Integration\DataTableAccessFilter();
 
-        // 2. Agency Role Filter (specific implementation)
-        new \WPAgency\Integrations\AgencyRoleFilter();
-
-        // 3. Division Access Filter
-        new \WPAgency\Integrations\DivisionAccessFilter();
-
-        // 4. Employee Access Filter
-        new \WPAgency\Integrations\EmployeeAccessFilter();
+        // 2. Unified role-based filter (replaces DataTableAccessFilter + 3 Integration filters)
+        new \WPAgency\Filters\RoleBasedFilter();
 
         // 5. wp-customer integration: Bypass wp-agency filtering for customer employees
         // Customer employees should be filtered by wp-customer's AgencyAccessFilter instead

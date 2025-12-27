@@ -698,15 +698,26 @@ class AgencyDashboardController {
      * Returns agency data for right panel display
      */
     public function handle_get_details(): void {
-        // error_log('=== handle_get_details called ===');
-        // error_log('POST data: ' . print_r($_POST, true));
+        error_log('=== handle_get_details called ===');
+        error_log('POST data: ' . print_r($_POST, true));
+        error_log('Nonce received: ' . (isset($_POST['nonce']) ? $_POST['nonce'] : 'NOT SET'));
+        error_log('Action: ' . (isset($_POST['action']) ? $_POST['action'] : 'NOT SET'));
 
         // Verify nonce - use base panel system nonce
         if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
-            error_log('Nonce verification FAILED');
+            error_log('Nonce verification FAILED for action: get_agency_details');
+            error_log('Expected nonce action: wpdt_nonce');
+            error_log('Nonce field name: nonce');
+            error_log('Nonce value: ' . (isset($_POST['nonce']) ? $_POST['nonce'] : 'MISSING'));
+
+            // Verify the nonce manually to see what's wrong
+            $manual_verify = wp_verify_nonce($_POST['nonce'] ?? '', 'wpdt_nonce');
+            error_log('Manual nonce verification result: ' . $manual_verify . ' (1=valid, 2=valid-regenerating, false=invalid)');
+
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
+        error_log('Nonce verification PASSED');
         // error_log('Nonce verification OK');
 
         $agency_id = isset($_POST['id']) ? (int) $_POST['id'] : 0;

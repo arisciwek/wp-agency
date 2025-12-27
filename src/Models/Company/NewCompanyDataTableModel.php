@@ -49,12 +49,12 @@ class NewCompanyDataTableModel extends DataTableModel {
         parent::__construct();
 
         global $wpdb;
-        $this->table = $wpdb->prefix . 'app_customer_branches b';
-        $this->index_column = 'b.id';
+        $this->table = $wpdb->prefix . 'app_customer_branches cb';
+        $this->index_column = 'cb.id';
 
         // Define searchable columns
         $this->searchable_columns = [
-            'b.code',
+            'cb.code',
             'c.name', // company name
             'd.name', // division name
             'r.name'  // regency name
@@ -62,10 +62,10 @@ class NewCompanyDataTableModel extends DataTableModel {
 
         // Base joins
         $this->base_joins = [
-            "LEFT JOIN {$wpdb->prefix}app_customers c ON b.customer_id = c.id",
-            "LEFT JOIN {$wpdb->prefix}app_agencies a ON b.agency_id = a.id",
-            "LEFT JOIN {$wpdb->prefix}app_agency_divisions d ON b.division_id = d.id",
-            "LEFT JOIN {$wpdb->prefix}wi_regencies r ON b.regency_id = r.id"
+            "LEFT JOIN {$wpdb->prefix}app_customers c ON cb.customer_id = c.id",
+            "LEFT JOIN {$wpdb->prefix}app_agencies a ON cb.agency_id = a.id",
+            "LEFT JOIN {$wpdb->prefix}app_agency_divisions d ON cb.division_id = d.id",
+            "LEFT JOIN {$wpdb->prefix}wi_regencies r ON cb.regency_id = r.id"
         ];
 
         // Base WHERE
@@ -82,7 +82,7 @@ class NewCompanyDataTableModel extends DataTableModel {
      * @return string Table alias
      */
     public function get_table_alias(): string {
-        return 'b';
+        return 'cb';
     }
 
     /**
@@ -92,13 +92,13 @@ class NewCompanyDataTableModel extends DataTableModel {
      */
     protected function get_columns(): array {
         return [
-            'b.id as id',
-            'b.code as code',
+            'cb.id as id',
+            'cb.code as code',
             'c.name as company_name',
             'd.name as division_name',
             'r.name as regency_name',
-            'b.agency_id as agency_id',
-            'b.division_id as division_id'
+            'cb.agency_id as agency_id',
+            'cb.division_id as division_id'
         ];
     }
 
@@ -166,10 +166,13 @@ class NewCompanyDataTableModel extends DataTableModel {
      *
      * Hook callback for wpapp_datatable_{table}_where filter.
      * Applies filters:
-     * 1. Role-based access control (province OR jurisdiction)
+     * 1. Role-based filtering (handled by RoleBasedFilter - jurisdiction/province)
      * 2. Agency filter (branches WITHOUT agency assignment)
      * 3. Inspector filter (branches without inspector)
      * 4. Status filter (active only)
+     *
+     * Note: Role-based access control is now handled by RoleBasedFilter (wp-agency/src/Filters/RoleBasedFilter.php)
+     *       which filters by jurisdiction (province/regency) for new company assignment page.
      *
      * @param array $where_conditions Current WHERE conditions
      * @param array $request_data DataTables request data
@@ -179,33 +182,17 @@ class NewCompanyDataTableModel extends DataTableModel {
     public function filter_where($where_conditions, $request_data, $model): array {
         global $wpdb;
 
-        // 1. Role-based access control using EntityRelationModel
-        // Platform staff (WordPress admin) bypass filtering
-        if (!current_user_can('manage_options')) {
-            $entity_model = new \WPAgency\Models\Relation\EntityRelationModel();
-            $accessible_company_ids = $entity_model->get_accessible_entity_ids('company');
+        // Role-based filtering is handled by RoleBasedFilter hook (wpapp_datatable_where_{role})
+        // No need for manual filtering here - it's done automatically by wp-app-core
 
-            // If not empty array (empty = see all), apply filter
-            if (!empty($accessible_company_ids)) {
-                // If [0], no access
-                if ($accessible_company_ids === [0]) {
-                    $where_conditions[] = '1=0'; // Block all
-                } else {
-                    // Filter by accessible company IDs
-                    $placeholders = implode(',', array_fill(0, count($accessible_company_ids), '%d'));
-                    $where_conditions[] = $wpdb->prepare("b.id IN ($placeholders)", ...$accessible_company_ids);
-                }
-            }
-        }
+        // 1. Filter branches WITHOUT agency (new companies)
+        $where_conditions[] = '(cb.agency_id IS NULL OR cb.agency_id = 0)';
 
-        // 2. Filter branches WITHOUT agency (new companies)
-        $where_conditions[] = '(b.agency_id IS NULL OR b.agency_id = 0)';
+        // 2. Filter branches without inspector
+        $where_conditions[] = 'cb.inspector_id IS NULL';
 
-        // 3. Filter branches without inspector
-        $where_conditions[] = 'b.inspector_id IS NULL';
-
-        // 4. Filter active branches only
-        $where_conditions[] = $wpdb->prepare('b.status = %s', 'active');
+        // 3. Filter active branches only
+        $where_conditions[] = $wpdb->prepare('cb.status = %s', 'active');
 
         return $where_conditions;
     }
@@ -236,7 +223,7 @@ class NewCompanyDataTableModel extends DataTableModel {
             $where_sql = ' WHERE ' . implode(' AND ', $where_conditions);
         }
 
-        $count_sql = "SELECT COUNT(b.id) as total
+        $count_sql = "SELECT COUNT(cb.id) as total
                       FROM {$this->table}
                       " . implode(' ', $this->base_joins) . "
                       {$where_sql}";
