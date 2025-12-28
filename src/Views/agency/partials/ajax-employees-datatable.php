@@ -51,7 +51,7 @@ if (!isset($agency_id)) {
        style="width:100%"
        data-entity="employee"
        data-agency-id="<?php echo esc_attr($agency_id); ?>"
-       data-ajax-action="get_employees_datatable">
+       data-ajax-action="handle_agency_employee_datatable">
     <thead>
         <tr>
             <th><?php esc_html_e('Name', 'wp-agency'); ?></th>
@@ -59,6 +59,7 @@ if (!isset($agency_id)) {
             <th><?php esc_html_e('Email', 'wp-agency'); ?></th>
             <th><?php esc_html_e('Phone', 'wp-agency'); ?></th>
             <th><?php esc_html_e('Status', 'wp-agency'); ?></th>
+            <th><?php esc_html_e('Aksi', 'wp-agency'); ?></th>
         </tr>
     </thead>
     <tbody>

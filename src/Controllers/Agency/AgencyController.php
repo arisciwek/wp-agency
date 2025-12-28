@@ -310,14 +310,23 @@ class AgencyController extends AbstractCrudController {
             $this->verifyNonce();
 
             $id = $this->getId();
+            error_log('[AgencyController] Update called for ID: ' . $id);
+
             $this->checkPermission('update', $id);
+            error_log('[AgencyController] Permission check PASSED');
 
             // Prepare and validate
             $data = $this->prepareUpdateData($id);
+            error_log('[AgencyController] Update data prepared: ' . json_encode($data));
+
             $this->validate($data, $id);
+            error_log('[AgencyController] Validation PASSED');
 
             // Update
+            error_log('[AgencyController] Calling model->update()...');
             $updated = $this->model->update($id, $data);
+            error_log('[AgencyController] Update result: ' . ($updated ? 'SUCCESS' : 'FAILED'));
+
             if (!$updated) {
                 throw new \Exception('Failed to update agency');
             }

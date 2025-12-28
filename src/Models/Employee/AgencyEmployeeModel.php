@@ -82,6 +82,9 @@ class AgencyEmployeeModel {
     // Add class constant for valid status values
     private const VALID_STATUSES = ['active', 'inactive'];
 
+    // Cache expiry time (2 hours)
+    private const CACHE_EXPIRY = 7200;
+
     public function __construct() {
         global $wpdb;
         $this->table = $wpdb->prefix . 'app_agency_employees';
@@ -195,7 +198,7 @@ class AgencyEmployeeModel {
         // Cek cache terlebih dahulu
         $cached_employee = $this->cache->get('agency_employee', $id);
 
-        if ($cached_employee !== null) {
+        if ($cached_employee !== false) {
             return $cached_employee;
         }
         
@@ -214,7 +217,7 @@ class AgencyEmployeeModel {
         
         // Simpan ke cache jika ditemukan
         if ($result) {
-            $this->cache->set('agency_employee', $result, $this->cache::getCacheExpiry(), $id);
+            $this->cache->set('agency_employee', $result, self::CACHE_EXPIRY, $id);
         }
 
         return $result;
@@ -604,9 +607,9 @@ class AgencyEmployeeModel {
         
         // Simpan ke cache
         if ($employees) {
-            $this->cache->set($cache_key, $employees, $this->cache::getCacheExpiry(), $division_id);
+            $this->cache->set($cache_key, $employees, self::CACHE_EXPIRY, $division_id);
         }
-        
+
         return $employees;
     }
 
@@ -922,6 +925,111 @@ class AgencyEmployeeModel {
         $this->cache->set($cache_key, $result, 5 * MINUTE_IN_SECONDS, $user_id);
 
         return $result;
+    }
+
+    /**
+     * Get user relation with employee (for permission checking)
+     *
+     * @param int $employee_id Employee ID
+     * @param int|null $user_id User ID (defaults to current user)
+     * @return array Relation data
+     */
+    public function getUserRelation(int $employee_id, ?int $user_id = null): array {
+        if (!$user_id) {
+            $user_id = get_current_user_id();
+        }
+
+        // Check cache first
+        $cache_key = "employee_user_relation_{$user_id}_{$employee_id}";
+        $cached = $this->cache->get($cache_key);
+        if ($cached !== false) {
+            return $cached;
+        }
+
+        global $wpdb;
+        $employee = $this->find($employee_id);
+
+        $relation = [
+            'is_admin' => current_user_can('edit_all_agencies'),
+            'is_agency_admin' => false,
+            'is_division_admin' => false,
+            'is_self' => false,
+            'is_same_agency' => false,
+            'is_same_division' => false,
+            'employee_id' => $employee_id,
+            'user_id' => $user_id,
+            'access_type' => 'none'
+        ];
+
+        if (!$employee) {
+            return $relation;
+        }
+
+        // Check if viewing own employee record
+        $relation['is_self'] = ((int)$employee->user_id === $user_id);
+
+        // Get agency data
+        $agency_model = new \WPAgency\Models\Agency\AgencyModel();
+        $agency = $agency_model->find($employee->agency_id);
+
+        if ($agency) {
+            $relation['is_agency_admin'] = ((int)$agency->user_id === $user_id);
+        }
+
+        // Get division data if employee has division
+        if ($employee->division_id) {
+            $division_model = new \WPAgency\Models\Division\DivisionModel();
+            $division = $division_model->find($employee->division_id);
+
+            if ($division) {
+                $relation['is_division_admin'] = ((int)$division->user_id === $user_id);
+            }
+
+            // Check if same division
+            $user_employee = $wpdb->get_row($wpdb->prepare(
+                "SELECT division_id FROM {$wpdb->prefix}app_agency_employees
+                 WHERE user_id = %d AND status = 'active' LIMIT 1",
+                $user_id
+            ));
+
+            if ($user_employee) {
+                $relation['is_same_division'] = ((int)$user_employee->division_id === (int)$employee->division_id);
+            }
+        }
+
+        // Check if same agency
+        $user_agency = $wpdb->get_var($wpdb->prepare(
+            "SELECT agency_id FROM {$wpdb->prefix}app_agency_employees
+             WHERE user_id = %d AND status = 'active' LIMIT 1",
+            $user_id
+        ));
+
+        if ($user_agency) {
+            $relation['is_same_agency'] = ((int)$user_agency === (int)$employee->agency_id);
+        }
+
+        // Determine access type
+        if ($relation['is_admin']) {
+            $relation['access_type'] = 'admin';
+        } elseif ($relation['is_agency_admin']) {
+            $relation['access_type'] = 'agency_admin';
+        } elseif ($relation['is_division_admin']) {
+            $relation['access_type'] = 'division_admin';
+        } elseif ($relation['is_self']) {
+            $relation['access_type'] = 'self';
+        } elseif ($relation['is_same_division']) {
+            $relation['access_type'] = 'same_division';
+        } elseif ($relation['is_same_agency']) {
+            $relation['access_type'] = 'same_agency';
+        }
+
+        // Apply filter to allow plugins to extend relation data
+        $relation = apply_filters('wp_agency_employee_user_relation', $relation, $employee_id, $user_id);
+
+        // Cache for 5 minutes
+        $this->cache->set($cache_key, $relation, 300);
+
+        return $relation;
     }
 
 }

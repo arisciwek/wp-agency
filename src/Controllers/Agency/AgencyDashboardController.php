@@ -230,6 +230,9 @@ class AgencyDashboardController {
             return;
         }
 
+        // NOTE: agency-modal-handler.js already enqueued in class-dependencies.php
+        // No need to enqueue again here
+
         // Enqueue New Company Assignment scripts and styles
         // These are needed for the "Perusahaan Baru" tab
         // Loaded on main page so modal and events are always ready
@@ -1386,7 +1389,7 @@ class AgencyDashboardController {
      */
     public function handle_get_agency_form(): void {
         $nonce = $_REQUEST['nonce'] ?? '';
-        if (!wp_verify_nonce($nonce, 'wpdt_nonce')) {
+        if (!wp_verify_nonce($nonce, 'wp_agency_nonce')) {
             echo '<p class="error">' . __('Security check failed', 'wp-agency') . '</p>';
             wp_die();
         }
@@ -1418,9 +1421,16 @@ class AgencyDashboardController {
                     wp_die();
                 }
 
+                // Use output buffering to capture form output
+                ob_start();
                 include WP_AGENCY_PATH . 'src/Views/admin/agency/forms/edit-agency-form.php';
+                $form_html = ob_get_clean();
+                echo $form_html;
             } else {
+                ob_start();
                 include WP_AGENCY_PATH . 'src/Views/admin/agency/forms/create-agency-form.php';
+                $form_html = ob_get_clean();
+                echo $form_html;
             }
         } catch (\Exception $e) {
             echo '<p class="error">' . esc_html($e->getMessage()) . '</p>';

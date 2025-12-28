@@ -143,16 +143,19 @@ class WPAgency {
      * Initialize hooks and controllers
      */
     private function initHooks() {
-        // Register activation/deactivation hooks
-        register_activation_hook(WP_AGENCY_FILE, array('WP_Agency_Activator', 'activate'));
-        register_deactivation_hook(WP_AGENCY_FILE, array('WP_Agency_Deactivator', 'deactivate'));
+        // NOTE: Activation/deactivation hooks now registered at file level (before plugins_loaded)
+        // This ensures tables are created during plugin activation
 
         // Initialize dependencies
         $dependencies = new WP_Agency_Dependencies($this->plugin_name, $this->version);
 
-        // Register asset hooks
-        $this->loader->add_action('admin_enqueue_scripts', $dependencies, 'enqueue_styles');
-        $this->loader->add_action('admin_enqueue_scripts', $dependencies, 'enqueue_scripts');
+        // Register asset hooks - DIRECT (bypass loader for reliability)
+        add_action('admin_enqueue_scripts', [$dependencies, 'enqueue_styles'], 10);
+        add_action('admin_enqueue_scripts', [$dependencies, 'enqueue_scripts'], 10);
+
+        // Legacy loader registration (keeping for other hooks)
+        //$this->loader->add_action('admin_enqueue_scripts', $dependencies, 'enqueue_styles');
+        //$this->loader->add_action('admin_enqueue_scripts', $dependencies, 'enqueue_scripts');
 
         // Initialize menu
         $this->menu_manager = new \WPAgency\Controllers\MenuManager($this->plugin_name, $this->version);
@@ -565,5 +568,64 @@ function wp_agency_add_admin_bar_user_data($data, $user_id, $user) {
 // WP Admin Bar Integration - Add agency info to admin bar
 add_filter('wp_admin_bar_user_data', 'wp_agency_add_admin_bar_user_data', 10, 3);
 
+// ============================================================================
+// ACTIVATION/DEACTIVATION HOOKS
+// Must be registered at file level, NOT inside plugins_loaded
+// ============================================================================
+
+/**
+ * Activation hook
+ * Runs when plugin is activated - creates tables, roles, etc.
+ */
+register_activation_hook(__FILE__, function() {
+    // Load autoloader first
+    require_once WP_AGENCY_PATH . 'includes/class-autoloader.php';
+    $autoloader = new WPAgencyAutoloader('WPAgency\\', WP_AGENCY_PATH);
+    $autoloader->register();
+
+    // Now load and run activator
+    require_once WP_AGENCY_PATH . 'includes/class-activator.php';
+    WP_Agency_Activator::activate();
+});
+
+/**
+ * Deactivation hook
+ * Runs when plugin is deactivated - cleanup if needed
+ */
+register_deactivation_hook(__FILE__, function() {
+    require_once WP_AGENCY_PATH . 'includes/class-deactivator.php';
+    WP_Agency_Deactivator::deactivate();
+});
+
+// ============================================================================
+// PLUGIN INITIALIZATION
+// Uses plugins_loaded to ensure dependencies are available
+// ============================================================================
+
 // Initialize the plugin
-wp_agency()->run();
+// Initialize after all plugins loaded to ensure dependencies are available
+add_action('plugins_loaded', function() {
+    // Check required dependencies
+    $dependencies = [
+        'WPAppCore\Models\Abstract\AbstractCrudModel' => 'wp-app-core',
+        'WPDataTable\Core\AbstractDataTable' => 'wp-datatable',
+    ];
+
+    $missing = [];
+    foreach ($dependencies as $class => $plugin) {
+        if (!class_exists($class)) {
+            $missing[] = $plugin;
+        }
+    }
+
+    if (!empty($missing)) {
+        add_action('admin_notices', function() use ($missing) {
+            echo '<div class="notice notice-error"><p>';
+            echo '<strong>WP Agency:</strong> Requires the following plugins: ' . implode(', ', $missing);
+            echo '</p></div>';
+        });
+        return;
+    }
+
+    wp_agency()->run();
+}, 30); // Priority 30: after wp-datatable (10) and wp-app-core (20)

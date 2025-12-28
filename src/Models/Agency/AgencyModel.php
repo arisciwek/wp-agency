@@ -194,15 +194,22 @@ class AgencyModel extends AbstractCrudModel {
      * @return bool Success status
      */
     public function update(int $id, array $data): bool {
+        error_log('[AgencyModel] Updating agency ID: ' . $id . ' | Data: ' . json_encode($data));
+
         // Get old data before update
         $old_data = $this->find($id);
 
         // Call parent update method
+        error_log('[AgencyModel] Calling parent::update()...');
         $result = parent::update($id, $data);
+        error_log('[AgencyModel] Parent update result: ' . ($result ? 'SUCCESS' : 'FAILED'));
 
         // Log update (only changed fields will be logged)
         if ($result && $old_data) {
+            error_log('[AgencyModel] Logging audit for agency update...');
             $this->logAudit('updated', $id, $old_data, $data);
+        } else {
+            error_log('[AgencyModel] No audit log - update failed or no old data');
         }
 
         return $result;
@@ -406,5 +413,77 @@ class AgencyModel extends AbstractCrudModel {
     public function getTotalCount(): int {
         $datatable_model = new \WPAgency\Models\Agency\AgencyDataTableModel();
         return $datatable_model->get_total_count();
+    }
+
+    /**
+     * Get user relation with agency (for permission checking)
+     *
+     * @param int $agency_id Agency ID
+     * @param int|null $user_id User ID (defaults to current user)
+     * @return array Relation data
+     */
+    public function getUserRelation(int $agency_id, ?int $user_id = null): array {
+        if (!$user_id) {
+            $user_id = get_current_user_id();
+        }
+
+        // Check cache first
+        $cache_key = "user_relation_{$user_id}_{$agency_id}";
+        $cached = $this->cache->get($cache_key);
+        if ($cached !== false) {
+            return $cached;
+        }
+
+        global $wpdb;
+        $agency = $this->find($agency_id);
+
+        $relation = [
+            'is_admin' => current_user_can('edit_all_agencies'),
+            'is_agency_admin' => $agency && $agency->user_id == $user_id,
+            'is_agency_employee' => false,
+            'is_division_head' => false,
+            'agency_id' => $agency_id,
+            'user_id' => $user_id,
+            'access_type' => 'none'
+        ];
+
+        // Check if employee
+        $is_employee = (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT EXISTS (SELECT 1 FROM {$wpdb->prefix}app_agency_employees WHERE agency_id = %d AND user_id = %d) as result",
+            $agency_id,
+            $user_id
+        ));
+
+        if ($is_employee) {
+            $relation['is_agency_employee'] = true;
+            $relation['access_type'] = 'agency_employee';
+
+            // Check if division admin (user_id matches division.user_id)
+            $is_division_head = (bool) $wpdb->get_var($wpdb->prepare(
+                "SELECT EXISTS (
+                    SELECT 1 FROM {$wpdb->prefix}app_agency_divisions
+                    WHERE agency_id = %d AND user_id = %d
+                ) as result",
+                $agency_id,
+                $user_id
+            ));
+
+            if ($is_division_head) {
+                $relation['is_division_head'] = true;
+                $relation['access_type'] = 'division_head';
+            }
+        }
+
+        // Determine access type
+        if ($relation['is_admin']) {
+            $relation['access_type'] = 'admin';
+        } elseif ($relation['is_agency_admin']) {
+            $relation['access_type'] = 'agency_admin';
+        }
+
+        // Cache for 5 minutes
+        $this->cache->set($cache_key, $relation, 300);
+
+        return $relation;
     }
 }

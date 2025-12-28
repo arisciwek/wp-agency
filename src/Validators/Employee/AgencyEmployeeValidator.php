@@ -4,325 +4,279 @@
  *
  * @package     WP_Agency
  * @subpackage  Validators/Employee
- * @version     1.0.7
+ * @version     1.1.0
  * @author      arisciwek
  *
- * Path: /wp-agency/src/Validators/Employee/AgencyEmployeeValidator.php
+ * Path: src/Validators/Employee/AgencyEmployeeValidator.php
  *
  * Description: Validator untuk operasi CRUD Employee.
+ *              Extends AbstractValidator dari wp-app-core.
  *              Memastikan semua input data valid sebelum diproses model.
  *              Menyediakan validasi untuk create, update, dan delete.
- *              Includes validasi permission dan ownership.
  *
  * Changelog:
- * 1.0.0 - 2024-01-12
+ * 1.1.0 - 2025-12-28
+ * - Refactored to extend AbstractValidator from wp-app-core
+ * - Implemented 13 abstract methods required by AbstractValidator
+ * - Moved getUserRelation() to AgencyEmployeeModel
+ * - Renamed canView/canEdit/canDelete to checkViewPermission/checkUpdatePermission/checkDeletePermission
+ * - Kept custom employee validation methods
+ *
+ * 1.0.0 - 2024-12-10
  * - Initial release
- * - Added create validation
- * - Added update validation
- * - Added delete validation
- * - Added permission validation
  */
 
 namespace WPAgency\Validators\Employee;
 
+use WPAppCore\Validators\Abstract\AbstractValidator;
 use WPAgency\Models\Employee\AgencyEmployeeModel;
 use WPAgency\Models\Agency\AgencyModel;
+use WPAgency\Models\Division\DivisionModel;
 use WPAgency\Cache\AgencyCacheManager;
 
-class AgencyEmployeeValidator {
-   private $employee_model;
-   private $agency_model;
-   private AgencyCacheManager $cache;
+class AgencyEmployeeValidator extends AbstractValidator {
 
-   public function __construct() {
-       $this->employee_model = new AgencyEmployeeModel();
-       $this->agency_model = new AgencyModel(); 
-       $this->cache = new AgencyCacheManager();
-   }
+    private AgencyEmployeeModel $model;
+    private AgencyModel $agencyModel;
+    private DivisionModel $divisionModel;
+    private AgencyCacheManager $cache;
+    protected array $relationCache = [];
 
-    public function getUserRelation(int $employee_id): array {
-        global $wpdb;
+    public function __construct() {
+        $this->model = new AgencyEmployeeModel();
+        $this->agencyModel = new AgencyModel();
+        $this->divisionModel = new DivisionModel();
+        $this->cache = AgencyCacheManager::getInstance();
+    }
+
+    // ========================================
+    // IMPLEMENT 13 ABSTRACT METHODS
+    // ========================================
+
+    protected function getEntityName(): string {
+        return 'employee';
+    }
+
+    protected function getEntityDisplayName(): string {
+        return 'Karyawan';
+    }
+
+    protected function getTextDomain(): string {
+        return 'wp-agency';
+    }
+
+    protected function getModel() {
+        return $this->model;
+    }
+
+    protected function getCreateCapability(): string {
+        return 'add_agency_employee';
+    }
+
+    protected function getViewCapabilities(): array {
+        return ['view_agency_employee_detail', 'view_own_agency_employee'];
+    }
+
+    protected function getUpdateCapabilities(): array {
+        return ['edit_all_agency_employees', 'edit_own_agency_employee'];
+    }
+
+    protected function getDeleteCapability(): string {
+        return 'delete_agency_employee';
+    }
+
+    protected function getListCapability(): string {
+        return 'view_agency_employee_list';
+    }
+
+    protected function validateFormFields(array $data, ?int $id = null): array {
+        return $this->validateBasicData($data);
+    }
+
+    protected function checkViewPermission(array $relation): bool {
+        if ($relation['is_admin']) return true;
+        if ($relation['is_agency_admin'] && current_user_can('view_own_agency_employee')) return true;
+        if ($relation['is_division_admin'] && current_user_can('view_own_agency_employee')) return true;
+        if ($relation['is_self'] && current_user_can('view_own_agency_employee')) return true;
+        if ($relation['is_same_division'] && current_user_can('view_agency_employee_detail')) return true;
+
+        return false;
+    }
+
+    protected function checkUpdatePermission(array $relation): bool {
+        if ($relation['is_admin']) return true;
+        if ($relation['is_agency_admin'] && current_user_can('edit_own_agency_employee')) return true;
+        if ($relation['is_division_admin'] && current_user_can('edit_own_agency_employee')) return true;
+
+        return false;
+    }
+
+    protected function checkDeletePermission(array $relation): bool {
+        if ($relation['is_admin'] && current_user_can('delete_agency_employee')) return true;
+        if ($relation['is_agency_admin']) return true;
+
+        return false;
+    }
+
+    // ========================================
+    // CUSTOM EMPLOYEE METHODS
+    // ========================================
+
+    public function canCreateEmployee($agency_id, $division_id): bool {
         $current_user_id = get_current_user_id();
 
-        // Cek cache terlebih dahulu
-        $cache_key = 'employee_relation_' . $employee_id . '_' . $current_user_id;
-        $cached_relation = $this->cache->get($cache_key);
-        
-        if ($cached_relation !== null) {
-            return $cached_relation;
-        }
-        
-        // Default relation
-        $relation = [
-            'is_admin' => current_user_can('edit_all_employees'),
-            'is_owner' => false,
-            'is_division_admin' => false,
-            'is_creator' => false
-        ];
-
-        // Jika tidak ada employee_id, kembalikan default
-        if (!$employee_id) {
-            return $relation;
+        // 1. Agency Owner Check
+        $agency = $this->agencyModel->find($agency_id);
+        if ($agency && (int)$agency->user_id === (int)$current_user_id) {
+            return true;
         }
 
-        // Dapatkan data employee
-        $employee = $this->employee_model->find($employee_id);
-        if (!$employee) {
-            return $relation;
+        // 2. Division Admin Check
+        if ($division_id && $this->isDivisionAdmin($current_user_id, $division_id)) {
+            return true;
         }
 
-        // Dapatkan data agency
-        $agency = $this->agency_model->find($employee->agency_id);
-        if (!$agency) {
-            return $relation;
+        // 3. System Admin Check
+        if (current_user_can('add_agency_employee')) {
+            return true;
         }
 
-        // Isi data relation
-        $relation['is_owner'] = ((int)$agency->user_id === $current_user_id);
-        $relation['is_division_admin'] = $this->isDivisionAdmin($current_user_id, $employee->division_id);
-        $relation['is_creator'] = ((int)$employee->created_by === $current_user_id);
-
-        // Add access_type
-        $relation['access_type'] = $this->getAccessType($relation);
-
-        // Apply filter to allow plugins to extend relation data
-        // Example: wp-customer can add customer-specific data to employee relation
-        $relation = apply_filters('wp_agency_employee_user_relation', $relation, $employee_id, $current_user_id);
-
-        // Simpan ke cache dengan waktu lebih singkat (10 menit)
-        $this->cache->set($cache_key, $relation, 10 * MINUTE_IN_SECONDS);
-
-        return $relation;
+        return apply_filters('wp_agency_can_create_employee', false, $agency_id, $division_id, $current_user_id);
     }
 
-   public function canViewEmployee(array $relation): bool {
-        if ($relation['is_admin']) return true;
-        if ($relation['is_owner'] && current_user_can('view_own_employee')) return true;
-        if ($relation['is_division_admin'] && current_user_can('view_division_employee')) return true;
-        if ($relation['is_creator'] && current_user_can('view_own_employee')) return true;
-        
-        return false;
-    }
-
-    /**
-     * Check if at least one role is selected
-     * (Replaces hasAtLeastOneDepartment)
-     */
-    protected function hasAtLeastOneRole(array $roles): bool {
-        return !empty($roles) && is_array($roles) && count($roles) > 0;
-    }
-
-    /**
-     * Validate roles array
-     */
-    protected function validateRoles(array $roles): array {
+    public function validateView($employee, $agency): array {
         $errors = [];
-        
-        if (empty($roles)) {
-            $errors[] = __('Minimal satu role harus dipilih', 'wp-agency');
-            return $errors;
+
+        if (!$employee || !$agency) {
+            $errors['data'] = __('Data tidak valid.', 'wp-agency');
         }
 
-        // Get valid roles from the source of truth
-        $valid_roles = array_keys(\WP_Agency_Activator::getRoles());
-        
-        // Remove administrator from valid selections
-        $valid_roles = array_diff($valid_roles, ['administrator']);
-        
-        foreach ($roles as $role) {
-            if (!in_array($role, $valid_roles)) {
-                $errors[] = sprintf(__('Role "%s" tidak valid', 'wp-agency'), $role);
-            }
-        }
-        
         return $errors;
     }
-        
-   public function canCreateEmployee($agency_id, $division_id): bool {
-       $current_user_id = get_current_user_id();
 
-       // Agency Owner Check
-       $agency = $this->agency_model->find($agency_id);
-       if ($agency && (int)$agency->user_id === (int)$current_user_id) {
-           return true;
-       }
-
-       // Division Admin Check dengan add_employee capability
-       if ($this->isDivisionAdmin($current_user_id, $division_id) && current_user_can('add_employee')) {
-           return true;
-       }
-
-       // System Admin Check
-       if (current_user_can('add_employee')) {
-           return true;
-       }
-
-       return apply_filters('wp_agency_can_create_employee', false, $agency_id, $division_id, $current_user_id);
-   }
-
-    public function canEditEmployee(array $relation): bool {
-        if ($relation['is_admin']) return true;
-        if ($relation['is_owner'] && current_user_can('edit_own_employee')) return true;
-        if ($relation['is_division_admin'] && current_user_can('edit_own_employee')) return true;
-        if ($relation['is_creator'] && current_user_can('edit_own_employee')) return true;
-        
-        return false;
-    }
-
-    public function canDeleteEmployee(array $relation): bool {
-        if ($relation['is_admin'] && current_user_can('delete_employee')) return true;
-        if ($relation['is_owner']) return true;
-        if ($relation['is_division_admin'] && current_user_can('delete_employee')) return true;
-        if ($relation['is_creator'] && current_user_can('delete_employee')) return true;
-        
-        return false;
-    }
-
-    /**
-     * Validate create data
-     */
     public function validateCreate(array $data): array {
         $errors = [];
 
-        // Required fields
-        if (empty($data['name'])) {
-            $errors[] = __('Nama karyawan wajib diisi', 'wp-agency');
-        } elseif (strlen($data['name']) < 3) {
-            $errors[] = __('Nama karyawan minimal 3 karakter', 'wp-agency');
-        } elseif (strlen($data['name']) > 100) {
-            $errors[] = __('Nama karyawan maksimal 100 karakter', 'wp-agency');
+        // Basic data validation
+        $basic_errors = $this->validateBasicData($data);
+        if (!empty($basic_errors)) {
+            return $basic_errors;
         }
 
-        if (empty($data['position'])) {
-            $errors[] = __('Jabatan wajib diisi', 'wp-agency');
-        } elseif (strlen($data['position']) < 2) {
-            $errors[] = __('Jabatan minimal 2 karakter', 'wp-agency');
-        } elseif (strlen($data['position']) > 100) {
-            $errors[] = __('Jabatan maksimal 100 karakter', 'wp-agency');
+        // Agency ID validation
+        $agency_id = $data['agency_id'] ?? 0;
+        if (!$agency_id) {
+            $errors['agency_id'] = __('Agency ID tidak valid', 'wp-agency');
+            return $errors;
         }
 
-        if (empty($data['email'])) {
-            $errors[] = __('Email wajib diisi', 'wp-agency');
-        } elseif (!is_email($data['email'])) {
-            $errors[] = __('Format email tidak valid', 'wp-agency');
-        } else {
-            // Check if email exists
-            $email_user_id = email_exists($data['email']);
-            if ($email_user_id) {
-                // Allow if email belongs to the user_id being assigned AND that user has no employee record yet
-                if (!empty($data['user_id']) && (int)$email_user_id === (int)$data['user_id']) {
-                    // Check if this user already has an employee record
-                    global $wpdb;
-                    $existing_employee = $wpdb->get_var($wpdb->prepare(
-                        "SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_employees WHERE user_id = %d",
-                        $data['user_id']
-                    ));
-                    if ($existing_employee > 0) {
-                        $errors[] = __('User ini sudah memiliki employee record', 'wp-agency');
-                    }
-                    // Else: OK - creating employee for existing WP user who has no employee record yet
-                } else {
-                    $errors[] = __('Email sudah digunakan', 'wp-agency');
-                }
+        // Pastikan minimal ada satu division atau agency assignment
+        if (!$this->hasAtLeastOneDepartment($data)) {
+            $errors['assignment'] = __('Karyawan harus ditugaskan minimal ke satu divisi atau agency', 'wp-agency');
+        }
+
+        // Email unique validation
+        if (!empty($data['email'])) {
+            global $wpdb;
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}app_agency_employees WHERE email = %s",
+                $data['email']
+            ));
+
+            if ($exists) {
+                $errors['email'] = __('Email sudah digunakan oleh karyawan lain', 'wp-agency');
             }
         }
 
-        if (empty($data['division_id'])) {
-            $errors[] = __('Cabang wajib dipilih', 'wp-agency');
-        }
-
-        // Validate roles (if provided separately)
-        if (isset($data['roles'])) {
-            $role_errors = $this->validateRoles($data['roles']);
-            $errors = array_merge($errors, $role_errors);
-        }
-
-        // Optional fields validation
+        // Phone unique validation
         if (!empty($data['phone'])) {
-            if (strlen($data['phone']) > 20) {
-                $errors[] = __('Nomor telepon maksimal 20 karakter', 'wp-agency');
-            }
-            // Indonesian phone number validation
-            if (!preg_match('/^(\+62|62|0)[\s-]?8[1-9]{1}[\s-]?\d{1,4}[\s-]?\d{1,4}[\s-]?\d{1,4}$/', $data['phone'])) {
-                $errors[] = __('Format nomor telepon tidak valid', 'wp-agency');
+            global $wpdb;
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}app_agency_employees WHERE phone = %s",
+                $data['phone']
+            ));
+
+            if ($exists) {
+                $errors['phone'] = __('Nomor telepon sudah digunakan oleh karyawan lain', 'wp-agency');
             }
         }
 
-        if (!empty($data['keterangan']) && strlen($data['keterangan']) > 200) {
-            $errors[] = __('Keterangan maksimal 200 karakter', 'wp-agency');
+        // NIP unique validation within agency
+        if (!empty($data['nip'])) {
+            global $wpdb;
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}app_agency_employees
+                 WHERE nip = %s AND agency_id = %d",
+                $data['nip'],
+                $agency_id
+            ));
+
+            if ($exists) {
+                $errors['nip'] = __('NIP sudah digunakan oleh karyawan lain di agency ini', 'wp-agency');
+            }
         }
 
         return $errors;
     }
 
-    /**
-     * Validate update data
-     */
     public function validateUpdate(array $data, int $id): array {
         $errors = [];
 
-        // Required fields
-        if (empty($data['name'])) {
-            $errors[] = __('Nama karyawan wajib diisi', 'wp-agency');
-        } elseif (strlen($data['name']) < 3) {
-            $errors[] = __('Nama karyawan minimal 3 karakter', 'wp-agency');
-        } elseif (strlen($data['name']) > 100) {
-            $errors[] = __('Nama karyawan maksimal 100 karakter', 'wp-agency');
+        // Check if employee exists
+        $employee = $this->model->find($id);
+        if (!$employee) {
+            $errors['id'] = __('Karyawan tidak ditemukan.', 'wp-agency');
+            return $errors;
         }
 
-        if (empty($data['position'])) {
-            $errors[] = __('Jabatan wajib diisi', 'wp-agency');
-        } elseif (strlen($data['position']) < 2) {
-            $errors[] = __('Jabatan minimal 2 karakter', 'wp-agency');
-        } elseif (strlen($data['position']) > 100) {
-            $errors[] = __('Jabatan maksimal 100 karakter', 'wp-agency');
+        // Basic data validation (only for fields being updated)
+        $basic_errors = $this->validateBasicData($data);
+        if (!empty($basic_errors)) {
+            return $basic_errors;
         }
 
-        if (empty($data['email'])) {
-            $errors[] = __('Email wajib diisi', 'wp-agency');
-        } elseif (!is_email($data['email'])) {
-            $errors[] = __('Format email tidak valid', 'wp-agency');
-        } else {
-            // Check if email is already used by another user
-            $current_employee = $this->employee_model->find($id);
-            if ($current_employee && $current_employee->user_id) {
-                $user = get_userdata($current_employee->user_id);
-                if ($user && $user->user_email !== $data['email']) {
-                    if (email_exists($data['email'])) {
-                        $errors[] = __('Email sudah digunakan oleh user lain', 'wp-agency');
-                    }
-                }
+        // Email unique validation (exclude current record)
+        if (!empty($data['email'])) {
+            global $wpdb;
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}app_agency_employees WHERE email = %s AND id != %d",
+                $data['email'],
+                $id
+            ));
+
+            if ($exists) {
+                $errors['email'] = __('Email sudah digunakan oleh karyawan lain', 'wp-agency');
             }
         }
 
-        if (empty($data['division_id'])) {
-            $errors[] = __('Cabang wajib dipilih', 'wp-agency');
-        }
-
-        // Validate roles (if provided separately)
-        if (isset($data['roles'])) {
-            $role_errors = $this->validateRoles($data['roles']);
-            $errors = array_merge($errors, $role_errors);
-        }
-
-        // Optional fields validation
+        // Phone unique validation (exclude current record)
         if (!empty($data['phone'])) {
-            if (strlen($data['phone']) > 20) {
-                $errors[] = __('Nomor telepon maksimal 20 karakter', 'wp-agency');
-            }
-            // Indonesian phone number validation
-            if (!preg_match('/^(\+62|62|0)[\s-]?8[1-9]{1}[\s-]?\d{1,4}[\s-]?\d{1,4}[\s-]?\d{1,4}$/', $data['phone'])) {
-                $errors[] = __('Format nomor telepon tidak valid', 'wp-agency');
+            global $wpdb;
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}app_agency_employees WHERE phone = %s AND id != %d",
+                $data['phone'],
+                $id
+            ));
+
+            if ($exists) {
+                $errors['phone'] = __('Nomor telepon sudah digunakan oleh karyawan lain', 'wp-agency');
             }
         }
 
-        if (!empty($data['keterangan']) && strlen($data['keterangan']) > 200) {
-            $errors[] = __('Keterangan maksimal 200 karakter', 'wp-agency');
-        }
+        // NIP unique validation within agency (exclude current record)
+        if (!empty($data['nip'])) {
+            global $wpdb;
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}app_agency_employees
+                 WHERE nip = %s AND agency_id = %d AND id != %d",
+                $data['nip'],
+                $employee->agency_id,
+                $id
+            ));
 
-        // Validate status if provided
-        if (!empty($data['status']) && !in_array($data['status'], ['active', 'inactive'])) {
-            $errors[] = __('Status tidak valid', 'wp-agency');
+            if ($exists) {
+                $errors['nip'] = __('NIP sudah digunakan oleh karyawan lain di agency ini', 'wp-agency');
+            }
         }
 
         return $errors;
@@ -332,128 +286,102 @@ class AgencyEmployeeValidator {
         $errors = [];
 
         // Check if employee exists
-        $employee = $this->employee_model->find($id);
+        $employee = $this->model->find($id);
         if (!$employee) {
-            $errors['id'] = __('Karyawan tidak ditemukan.', 'wp-agency');
+            $errors['id'] = __('Karyawan tidak ditemukan', 'wp-agency');
             return $errors;
         }
 
         // Get agency for permission check
-        $agency = $this->agency_model->find($employee->agency_id);
+        $agency = $this->agencyModel->find($employee->agency_id);
         if (!$agency) {
-            $errors['agency'] = __('Agency tidak ditemukan.', 'wp-agency');
+            $errors['id'] = __('Agency tidak ditemukan', 'wp-agency');
             return $errors;
         }
 
-        // Gunakan getUserRelation dan canDeleteEmployee dengan relasi
-        $relation = $this->getUserRelation($id);
-        if (!$this->canDeleteEmployee($relation)) {
-            $errors['permission'] = __('Anda tidak memiliki izin untuk menghapus karyawan ini.', 'wp-agency');
-        }
-
         return $errors;
     }
-
-    public function validateView($employee, $agency): array {
-        $errors = [];
-        
-        // Validasi bahwa data yang dibutuhkan ada
-        if (!$employee || !$agency) {
-            $errors['data'] = __('Data tidak valid.', 'wp-agency');
-        }
-
-        return $errors;
-    }
-
-   private function validateBasicData(array $data): array {
-       $errors = [];
-
-       // Name validation
-       $name = trim(sanitize_text_field($data['name'] ?? ''));
-       if (empty($name)) {
-           $errors['name'] = __('Nama karyawan wajib diisi.', 'wp-agency');
-       } elseif (mb_strlen($name) > 100) {
-           $errors['name'] = __('Nama karyawan maksimal 100 karakter.', 'wp-agency');
-       }
-
-       // Email validation
-       $email = sanitize_email($data['email'] ?? '');
-       if (empty($email)) {
-           $errors['email'] = __('Email wajib diisi.', 'wp-agency');
-       } elseif (!is_email($email)) {
-           $errors['email'] = __('Format email tidak valid.', 'wp-agency');
-       }
-
-       // Position validation
-       $position = trim(sanitize_text_field($data['position'] ?? ''));
-       if (empty($position)) {
-           $errors['position'] = __('Jabatan wajib diisi.', 'wp-agency');
-       } elseif (mb_strlen($position) > 100) {
-           $errors['position'] = __('Jabatan maksimal 100 karakter.', 'wp-agency');
-       }
-
-       // Phone validation (optional)
-       if (!empty($data['phone'])) {
-           $phone = trim(sanitize_text_field($data['phone']));
-           if (mb_strlen($phone) > 20) {
-               $errors['phone'] = __('Nomor telepon maksimal 20 karakter.', 'wp-agency');
-           } elseif (!preg_match('/^[0-9\+\-\(\)\s]*$/', $phone)) {
-               $errors['phone'] = __('Format nomor telepon tidak valid.', 'wp-agency');
-           }
-       }
-
-       return $errors;
-   }
-
-   private function hasAtLeastOneDepartment(array $data): bool {
-       return ($data['finance'] ?? false) || 
-              ($data['operation'] ?? false) || 
-              ($data['legal'] ?? false) || 
-              ($data['purchase'] ?? false);
-   }
-
-   private function isDivisionAdmin($user_id, $division_id): bool {
-       global $wpdb;
-       return (bool)$wpdb->get_var($wpdb->prepare(
-           "SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_divisions 
-            WHERE id = %d AND user_id = %d",
-           $division_id, $user_id
-       ));
-   }
-
-   private function isStaffMember($user_id, $division_id): bool {
-       global $wpdb;
-       return (bool)$wpdb->get_var($wpdb->prepare(
-           "SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_employees 
-            WHERE user_id = %d AND division_id = %d AND status = 'active'",
-           $user_id, $division_id
-       ));
-   }
 
     public function validateAccess(int $employee_id): array {
-        $relation = $this->getUserRelation($employee_id);
-        
-        // Dapatkan data employee untuk mendapatkan agency_id
-        $employee = $this->employee_model->find($employee_id);
-        $agency_id = $employee ? $employee->agency_id : 0;
-        $division_id = $employee ? $employee->division_id : 0;
-        
-        return [
-            'has_access' => $this->canViewEmployee($relation),
+        $cache_key = 'employee_access_' . $employee_id . '_' . get_current_user_id();
+        $cached_access = $this->cache->get($cache_key);
+
+        if ($cached_access !== false) {
+            return $cached_access;
+        }
+
+        $relation = $this->model->getUserRelation($employee_id);
+
+        $access_result = [
+            'has_access' => $this->checkViewPermission($relation),
             'access_type' => $this->getAccessType($relation),
-            'relation' => $relation,
-            'agency_id' => $agency_id,
-            'division_id' => $division_id
+            'relation' => $relation
         ];
+
+        $this->cache->set($cache_key, $access_result, 10 * MINUTE_IN_SECONDS);
+
+        return $access_result;
     }
+
+    // ========================================
+    // PRIVATE HELPER METHODS
+    // ========================================
 
     private function getAccessType(array $relation): string {
         if ($relation['is_admin']) return 'admin';
-        if ($relation['is_owner']) return 'owner';
+        if ($relation['is_agency_admin']) return 'agency_admin';
         if ($relation['is_division_admin']) return 'division_admin';
-        if ($relation['is_creator']) return 'creator';
+        if ($relation['is_self']) return 'self';
+        if ($relation['is_same_division']) return 'same_division';
+        if ($relation['is_same_agency']) return 'same_agency';
         return 'none';
     }
 
-   
+    private function validateBasicData(array $data): array {
+        $errors = [];
+
+        // Name validation
+        if (isset($data['full_name'])) {
+            $name = trim($data['full_name']);
+            if (empty($name)) {
+                $errors['full_name'] = __('Nama lengkap wajib diisi.', 'wp-agency');
+            } elseif (mb_strlen($name) > 100) {
+                $errors['full_name'] = __('Nama lengkap maksimal 100 karakter.', 'wp-agency');
+            }
+        }
+
+        // Email validation
+        if (isset($data['email']) && !empty($data['email'])) {
+            if (!is_email($data['email'])) {
+                $errors['email'] = __('Format email tidak valid.', 'wp-agency');
+            }
+        }
+
+        // Phone validation
+        if (isset($data['phone']) && !empty($data['phone'])) {
+            if (!preg_match('/^[0-9\+\-\(\) ]+$/', $data['phone'])) {
+                $errors['phone'] = __('Format nomor telepon tidak valid.', 'wp-agency');
+            }
+        }
+
+        return $errors;
+    }
+
+    private function hasAtLeastOneDepartment(array $data): bool {
+        return !empty($data['division_id']) || !empty($data['agency_id']);
+    }
+
+    private function isDivisionAdmin($user_id, $division_id): bool {
+        $division = $this->divisionModel->find($division_id);
+        return $division && (int)$division->user_id === (int)$user_id;
+    }
+
+    private function isStaffMember($user_id, $division_id): bool {
+        global $wpdb;
+        return (bool)$wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}app_agency_employees
+             WHERE user_id = %d AND division_id = %d AND status = 'active'",
+            $user_id, $division_id
+        ));
+    }
 }

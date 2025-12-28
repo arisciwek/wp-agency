@@ -229,7 +229,11 @@
                         data: 'actions',
                         width: '15%',
                         orderable: false,
-                        className: 'column-actions text-center'
+                        className: 'column-actions text-center',
+                        render: function(data, type, row) {
+                            // Return HTML directly without escaping
+                            return data || '-';
+                        }
                     }
                 ],
                 order: [[0, 'asc']],

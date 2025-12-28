@@ -119,7 +119,8 @@ class AgencyDataTableModel extends DataTableModel {
             'a.regency_id',
             'p.name as provinsi_name',
             'r.name as regency_name',
-            'a.id as id'
+            'a.id as id',
+            'a.user_id as user_id'
         ];
     }
 
@@ -199,15 +200,16 @@ class AgencyDataTableModel extends DataTableModel {
      * - Edit: For users with edit_agency capability
      * - Delete: For users with delete_agency capability
      *
-     * Permissions are filtered via:
-     * - apply_filters('wp_agency_can_edit_agency', bool, int)
-     * - apply_filters('wp_agency_can_delete_agency', bool, int)
+     * Permission Logic:
+     * - Edit: manage_options OR edit_all_agencies OR (edit_own_agency + is owner/employee)
+     * - Delete: manage_options OR delete_agency
      *
      * @param object $row Database row object
      * @return string HTML action buttons
      */
     private function generate_action_buttons($row): string {
         $buttons = [];
+        $current_user_id = get_current_user_id();
 
         // View button (always shown, opens panel)
         // Base panel system handles the click event via DT_RowId
@@ -220,8 +222,33 @@ class AgencyDataTableModel extends DataTableModel {
         );
 
         // Edit button (if user has permission)
-        // Allow admin or users with specific agency capabilities
-        if (current_user_can('manage_options') || current_user_can('edit_all_agencies') || current_user_can('edit_own_agency')) {
+        $can_edit = false;
+
+        // Admin or edit all
+        if (current_user_can('manage_options') || current_user_can('edit_all_agencies')) {
+            $can_edit = true;
+        }
+        // Edit own agency - check relation
+        elseif (current_user_can('edit_own_agency')) {
+            // Check if user is agency admin
+            if (isset($row->user_id) && $row->user_id == $current_user_id) {
+                $can_edit = true;
+            }
+            // Check if user is employee
+            else {
+                global $wpdb;
+                $is_employee = (bool) $wpdb->get_var($wpdb->prepare(
+                    "SELECT EXISTS (SELECT 1 FROM {$wpdb->prefix}app_agency_employees WHERE agency_id = %d AND user_id = %d) as result",
+                    $row->id,
+                    $current_user_id
+                ));
+                if ($is_employee) {
+                    $can_edit = true;
+                }
+            }
+        }
+
+        if ($can_edit) {
             $buttons[] = sprintf(
                 '<button type="button" class="button button-small wpdt-edit-agency" data-id="%d" title="%s">
                     <span class="dashicons dashicons-edit"></span>
@@ -232,7 +259,6 @@ class AgencyDataTableModel extends DataTableModel {
         }
 
         // Delete button (if user has permission)
-        // Allow admin or users with delete_agency capability
         if (current_user_can('manage_options') || current_user_can('delete_agency')) {
             $buttons[] = sprintf(
                 '<button type="button" class="button button-small wpdt-delete-agency" data-id="%d" title="%s">

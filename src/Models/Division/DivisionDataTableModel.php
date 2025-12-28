@@ -112,7 +112,8 @@ class DivisionDataTableModel extends DataTableModel {
 
         return [
             "LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions j ON d.id = j.division_id",
-            "LEFT JOIN {$wpdb->prefix}wi_regencies wr ON j.jurisdiction_regency_id = wr.id"
+            "LEFT JOIN {$wpdb->prefix}wi_regencies wr ON j.jurisdiction_regency_id = wr.id",
+            "LEFT JOIN {$wpdb->users} u ON d.user_id = u.ID"
         ];
     }
 
@@ -124,12 +125,17 @@ class DivisionDataTableModel extends DataTableModel {
     protected function get_columns(): array {
         error_log('[DivisionDataTableModel] get_columns() called');
 
+        global $wpdb;
+
         // Use MAX() for non-aggregated columns when using GROUP BY
         $columns = [
             'd.code as code',
             'd.name as name',
+            'd.type as type',
+            'd.status as status',
+            "COALESCE(u.display_name, '-') as admin_name",
             "GROUP_CONCAT(DISTINCT wr.name ORDER BY wr.name SEPARATOR ', ') as wilayah_kerja",
-            'd.status as status',  // Keep for filtering, but not displayed
+            "GROUP_CONCAT(DISTINCT wr.name ORDER BY wr.name SEPARATOR ', ') as jurisdictions",
             'd.id as id'
         ];
 
@@ -144,16 +150,57 @@ class DivisionDataTableModel extends DataTableModel {
      * @return array Formatted row data
      */
     protected function format_row($row): array {
+        $division_id = $row->id ?? 0;
+
+        // Generate action buttons with permission check
+        $actions = $this->generate_action_buttons($division_id);
+
+        // Return associative array like wp-customer BranchDataTableModel
         return [
-            'DT_RowId' => 'division-' . ($row->id ?? 0),
+            'DT_RowId' => 'division-' . $division_id,
             'DT_RowData' => [
-                'id' => $row->id ?? 0,
-                'status' => $row->status ?? 'active'  // Keep status in data for row styling
+                'id' => $division_id,
+                'status' => $row->status ?? 'active'
             ],
             'code' => esc_html($row->code ?? ''),
             'name' => esc_html($row->name ?? ''),
-            'wilayah_kerja' => esc_html($row->wilayah_kerja ?? '-')
+            'wilayah_kerja' => esc_html($row->wilayah_kerja ?? '-'),
+            'actions' => $actions
         ];
+    }
+
+    /**
+     * Generate action buttons for division row
+     *
+     * @param int $division_id Division ID
+     * @return string HTML for action buttons
+     */
+    private function generate_action_buttons(int $division_id): string {
+        $buttons = '';
+
+        // Edit button - check permission
+        if (current_user_can('edit_all_divisions') || current_user_can('edit_own_division')) {
+            $buttons .= sprintf(
+                '<button type="button" class="button button-small edit-division" data-id="%d" title="%s">
+                    <span class="dashicons dashicons-edit"></span>
+                </button> ',
+                $division_id,
+                esc_attr__('Edit', 'wp-agency')
+            );
+        }
+
+        // Delete button - check permission
+        if (current_user_can('delete_division')) {
+            $buttons .= sprintf(
+                '<button type="button" class="button button-small delete-division" data-id="%d" title="%s">
+                    <span class="dashicons dashicons-trash"></span>
+                </button>',
+                $division_id,
+                esc_attr__('Delete', 'wp-agency')
+            );
+        }
+
+        return $buttons ?: '-';
     }
 
     /**

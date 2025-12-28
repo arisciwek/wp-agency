@@ -97,27 +97,26 @@ class DivisionModel {
     // Tambahkan cache untuk findPusatByAgency
     public function findPusatByAgency(int $agency_id): ?object {
         global $wpdb;
-        
+
         // Cek cache terlebih dahulu
         $cached = $this->cache->get('agency_pusat_division', $agency_id);
-        if ($cached !== null) {
+        if ($cached !== false) {
+            // Cache hit - return cached value (object atau null yang sudah dicache)
             return $cached;
         }
-        
+
         $result = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table} 
-             WHERE agency_id = %d 
-             AND type = 'pusat' 
+            "SELECT * FROM {$this->table}
+             WHERE agency_id = %d
+             AND type = 'pusat'
              AND status = 'active'
              LIMIT 1",
             $agency_id
         ));
-        
-        // Simpan ke cache
-        if ($result) {
-            $this->cache->set('agency_pusat_division', $result, self::CACHE_EXPIRY, $agency_id);
-        }
-        
+
+        // Simpan ke cache (even if null, to prevent repeated queries)
+        $this->cache->set('agency_pusat_division', $result, self::CACHE_EXPIRY, $agency_id);
+
         return $result;
     }
 
@@ -300,28 +299,24 @@ class DivisionModel {
     public function find(int $id): ?object {
         global $wpdb;
 
-        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
-        $caller = isset($trace[1]['class']) ? $trace[1]['class'] . '::' . $trace[1]['function'] : 'unknown';
-        error_log("[DivisionModel] DEBUG: find({$id}) called from {$caller}");
-
         // Cek cache dulu
         $cached = $this->cache->get(self::KEY_DIVISION, $id);
-        if ($cached !== null) {
+        if ($cached !== false) {
+            // Cache hit - return cached value (object atau null)
             return $cached;
         }
-        
+
         // Jika tidak ada di cache, ambil dari database
-        $result  = $wpdb->get_row($wpdb->prepare("
+        $result = $wpdb->get_row($wpdb->prepare("
             SELECT r.*, p.name as agency_name
             FROM {$this->table} r
             LEFT JOIN {$this->agency_table} p ON r.agency_id = p.id
             WHERE r.id = %d
         ", $id));
 
-        // Simpan ke cache
-        if ($result) {
-            $this->cache->set(self::KEY_DIVISION, $result, self::CACHE_EXPIRY, $id);
-        }        
+        // Simpan ke cache (even if null, to prevent repeated queries)
+        $this->cache->set(self::KEY_DIVISION, $result, self::CACHE_EXPIRY, $id);
+
         return $result;
     }
 
@@ -370,6 +365,8 @@ class DivisionModel {
             }
         }, array_keys($updateData));
 
+        error_log('[DivisionModel] Updating division ID: ' . $id . ' | Data: ' . json_encode($updateData));
+
         $result = $wpdb->update(
             $this->table,
             $updateData,
@@ -378,14 +375,19 @@ class DivisionModel {
             ['%d']
         );
 
+        error_log('[DivisionModel] wpdb->update() result: ' . var_export($result, true) . ' | Rows affected: ' . $wpdb->rows_affected);
+
         if ($result === false) {
-            error_log('Update division error: ' . $wpdb->last_error);
+            error_log('[DivisionModel] Update division error: ' . $wpdb->last_error);
             return false;
         }
 
         // Log audit trail (only if there were actual changes)
         if ($result !== 0) {
+            error_log('[DivisionModel] Logging audit - rows affected: ' . $result);
             $this->logAudit('updated', $id, (array)$old_division, $updateData);
+        } else {
+            error_log('[DivisionModel] No audit log - no rows affected (no actual changes detected)');
         }
 
         // Invalidate all related caches
@@ -763,4 +765,89 @@ class DivisionModel {
 
 
 
+
+
+    /**
+     * Get user relation with division (for permission checking)
+     *
+     * @param int $division_id Division ID
+     * @param int|null $user_id User ID (defaults to current user)
+     * @return array Relation data
+     */
+    public function getUserRelation(int $division_id, ?int $user_id = null): array {
+        if (!$user_id) {
+            $user_id = get_current_user_id();
+        }
+
+        // Default relation
+        $relation = [
+            'is_admin' => current_user_can('edit_all_divisions'),
+            'is_owner' => false,
+            'is_employee' => false,
+            'is_division_admin' => false,
+            'access_type' => 'none'
+        ];
+
+        // Jika tidak ada division_id, kembalikan default
+        if (!$division_id) {
+            return $relation;
+        }
+
+        // Dapatkan data division dari cache dulu
+        $division = $this->cache->get('division', $division_id);
+
+        // Jika tidak ada di cache, ambil dari database
+        if ($division === null) {
+            $division = $this->find($division_id);
+
+            // Simpan ke cache untuk penggunaan berikutnya
+            if ($division) {
+                $this->cache->set('division', $division, self::CACHE_EXPIRY, $division_id);
+            }
+        }
+
+        if (!$division) {
+            return $relation;
+        }
+
+        // Dapatkan data agency dari cache dulu
+        $agency = $this->cache->get('agency', $division->agency_id);
+
+        // Jika tidak ada di cache, ambil dari database
+        if ($agency === null) {
+            $agency = $this->agencyModel->find($division->agency_id);
+
+            // Simpan ke cache untuk penggunaan berikutnya
+            if ($agency) {
+                $this->cache->set('agency', $agency, self::CACHE_EXPIRY, $division->agency_id);
+            }
+        }
+
+        if (!$agency) {
+            return $relation;
+        }
+
+        // Isi data relation
+        $relation['is_owner'] = ((int)$agency->user_id === $user_id);
+        $relation['is_division_admin'] = ((int)$division->user_id === $user_id);
+
+        // Gunakan method untuk cek status employee
+        $relation['is_employee'] = $this->isEmployeeActive($division_id, $user_id);
+
+        // Determine access type
+        if ($relation['is_admin']) {
+            $relation['access_type'] = 'admin';
+        } elseif ($relation['is_owner']) {
+            $relation['access_type'] = 'owner';
+        } elseif ($relation['is_division_admin']) {
+            $relation['access_type'] = 'division_admin';
+        } elseif ($relation['is_employee']) {
+            $relation['access_type'] = 'employee';
+        }
+
+        // Apply filter to allow plugins to extend relation data
+        $relation = apply_filters('wp_agency_division_user_relation', $relation, $division_id, $user_id);
+
+        return $relation;
+    }
 }

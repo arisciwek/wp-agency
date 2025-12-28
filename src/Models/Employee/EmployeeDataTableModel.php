@@ -110,17 +110,57 @@ class EmployeeDataTableModel extends DataTableModel {
      * @return array Formatted row data
      */
     protected function format_row($row): array {
+        $employee_id = $row->id ?? 0;
+
+        // Generate action buttons with permission check
+        $actions = $this->generate_action_buttons($employee_id);
+
         return [
-            'DT_RowId' => 'employee-' . ($row->id ?? 0),
+            'DT_RowId' => 'employee-' . $employee_id,
             'DT_RowData' => [
-                'id' => $row->id ?? 0
+                'id' => $employee_id
             ],
             'name' => esc_html($row->name ?? ''),
             'position' => esc_html($row->position ?? ''),
             'email' => esc_html($row->email ?? ''),
             'phone' => esc_html($row->phone ?? ''),
-            'status' => $this->format_status_badge($row->status ?? '')
+            'status' => $this->format_status_badge($row->status ?? ''),
+            'actions' => $actions
         ];
+    }
+
+    /**
+     * Generate action buttons for employee row
+     *
+     * @param int $employee_id Employee ID
+     * @return string HTML for action buttons
+     */
+    private function generate_action_buttons(int $employee_id): string {
+        $buttons = '';
+
+        // Edit button - check permission
+        if (current_user_can('edit_all_agencies') || current_user_can('edit_own_agency')) {
+            $buttons .= sprintf(
+                '<button type="button" class="button button-small edit-employee" data-id="%d" title="%s">
+                    <span class="dashicons dashicons-edit"></span>
+                </button> ',
+                $employee_id,
+                esc_attr__('Edit', 'wp-agency')
+            );
+        }
+
+        // Delete button - check permission
+        if (current_user_can('delete_agency')) {
+            $buttons .= sprintf(
+                '<button type="button" class="button button-small delete-employee" data-id="%d" title="%s">
+                    <span class="dashicons dashicons-trash"></span>
+                </button>',
+                $employee_id,
+                esc_attr__('Delete', 'wp-agency')
+            );
+        }
+
+        return $buttons ?: '-';
     }
 
     /**

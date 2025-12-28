@@ -385,6 +385,8 @@
         },
 
         async handleUpdate() {
+            console.log('[EditAgencyForm] ============ FORM SUBMIT TRIGGERED ============');
+
             const id = this.form.find('#agency-id').val();
             const requestData = {
                 action: 'update_agency',
@@ -396,17 +398,22 @@
                 regency_code: this.form.find('[name="regency_code"]').val(),
                 user_id: this.form.find('#edit-user').val()
             };
+            console.log('[EditAgencyForm] Form data collected:', requestData);
 
             this.setLoadingState(true);
 
             try {
+                console.log('[EditAgencyForm] Sending update request...');
                 const response = await $.ajax({
                     url: wpAgencyData.ajaxUrl,
                     type: 'POST',
                     data: requestData
                 });
 
+                console.log('[EditAgencyForm] Server response:', response);
+
                 if (response.success) {
+                    console.log('[EditAgencyForm] Update SUCCESS - Agency data:', response.data);
                     AgencyToast.success('Agency berhasil diperbarui');
 
                     // Trigger update event before hiding modal
@@ -418,10 +425,11 @@
                         window.location.hash = id;
                     }
                 } else {
+                    console.error('[EditAgencyForm] Update FAILED:', response.data);
                     AgencyToast.error(response.data?.message || 'Gagal memperbarui agency');
                 }
             } catch (error) {
-                console.error('Update agency error:', error);
+                console.error('[EditAgencyForm] Update ERROR:', error);
                 AgencyToast.error('Gagal menghubungi server');
             } finally {
                 this.setLoadingState(false);

@@ -87,7 +87,7 @@ class JurisdictionValidator {
 
         // Check cache first
         $cached_result = $this->cache->get($cache_key);
-        if ($cached_result !== null) {
+        if ($cached_result !== false) {
             return $cached_result;
         }
 

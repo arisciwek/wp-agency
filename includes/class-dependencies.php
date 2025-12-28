@@ -222,6 +222,9 @@ public function enqueue_frontend_assets() {
             // Core styles
             wp_enqueue_style('wp-agency-toast', WP_AGENCY_URL . 'assets/css/agency/toast.css', [], $this->version);
             wp_enqueue_style('wp-agency-modal', WP_AGENCY_URL . 'assets/css/agency/confirmation-modal.css', [], $this->version);
+
+            // Form styles (for edit/create modals)
+            wp_enqueue_style('wp-agency-forms', WP_AGENCY_URL . 'assets/css/agency/agency-forms.css', [], $this->version);
             // Division toast - terpisah
             wp_enqueue_style('division-toast', WP_AGENCY_URL . 'assets/css/division/division-toast.css', [], $this->version);
 
@@ -255,6 +258,7 @@ public function enqueue_frontend_assets() {
     }
 
     public function enqueue_scripts() {
+        error_log('[WP Agency Debug] enqueue_scripts() called');
         // Check if we're on the registration page (BEFORE get_current_screen check)
         if (get_query_var('wp_agency_register')) {
             error_log('WP_Agency: Enqueuing registration scripts...');
@@ -350,7 +354,9 @@ public function enqueue_frontend_assets() {
 
         // Agency and Division pages scripts
         // Support both old menu (wp-agency) and new menu (wp-agency-disnaker)
+        error_log('[WP Agency Debug] Screen ID: ' . $screen->id);
         if (in_array($screen->id, ['toplevel_page_wp-agency', 'toplevel_page_wp-agency-disnaker'])) {
+            error_log('[WP Agency Debug] Enqueuing agency scripts...');
             // Core dependencies
             wp_enqueue_script('jquery-validate', 'https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js', ['jquery'], '1.19.5', true);
             wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js', ['jquery'], '1.13.7', true);
@@ -398,13 +404,20 @@ public function enqueue_frontend_assets() {
             // Agency filter JS (status filter dropdown)
             wp_enqueue_script('agency-filter', WP_AGENCY_URL . 'assets/js/agency/agency-filter.js', ['jquery', 'datatables'], $this->version, true);
 
-            // Agency modal handler for CRUD operations
-            wp_enqueue_script('agency-modal-handler', WP_AGENCY_URL . 'assets/js/agency-modal-handler.js', ['jquery'], $this->version, true);
+            // Agency modal handler for CRUD operations (edit/delete)
+            // Uses WPModal from wp-modal plugin for modal dialogs
+            wp_enqueue_script('agency-modal-handler', WP_AGENCY_URL . 'assets/js/agency-modal-handler.js', ['jquery', 'wp-modal'], $this->version, true);
 
             // Localize agency modal handler
             wp_localize_script('agency-modal-handler', 'wpAgencyConfig', [
                 'ajaxUrl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('wpdt_nonce')
+                'nonce' => wp_create_nonce('wp_agency_nonce'),
+                'i18n' => [
+                    'loading' => __('Loading...', 'wp-agency'),
+                    'error' => __('Error', 'wp-agency'),
+                    'success' => __('Success', 'wp-agency'),
+                    'confirm' => __('Are you sure?', 'wp-agency')
+                ]
             ]);
 
             wp_enqueue_script('create-agency-form', WP_AGENCY_URL . 'assets/js/agency/create-agency-form.js', ['jquery', 'jquery-validate', 'wp-agency-toast'], $this->version, true);

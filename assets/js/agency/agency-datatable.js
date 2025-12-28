@@ -236,37 +236,17 @@
             */
 
             /**
-             * Handle edit button click
+             * NOTE: Edit and Delete button handlers are in agency-modal-handler.js
+             *
+             * Following wp-customer pattern:
+             * - customer-datatable.js: DataTable initialization only
+             * - customer-modal-handler.js: CRUD operation handlers (edit/delete)
+             *
+             * This separation of concerns ensures:
+             * - No event handler conflicts
+             * - Cleaner code organization
+             * - Modal operations centralized in one file
              */
-            $(document).on('click', '.wpdt-edit-agency', function(e) {
-                e.stopPropagation(); // Prevent row click
-
-                const agencyId = $(this).data('id');
-                console.log('[AgencyDataTable] Edit button clicked for ID:', agencyId);
-
-                // TODO: Open edit modal or navigate to edit page
-                console.log('[AgencyDataTable] Edit functionality not yet implemented');
-            });
-
-            /**
-             * Handle delete button click
-             */
-            $(document).on('click', '.wpdt-delete-agency', function(e) {
-                e.stopPropagation(); // Prevent row click
-
-                const agencyId = $(this).data('id');
-                const confirmMessage = wpAgencyDataTable.i18n?.confirmDelete ||
-                                     'Are you sure you want to delete this agency?';
-
-                if (!confirm(confirmMessage)) {
-                    return;
-                }
-
-                console.log('[AgencyDataTable] Delete button clicked for ID:', agencyId);
-
-                // TODO: Implement delete functionality
-                console.log('[AgencyDataTable] Delete functionality not yet implemented');
-            });
 
             console.log('[AgencyDataTable] Events bound');
         },
@@ -444,17 +424,31 @@
                 case 'division':
                     return [
                         { data: 'code', width: '15%' },
-                        { data: 'name', width: '40%' },
-                        { data: 'wilayah_kerja', width: '45%' }
+                        { data: 'name', width: '30%' },
+                        { data: 'wilayah_kerja', width: '40%' },
+                        {
+                            data: 'actions',
+                            width: '15%',
+                            orderable: false,
+                            searchable: false,
+                            className: 'text-center'
+                        }
                     ];
 
                 case 'employee':
                     return [
-                        { data: 'name' },
-                        { data: 'position' },
-                        { data: 'email' },
-                        { data: 'phone' },
-                        { data: 'status' }
+                        { data: 'name', width: '20%' },
+                        { data: 'position', width: '20%' },
+                        { data: 'email', width: '20%' },
+                        { data: 'phone', width: '15%' },
+                        { data: 'status', width: '10%' },
+                        {
+                            data: 'actions',
+                            width: '15%',
+                            orderable: false,
+                            searchable: false,
+                            className: 'text-center'
+                        }
                     ];
 
                 case 'new-company':

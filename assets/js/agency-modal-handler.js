@@ -149,10 +149,10 @@
 
                 // Load regencies for selected province
                 $.ajax({
-                    url: ajaxurl,
-                    method: 'GET',
+                    url: wpAgencyConfig.ajaxUrl,
+                    method: 'POST',
                     data: {
-                        action: 'get_regencies',
+                        action: 'get_available_regencies_for_agency_editing',
                         province_id: provinceId,
                         nonce: wpAgencyConfig.nonce
                     },
@@ -224,11 +224,11 @@
                         WPModal.hide();
 
                         // Refresh DataTable
-                        if (window.agencyDataTableInstance) {
+                        if (window.AgencyDataTable && window.AgencyDataTable.table) {
                             console.log('[AgencyModal] Refreshing DataTable...');
-                            window.agencyDataTableInstance.ajax.reload(null, false);
+                            window.AgencyDataTable.table.ajax.reload(null, false);
                         } else {
-                            console.error('[AgencyModal] agencyDataTableInstance not available!');
+                            console.error('[AgencyModal] AgencyDataTable not available!');
                         }
 
                     } else {
@@ -391,11 +391,11 @@
                         console.log('[AgencyModal] Delete successful:', response);
 
                         // Refresh DataTable
-                        if (window.agencyDataTableInstance) {
+                        if (window.AgencyDataTable && window.AgencyDataTable.table) {
                             console.log('[AgencyModal] Refreshing DataTable...');
-                            window.agencyDataTableInstance.ajax.reload(null, false);
+                            window.AgencyDataTable.table.ajax.reload(null, false);
                         } else {
-                            console.error('[AgencyModal] agencyDataTableInstance not available!');
+                            console.error('[AgencyModal] AgencyDataTable not available!');
                         }
                     } else {
                         console.error('[AgencyModal] Delete failed:', response);

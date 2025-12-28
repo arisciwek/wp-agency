@@ -288,7 +288,13 @@
 
         async handleUpdate(e) {
             e.preventDefault();
-            if (!this.form.valid()) return;
+            console.log('[EditDivisionForm] ============ FORM SUBMIT TRIGGERED ============');
+
+            if (!this.form.valid()) {
+                console.log('[EditDivisionForm] Form validation FAILED');
+                return;
+            }
+            console.log('[EditDivisionForm] Form validation PASSED');
 
             const formData = {
                 action: 'update_division',
@@ -308,6 +314,7 @@
                 jurisdictions: this.form.find('[name="jurisdictions[]"]:checked').map(function() { return $(this).val(); }).get(),
                 status: this.form.find('[name="status"]').val()
             };
+            console.log('[EditDivisionForm] Form data collected:', formData);
 
         this.setLoadingState(true);
 
@@ -335,13 +342,18 @@
             // If validation passes, proceed with update
             this.setLoadingState(true);
 
+            console.log('[EditDivisionForm] Sending update request:', formData);
+
             const response = await $.ajax({
                 url: wpAgencyData.ajaxUrl,
                 type: 'POST',
                 data: formData
             });
 
+            console.log('[EditDivisionForm] Server response:', response);
+
             if (response.success) {
+                console.log('[EditDivisionForm] Update SUCCESS - Division data:', response.data);
                 AgencyToast.success('Cabang berhasil diperbarui');
                 this.hideModal();
                 $(document).trigger('division:updated.datatable', [response.data]);
@@ -349,6 +361,7 @@
                     window.DivisionDataTable.refresh();
                 }
             } else {
+                console.error('[EditDivisionForm] Update FAILED:', response.data);
                 AgencyToast.error(response.data?.message || 'Gagal memperbarui cabang');
             }
         } catch (error) {

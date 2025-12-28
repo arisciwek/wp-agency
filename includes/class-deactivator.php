@@ -41,14 +41,13 @@ class WP_Agency_Deactivator {
 
         $should_clear_data = self::should_clear_data();
 
-        // Hapus development settings setelah menentukan apakah perlu clear data
-        delete_option('wp_agency_development_settings');
-        self::debug("Development settings cleared");
-
         try {
             // Only proceed with data cleanup if in development mode
             if (!$should_clear_data) {
                 self::debug("Skipping data cleanup on plugin deactivation");
+                // Hapus development settings jika tidak perlu clear data
+                delete_option('wp_agency_development_settings');
+                self::debug("Development settings cleared (no cleanup needed)");
                 return;
             }
 
@@ -58,15 +57,16 @@ class WP_Agency_Deactivator {
             // Start transaction
             $wpdb->query('START TRANSACTION');
 
-            // First, drop all foreign key constraints to avoid dependency issues
-            self::drop_foreign_key_constraints();
+            // Disable foreign key checks to allow dropping tables with dependencies
+            $wpdb->query('SET FOREIGN_KEY_CHECKS = 0');
 
             // Delete tables in correct order (child tables first)
             $tables = [
                 // First level - no dependencies
+                'app_agency_audit_logs',   // Drop audit log first (no FK, polymorphic)
                 'app_agency_employees',    // Drop this next as it references agencies and divisions
                 'app_agency_jurisdictions', // Drop this before divisions as it references divisions
-                'app_agency_divisions',             // Drop this after jurisdictions as it only references agencies
+                'app_agency_divisions',    // Drop this after jurisdictions as it only references agencies
                 'app_agencies'             // Drop this last as it's referenced by all
             ];
 
@@ -76,21 +76,23 @@ class WP_Agency_Deactivator {
                 $wpdb->query("DROP TABLE IF EXISTS {$table_name}");
             }
 
+            // Re-enable foreign key checks
+            $wpdb->query('SET FOREIGN_KEY_CHECKS = 1');
+
             // Delete demo users (after tables are gone)
             self::delete_demo_users();
 
-            // Clear cache using AgencyCacheManager
-            try {
-                $cache_manager = new AgencyCacheManager();
-                $cleared = $cache_manager->clearAll();
-                self::debug("Cache clearing result: " . ($cleared ? 'success' : 'failed'));
-            } catch (\Exception $e) {
-                self::debug("Error clearing cache: " . $e->getMessage());
-            }
+            // Clear WordPress object cache (wp_cache_*)
+            wp_cache_flush();
+            self::debug("WordPress cache flushed");
 
             // Commit transaction
             $wpdb->query('COMMIT');
-            
+
+            // Hapus development settings setelah cleanup berhasil
+            delete_option('wp_agency_development_settings');
+            self::debug("Development settings cleared after successful cleanup");
+
             self::debug("Plugin deactivation complete");
 
         } catch (\Exception $e) {
@@ -178,31 +180,5 @@ class WP_Agency_Deactivator {
             self::debug("Error managing users: " . $e->getMessage());
         }
     }
-
-    private static function drop_foreign_key_constraints() {
-        global $wpdb;
-
-        try {
-            // Drop specific foreign key constraints
-            $constraint_queries = [
-                // Handle both old and new jurisdiction table names
-                "ALTER TABLE {$wpdb->prefix}app_agency_jurisdictions DROP FOREIGN KEY {$wpdb->prefix}app_agency_jurisdictions_ibfk_1",
-                "ALTER TABLE {$wpdb->prefix}app_jurisdictions DROP FOREIGN KEY {$wpdb->prefix}app_jurisdictions_ibfk_1",
-                "ALTER TABLE {$wpdb->prefix}app_agency_employees DROP FOREIGN KEY {$wpdb->prefix}app_agency_employees_ibfk_1",
-                "ALTER TABLE {$wpdb->prefix}app_agency_employees DROP FOREIGN KEY {$wpdb->prefix}app_agency_employees_ibfk_2",
-                "ALTER TABLE {$wpdb->prefix}app_agency_divisions DROP FOREIGN KEY {$wpdb->prefix}app_agency_divisions_ibfk_1",
-            ];
-
-            foreach ($constraint_queries as $query) {
-                // Try to drop the constraint, ignore errors if it doesn't exist
-                $wpdb->query($query);
-            }
-
-            self::debug("Foreign key constraints dropped");
-        } catch (\Exception $e) {
-            self::debug("Error dropping foreign key constraints: " . $e->getMessage());
-        }
-    }
-
 
 }

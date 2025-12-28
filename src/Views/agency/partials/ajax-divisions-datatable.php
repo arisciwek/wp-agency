@@ -79,12 +79,13 @@ $can_filter = current_user_can('edit_all_divisions') || current_user_can('edit_o
        style="width:100%"
        data-entity="division"
        data-agency-id="<?php echo esc_attr($agency_id); ?>"
-       data-ajax-action="get_divisions_datatable">
+       data-ajax-action="handle_division_datatable">
     <thead>
         <tr>
             <th><?php esc_html_e('Kode', 'wp-agency'); ?></th>
             <th><?php esc_html_e('Nama Unit Kerja', 'wp-agency'); ?></th>
             <th><?php esc_html_e('Wilayah Kerja', 'wp-agency'); ?></th>
+            <th><?php esc_html_e('Aksi', 'wp-agency'); ?></th>
         </tr>
     </thead>
     <tbody>

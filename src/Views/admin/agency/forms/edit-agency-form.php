@@ -32,10 +32,9 @@ if (!isset($agency) || !is_object($agency)) {
 ?>
 
 <form id="agency-form" class="wpapp-modal-form">
-    <input type="hidden" name="action" value="save_agency">
-    <input type="hidden" name="mode" value="edit">
-    <input type="hidden" name="agency_id" value="<?php echo esc_attr($agency->id); ?>">
-    <input type="hidden" name="nonce" value="<?php echo wp_create_nonce('wpdt_nonce'); ?>">
+    <input type="hidden" name="action" value="update_agency">
+    <input type="hidden" name="id" value="<?php echo esc_attr($agency->id); ?>">
+    <input type="hidden" name="nonce" value="<?php echo wp_create_nonce('wp_agency_nonce'); ?>">
 
     <!-- Two Column Layout -->
     <div class="wpapp-form-grid">
