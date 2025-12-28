@@ -52,7 +52,8 @@ class Installer {
         'app_agencies',
         'app_agency_divisions',
         'app_agency_jurisdictions',
-        'app_agency_employees'
+        'app_agency_employees',
+        'app_agency_audit_logs'
     ];
 
     // Table class mappings for easier maintenance
@@ -60,7 +61,8 @@ class Installer {
         'app_agencies' => Tables\AgencysDB::class,
         'app_agency_divisions' => Tables\DivisionsDB::class,
         'app_agency_jurisdictions' => Tables\JurisdictionDB::class,
-        'app_agency_employees' => Tables\AgencyEmployeesDB::class
+        'app_agency_employees' => Tables\AgencyEmployeesDB::class,
+        'app_agency_audit_logs' => Tables\AuditLogsDB::class
     ];
 
     private static function debug($message) {

@@ -244,9 +244,12 @@ public function enqueue_frontend_assets() {
             // Tambahkan Employee styles
             wp_enqueue_style('wp-agency-employee', WP_AGENCY_URL . 'assets/css/employee/employee-style.css', [], $this->version);
             wp_enqueue_style('employee-toast', WP_AGENCY_URL . 'assets/css/employee/employee-toast.css', [], $this->version);
-            
+
             // New Company styles
             wp_enqueue_style('wp-agency-new-company', WP_AGENCY_URL . 'assets/css/company/new-company-style.css', [], $this->version);
+
+            // Audit Log styles
+            wp_enqueue_style('wp-agency-audit-log', WP_AGENCY_URL . 'assets/css/audit-log/audit-log.css', [], $this->version);
         }
 
     }
@@ -395,6 +398,15 @@ public function enqueue_frontend_assets() {
             // Agency filter JS (status filter dropdown)
             wp_enqueue_script('agency-filter', WP_AGENCY_URL . 'assets/js/agency/agency-filter.js', ['jquery', 'datatables'], $this->version, true);
 
+            // Agency modal handler for CRUD operations
+            wp_enqueue_script('agency-modal-handler', WP_AGENCY_URL . 'assets/js/agency-modal-handler.js', ['jquery'], $this->version, true);
+
+            // Localize agency modal handler
+            wp_localize_script('agency-modal-handler', 'wpAgencyConfig', [
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('wpdt_nonce')
+            ]);
+
             wp_enqueue_script('create-agency-form', WP_AGENCY_URL . 'assets/js/agency/create-agency-form.js', ['jquery', 'jquery-validate', 'wp-agency-toast'], $this->version, true);
             wp_enqueue_script('edit-agency-form', WP_AGENCY_URL . 'assets/js/agency/edit-agency-form.js', ['jquery', 'jquery-validate', 'wp-agency-toast'], $this->version, true);
 
@@ -431,6 +443,36 @@ public function enqueue_frontend_assets() {
 
             // New Company scripts
             wp_enqueue_script('new-company-datatable', WP_AGENCY_URL . 'assets/js/company/new-company-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);
+
+            // Audit Log scripts
+            wp_enqueue_script('audit-log', WP_AGENCY_URL . 'assets/js/audit-log/audit-log.js', ['jquery', 'datatables'], $this->version, true);
+
+            // Localize audit log script
+            wp_localize_script('audit-log', 'wpAgencyAuditLog', [
+                'nonce' => wp_create_nonce('wp_agency_ajax_nonce'),
+                'i18n' => [
+                    'processing' => __('Loading...', 'wp-agency'),
+                    'search' => __('Search:', 'wp-agency'),
+                    'lengthMenu' => __('Show _MENU_ entries', 'wp-agency'),
+                    'info' => __('Showing _START_ to _END_ of _TOTAL_ entries', 'wp-agency'),
+                    'infoEmpty' => __('Showing 0 to 0 of 0 entries', 'wp-agency'),
+                    'infoFiltered' => __('(filtered from _MAX_ total entries)', 'wp-agency'),
+                    'zeroRecords' => __('No matching records found', 'wp-agency'),
+                    'emptyTable' => __('No data available in table', 'wp-agency'),
+                    'field' => __('Field', 'wp-agency'),
+                    'oldValue' => __('Old Value', 'wp-agency'),
+                    'newValue' => __('New Value', 'wp-agency'),
+                    'detailTitle' => __('Audit Log Details', 'wp-agency'),
+                    'close' => __('Close', 'wp-agency'),
+                    'modalLibraryNotLoaded' => __('Modal library not loaded', 'wp-agency'),
+                    'paginate' => [
+                        'first' => __('First', 'wp-agency'),
+                        'previous' => __('Previous', 'wp-agency'),
+                        'next' => __('Next', 'wp-agency'),
+                        'last' => __('Last', 'wp-agency')
+                    ]
+                ]
+            ]);
 
             // Gunakan wpAgencyData untuk semua
             $agency_nonce = wp_create_nonce('wp_agency_nonce');

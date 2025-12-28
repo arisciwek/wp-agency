@@ -12,7 +12,7 @@
 namespace WPAgency\Controllers;
 
 use WPAgency\Controllers\SettingsController;
-use WPAgency\Controllers\AgencyController;
+use WPAgency\Controllers\Agency\AgencyController;
 
 
 class MenuManager {
@@ -20,11 +20,20 @@ class MenuManager {
     private $version;
     private $settings_controller;
     private $agency_controller;
+
     public function __construct($plugin_name, $version) {
         $this->plugin_name = $plugin_name;
         $this->version = $version;
         $this->settings_controller = new SettingsController();
-        $this->agency_controller = new AgencyController();
+        // Don't instantiate AgencyController here - will be set later via setAgencyController()
+        $this->agency_controller = null;
+    }
+
+    /**
+     * Set AgencyController instance (called after wp-app-core is loaded)
+     */
+    public function setAgencyController($controller) {
+        $this->agency_controller = $controller;
     }
 
     public function init() {
@@ -34,12 +43,15 @@ class MenuManager {
 
     public function registerMenus() {
         // Menu WP Agency - menggunakan view_agency_list agar role agency bisa akses
+        // Only register if AgencyController is available
+        $callback = $this->agency_controller ? [$this->agency_controller, 'renderMainPage'] : '__return_false';
+
         $agency_hook = add_menu_page(
             __('WP Agency', 'wp-agency'),
             __('WP Agency', 'wp-agency'),
             'view_agency_list',
             'wp-agency',
-            [$this->agency_controller, 'renderMainPage'],
+            $callback,
             'dashicons-businessperson',
             30
         );

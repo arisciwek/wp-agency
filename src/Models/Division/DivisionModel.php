@@ -54,8 +54,26 @@ namespace WPAgency\Models\Division;
 
 use WPAgency\Cache\AgencyCacheManager;
 use WPAgency\Models\Agency\AgencyModel;
+use WPAgency\Traits\Auditable;
 
 class DivisionModel {
+    use Auditable;
+
+    /**
+     * Auditable configuration
+     */
+    protected $auditable_type = 'division';
+    protected $auditable_excluded = ['updated_at', 'created_at', 'updated_by', 'created_by'];
+
+    /**
+     * Reference field mappings for audit log
+     */
+    protected $auditable_references = [
+        'agency_id' => ['table' => 'app_agencies', 'key' => 'id', 'label' => 'name'],
+        'province_id' => ['table' => 'wi_provinces', 'key' => 'id', 'label' => 'name'],
+        'regency_id' => ['table' => 'wi_regencies', 'key' => 'id', 'label' => 'name'],
+        'user_id' => ['table' => 'users', 'key' => 'ID', 'label' => 'display_name'],
+    ];
 
     // Cache keys - pindahkan dari AgencyCacheManager ke sini untuk akses langsung
     private const KEY_DIVISION = 'division';
@@ -260,6 +278,11 @@ class DivisionModel {
 
         $new_id = (int) $wpdb->insert_id;
 
+        // Log audit trail
+        if ($new_id) {
+            $this->logAudit('created', $new_id, null, $insertData);
+        }
+
         // Task-2066: Fire hook for auto-create employee
         if ($new_id) {
             do_action('wp_agency_division_created', $new_id, $insertData);
@@ -304,6 +327,12 @@ class DivisionModel {
 
     public function update(int $id, array $data): bool {
         global $wpdb;
+
+        // Get old values for audit log
+        $old_division = $this->find($id);
+        if (!$old_division) {
+            return false;
+        }
 
         $updateData = [
             'name' => $data['name'] ?? null,
@@ -352,6 +381,11 @@ class DivisionModel {
         if ($result === false) {
             error_log('Update division error: ' . $wpdb->last_error);
             return false;
+        }
+
+        // Log audit trail (only if there were actual changes)
+        if ($result !== 0) {
+            $this->logAudit('updated', $id, (array)$old_division, $updateData);
         }
 
         // Invalidate all related caches
@@ -417,15 +451,18 @@ class DivisionModel {
             'updated_at' => $division->updated_at ?? null
         ];
 
-        // 3. Fire before delete hook (for validation/prevention)
+        // 3. Log audit trail before deletion
+        $this->logAudit('deleted', $id, $division_data, null);
+
+        // 4. Fire before delete hook (for validation/prevention)
         do_action('wp_agency_division_before_delete', $id, $division_data);
 
-        // 4. Check if hard delete is enabled (same setting as Employee/Agency for consistency)
+        // 5. Check if hard delete is enabled (same setting as Employee/Agency for consistency)
         $settings = get_option('wp_agency_general_options', []);
         $is_hard_delete = isset($settings['enable_hard_delete_branch']) &&
                          $settings['enable_hard_delete_branch'] === true;
 
-        // 5. Perform delete (soft or hard)
+        // 6. Perform delete (soft or hard)
         if ($is_hard_delete) {
             // Hard delete - actual DELETE from database
             error_log("[DivisionModel] Hard deleting division {$id} ({$division_data['name']})");
@@ -451,7 +488,7 @@ class DivisionModel {
             );
         }
 
-        // 6. If successful, fire after delete hook and invalidate cache
+        // 7. If successful, fire after delete hook and invalidate cache
         if ($result !== false && $result !== 0) {
             // Fire after delete hook (for cascade cleanup)
             do_action('wp_agency_division_deleted', $id, $division_data, $is_hard_delete);

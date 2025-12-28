@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Agency
- * @version     1.0.3
+ * @version     1.0.4
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Agency/AgencyDataTableModel.php
@@ -15,6 +15,12 @@
  *              Integrates dengan base panel system (TODO-2179).
  *
  * Changelog:
+ * 1.0.4 - 2025-12-28
+ * - Fixed action buttons capability check
+ * - Changed from undefined capabilities to proper PermissionModel capabilities
+ * - Edit: manage_options OR edit_all_agencies OR edit_own_agency
+ * - Delete: manage_options OR delete_agency
+ *
  * 1.0.3 - 2025-11-04 (FIX: Use province_id/regency_id instead of codes)
  * - CRITICAL FIX: Changed JOIN conditions from code-based to ID-based
  * - Updated base_joins: a.province_id = p.id, a.regency_id = r.id
@@ -106,10 +112,7 @@ class AgencyDataTableModel extends DataTableModel {
      * @return array Columns configuration
      */
     protected function get_columns(): array {
-        error_log('=== AGENCY DATATABLE MODEL DEBUG ===');
-        error_log('get_columns() called');
-
-        $columns = [
+        return [
             'a.code as code',
             'a.name as name',
             'a.province_id',
@@ -118,9 +121,6 @@ class AgencyDataTableModel extends DataTableModel {
             'r.name as regency_name',
             'a.id as id'
         ];
-
-        error_log('Columns defined: ' . print_r($columns, true));
-        return $columns;
     }
 
 
@@ -220,10 +220,8 @@ class AgencyDataTableModel extends DataTableModel {
         );
 
         // Edit button (if user has permission)
-        $can_edit = current_user_can('edit_agency');
-        $can_edit = apply_filters('wp_agency_can_edit_agency', $can_edit, $row->id);
-
-        if ($can_edit) {
+        // Allow admin or users with specific agency capabilities
+        if (current_user_can('manage_options') || current_user_can('edit_all_agencies') || current_user_can('edit_own_agency')) {
             $buttons[] = sprintf(
                 '<button type="button" class="button button-small wpdt-edit-agency" data-id="%d" title="%s">
                     <span class="dashicons dashicons-edit"></span>
@@ -234,10 +232,8 @@ class AgencyDataTableModel extends DataTableModel {
         }
 
         // Delete button (if user has permission)
-        $can_delete = current_user_can('delete_agency');
-        $can_delete = apply_filters('wp_agency_can_delete_agency', $can_delete, $row->id);
-
-        if ($can_delete) {
+        // Allow admin or users with delete_agency capability
+        if (current_user_can('manage_options') || current_user_can('delete_agency')) {
             $buttons[] = sprintf(
                 '<button type="button" class="button button-small wpdt-delete-agency" data-id="%d" title="%s">
                     <span class="dashicons dashicons-trash"></span>

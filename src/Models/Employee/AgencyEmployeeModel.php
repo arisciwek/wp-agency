@@ -54,8 +54,26 @@
 namespace WPAgency\Models\Employee;
 
 use WPAgency\Cache\AgencyCacheManager;
+use WPAgency\Traits\Auditable;
 
 class AgencyEmployeeModel {
+    use Auditable;
+
+    /**
+     * Auditable configuration
+     */
+    protected $auditable_type = 'agency_employee';
+    protected $auditable_excluded = ['updated_at', 'created_at', 'updated_by', 'created_by'];
+
+    /**
+     * Reference field mappings for audit log
+     */
+    protected $auditable_references = [
+        'agency_id' => ['table' => 'app_agencies', 'key' => 'id', 'label' => 'name'],
+        'division_id' => ['table' => 'app_agency_divisions', 'key' => 'id', 'label' => 'name'],
+        'user_id' => ['table' => 'users', 'key' => 'ID', 'label' => 'display_name'],
+    ];
+
     private $table;
     private $agency_table;
     private $division_table;
@@ -148,6 +166,11 @@ class AgencyEmployeeModel {
         }
 
         $employee_id = (int) $wpdb->insert_id;
+
+        // Log audit trail
+        if ($employee_id) {
+            $this->logAudit('created', $employee_id, null, $insertData);
+        }
 
         // Task-2070: Fire hook after successful employee creation
         // Allows plugins/handlers to respond to new employee (email, notification, audit log, etc)
@@ -282,6 +305,11 @@ class AgencyEmployeeModel {
             return false;
         }
 
+        // Log audit trail (only if there were actual changes)
+        if ($result !== 0) {
+            $this->logAudit('updated', $id, (array)$current_employee, $updateData);
+        }
+
         // Invalidasi cache
         $this->cache->delete('agency_employee', $id);
         $this->cache->delete('agency_employee_count', (string)$agency_id);
@@ -368,15 +396,18 @@ class AgencyEmployeeModel {
         $agency_id = $employee->agency_id;
         $division_id = $employee->division_id;
 
-        // 3. Fire before delete HOOK (for validation, logging, pre-deletion notifications)
+        // 3. Log audit trail before deletion
+        $this->logAudit('deleted', $id, $employee_data, null);
+
+        // 4. Fire before delete HOOK (for validation, logging, pre-deletion notifications)
         do_action('wp_agency_employee_before_delete', $id, $employee_data);
 
-        // 4. Check hard delete setting (same setting as Division/Agency for consistency)
+        // 5. Check hard delete setting (same setting as Division/Agency for consistency)
         $settings = get_option('wp_agency_general_options', []);
         $is_hard_delete = isset($settings['enable_hard_delete_branch']) &&
                          $settings['enable_hard_delete_branch'] === true;
 
-        // 5. Perform delete (soft or hard)
+        // 6. Perform delete (soft or hard)
         if ($is_hard_delete) {
             // Hard delete - actual DELETE from database
             $result = $wpdb->delete(
@@ -398,7 +429,7 @@ class AgencyEmployeeModel {
             );
         }
 
-        // 6. Fire after delete HOOK and handle cleanup
+        // 7. Fire after delete HOOK and handle cleanup
         if ($result !== false) {
             // Fire HOOK - passing $is_hard_delete as third parameter
             do_action('wp_agency_employee_deleted', $id, $employee_data, $is_hard_delete);

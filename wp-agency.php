@@ -43,6 +43,29 @@ define('WP_AGENCY_PATH', plugin_dir_path(__FILE__));
 define('WP_AGENCY_URL', plugin_dir_url(__FILE__));
 define('WP_AGENCY_DEVELOPMENT', false);
 
+// Check wp-app-core dependency
+// Note: We only check if plugin is active, not class existence
+// Class existence will be verified when autoloader tries to load them
+function wp_agency_check_dependencies() {
+    // Check if wp-app-core plugin is active
+    if (!is_plugin_active('wp-app-core/wp-app-core.php')) {
+        add_action('admin_notices', function() {
+            echo '<div class="error"><p>';
+            echo '<strong>WP Agency:</strong> Plugin memerlukan WP App Core untuk berfungsi. ';
+            echo 'Silakan aktifkan plugin WP App Core terlebih dahulu.';
+            echo '</p></div>';
+        });
+        return false;
+    }
+
+    return true;
+}
+
+// Early dependency check (before autoloader)
+if (!wp_agency_check_dependencies()) {
+    return; // Stop plugin initialization
+}
+
 add_filter('wp_customer_access_type', 'add_agency_access_type', 10, 2);
 function add_agency_access_type($access_type, $relation) {
     // Cek apakah user adalah vendor untuk customer ini
@@ -66,6 +89,7 @@ class WPAgency {
     private $version;
     private $agency_controller;
     private $dashboard_controller;
+    private $menu_manager;
 
     /**
      * Get single instance of WPAgency
@@ -131,8 +155,8 @@ class WPAgency {
         $this->loader->add_action('admin_enqueue_scripts', $dependencies, 'enqueue_scripts');
 
         // Initialize menu
-        $menu_manager = new \WPAgency\Controllers\MenuManager($this->plugin_name, $this->version);
-        $this->loader->add_action('init', $menu_manager, 'init');
+        $this->menu_manager = new \WPAgency\Controllers\MenuManager($this->plugin_name, $this->version);
+        $this->loader->add_action('init', $this->menu_manager, 'init');
 
         // Initialize controllers
         $this->initControllers();
@@ -145,10 +169,13 @@ class WPAgency {
         $init_hooks->init();
 
         // Task-2066: Register AutoEntityCreator hooks for automatic entity creation
-        $auto_entity_creator = new \WPAgency\Handlers\AutoEntityCreator();
-        add_action('wp_agency_agency_created', [$auto_entity_creator, 'handleAgencyCreated'], 10, 2);
-        add_action('wp_agency_division_created', [$auto_entity_creator, 'handleDivisionCreated'], 10, 2);
-        add_action('wp_agency_division_deleted', [$auto_entity_creator, 'handleDivisionDeleted'], 10, 3);
+        // Delay until wp-app-core loaded
+        add_action('plugins_loaded', function() {
+            $auto_entity_creator = new \WPAgency\Handlers\AutoEntityCreator();
+            add_action('wp_agency_agency_created', [$auto_entity_creator, 'handleAgencyCreated'], 10, 2);
+            add_action('wp_agency_division_created', [$auto_entity_creator, 'handleDivisionCreated'], 10, 2);
+            add_action('wp_agency_division_deleted', [$auto_entity_creator, 'handleDivisionDeleted'], 10, 3);
+        }, 20);
 
         // Integration with wp-customer for company agency assignment
         // Delay initialization until after wp-customer is loaded
@@ -232,16 +259,25 @@ class WPAgency {
      * Initialize plugin controllers
      */
     private function initControllers() {
-        // Agency Controller
-        $this->agency_controller = new \WPAgency\Controllers\AgencyController();
-
-        // Agency Dashboard Controller (TODO-2071 - Base Panel System)
         // Delay initialization until after wp-app-core is loaded (plugins_loaded hook)
         $self = $this; // Store reference for closure
         add_action('plugins_loaded', function() use ($self) {
-            if (class_exists('WPAppCore\\Models\\DataTable\\DataTableModel')) {
-//                 error_log('=== AGENCY DASHBOARD CONTROLLER INIT (plugins_loaded) ===');
+            // Check if wp-app-core AbstractCrudModel is available
+            if (!class_exists('WPAppCore\\Models\\Abstract\\AbstractCrudModel')) {
+                error_log('ERROR: wp-app-core AbstractCrudModel not loaded, controllers not initialized');
+                return;
+            }
 
+            // Agency Controller (needs AbstractCrudModel)
+            $self->agency_controller = new \WPAgency\Controllers\Agency\AgencyController();
+
+            // Set AgencyController to MenuManager (for menu callback)
+            if ($self->menu_manager) {
+                $self->menu_manager->setAgencyController($self->agency_controller);
+            }
+
+            // Agency Dashboard Controller (needs DataTableModel)
+            if (class_exists('WPAppCore\\Models\\DataTable\\DataTableModel')) {
                 // Force autoloader to check for the class
                 if (!class_exists('WPAgency\\Controllers\\Agency\\AgencyDashboardController')) {
                     error_log('ERROR: AgencyDashboardController class not found by autoloader');
@@ -256,21 +292,40 @@ class WPAgency {
                     error_log('FATAL ERROR initializing AgencyDashboardController: ' . $e->getMessage());
                 }
             } else {
-                error_log('ERROR: wp-app-core not loaded, AgencyDashboardController not initialized');
+                error_log('ERROR: wp-app-core DataTableModel not loaded, AgencyDashboardController not initialized');
             }
+            // Employee Controller
+            new \WPAgency\Controllers\Employee\AgencyEmployeeController();
+
+            // Division Controller
+            new \WPAgency\Controllers\Division\DivisionController();
+
+            // Jurisdiction Controller
+            new \WPAgency\Controllers\Division\JurisdictionController();
+
+            // New Company Controller
+            new \WPAgency\Controllers\Company\NewCompanyController();
+
         }, 20); // Priority 20 ensures wp-app-core loaded first
 
-        // Employee Controller
-        new \WPAgency\Controllers\Employee\AgencyEmployeeController();
+        // Audit Log Controller - Register AJAX handler IMMEDIATELY (before any hooks)
+        // This ensures AJAX action is registered even during early AJAX requests
+        error_log('[wp-agency] Registering AuditLog AJAX handler directly...');
+        add_action('wp_ajax_get_audit_logs', function() {
+            error_log('[AuditLog] AJAX handler called (direct registration)');
 
-        // Division Controller
-        new \WPAgency\Controllers\Division\DivisionController();
+            // Lazy-load controller when needed
+            if (!class_exists('WPAppCore\\Models\\DataTable\\DataTableModel')) {
+                error_log('[AuditLog] ERROR - WPAppCore not loaded during AJAX request');
+                wp_send_json_error(['message' => 'System not ready']);
+                return;
+            }
 
-        // Jurisdiction Controller
-        new \WPAgency\Controllers\Division\JurisdictionController();
-
-        // New Company Controller
-        new \WPAgency\Controllers\Company\NewCompanyController();
+            // Create controller instance on-demand
+            $controller = new \WPAgency\Controllers\AuditLog\AuditLogController();
+            $controller->handleGetAuditLogs();
+        });
+        error_log('[wp-agency] AuditLog AJAX handler registered');
 
         // Register AJAX handlers
         add_action('wp_ajax_get_agency_stats', [$this->agency_controller, 'getStats']);

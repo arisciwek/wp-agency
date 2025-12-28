@@ -162,6 +162,7 @@ class AgencyDashboardController {
         add_action('wpdt_tab_view_content', [$this, 'render_divisions_tab'], 10, 3);
         add_action('wpdt_tab_view_content', [$this, 'render_employees_tab'], 10, 3);
         add_action('wpdt_tab_view_content', [$this, 'render_new_companies_tab'], 10, 3);
+        add_action('wpdt_tab_view_content', [$this, 'render_history_tab'], 10, 3);
 
         // AJAX handlers
         add_action('wp_ajax_get_agencies_datatable', [$this, 'handle_datatable_ajax']);
@@ -177,6 +178,11 @@ class AgencyDashboardController {
         add_action('wp_ajax_get_divisions_datatable', [$this, 'handle_divisions_datatable']);
         add_action('wp_ajax_get_employees_datatable', [$this, 'handle_employees_datatable']);
         add_action('wp_ajax_get_new_companies_datatable', [$this, 'handle_new_companies_datatable']);
+
+        // AJAX handlers - Modal CRUD
+        add_action('wp_ajax_get_agency_form', [$this, 'handle_get_agency_form']);
+        add_action('wp_ajax_save_agency', [$this, 'handle_save_agency']);
+        add_action('wp_ajax_delete_agency', [$this, 'handle_delete_agency']);
     }
 
     /**
@@ -467,6 +473,12 @@ class AgencyDashboardController {
             ];
         }
 
+        // History/Audit Log tab
+        $agency_tabs['history'] = [
+            'title' => __('History', 'wp-agency'),
+            'priority' => 50
+        ];
+
 // error_log('Returning agency tabs: ' . print_r($agency_tabs, true));
         return $agency_tabs;
     }
@@ -630,6 +642,59 @@ class AgencyDashboardController {
 
         // Include lazy-loaded DataTable view
         include WP_AGENCY_PATH . 'src/Views/agency/tabs/new-companies.php';
+    }
+
+    /**
+     * Render history tab HTML content
+     *
+     * Hook handler for wpdt_tab_view_content (history tab).
+     * Renders the actual HTML content for the history/audit log tab.
+     * Shows complete timeline: agency + divisions + employees.
+     *
+     * Entity-owned hook implementation pattern:
+     * - render_tab_contents() triggers wpdt_tab_view_content hook
+     * - This method responds to that hook for 'agency' entity, 'history' tab
+     * - Priority 10: Core content rendering
+     *
+     * Hook Flow:
+     * 1. render_tab_contents() → do_action('wpdt_tab_view_content')
+     * 2. This method → Includes history-tab.php template
+     *
+     * @param string $entity Entity type (e.g., 'agency')
+     * @param string $tab_id Tab identifier (should be 'history')
+     * @param array  $data   Data passed to tab (contains $agency object)
+     * @return void
+     */
+    public function render_history_tab($entity, $tab_id, $data): void {
+        error_log('[History Tab] render_history_tab called - entity: ' . $entity . ', tab_id: ' . $tab_id);
+
+        // Only respond to agency entity and history tab
+        if ($entity !== 'agency' || $tab_id !== 'history') {
+            error_log('[History Tab] Skipping - not agency/history');
+            return;
+        }
+
+        error_log('[History Tab] Data received: ' . print_r($data, true));
+
+        // Extract $agency from $data for view file
+        $agency = $data['agency'] ?? null;
+
+        if (!$agency) {
+            error_log('[History Tab] ERROR - No agency data');
+            echo '<p>' . __('Data not available', 'wp-agency') . '</p>';
+            return;
+        }
+
+        error_log('[History Tab] Agency ID: ' . $agency->id);
+
+        // Include audit log template
+        $template_path = WP_AGENCY_PATH . 'src/Views/templates/audit-log/history-tab.php';
+        error_log('[History Tab] Template path: ' . $template_path);
+        error_log('[History Tab] Template exists: ' . (file_exists($template_path) ? 'YES' : 'NO'));
+
+        include $template_path;
+
+        error_log('[History Tab] Template included');
     }
 
     /**
@@ -1310,5 +1375,168 @@ class AgencyDashboardController {
 
         // Check if user has any agency role
         return !empty(array_intersect($user->roles, $agency_roles));
+    }
+
+    // ========================================
+    // MODAL CRUD HANDLERS
+    // ========================================
+
+    /**
+     * Handle get agency form (create/edit)
+     */
+    public function handle_get_agency_form(): void {
+        $nonce = $_REQUEST['nonce'] ?? '';
+        if (!wp_verify_nonce($nonce, 'wpdt_nonce')) {
+            echo '<p class="error">' . __('Security check failed', 'wp-agency') . '</p>';
+            wp_die();
+        }
+
+        $mode = $_GET['mode'] ?? 'create';
+        $agency_id = isset($_GET['agency_id']) ? (int) $_GET['agency_id'] : 0;
+
+        // Check permissions
+        if ($mode === 'edit') {
+            if (!current_user_can('manage_options') &&
+                !current_user_can('edit_all_agencies') &&
+                !current_user_can('edit_own_agency')) {
+                echo '<p class="error">' . __('Permission denied', 'wp-agency') . '</p>';
+                wp_die();
+            }
+        } else {
+            if (!current_user_can('manage_options') && !current_user_can('add_agency')) {
+                echo '<p class="error">' . __('Permission denied', 'wp-agency') . '</p>';
+                wp_die();
+            }
+        }
+
+        try {
+            if ($mode === 'edit' && $agency_id) {
+                $agency = $this->model->find($agency_id);
+
+                if (!$agency) {
+                    echo '<p class="error">' . __('Agency not found', 'wp-agency') . '</p>';
+                    wp_die();
+                }
+
+                include WP_AGENCY_PATH . 'src/Views/admin/agency/forms/edit-agency-form.php';
+            } else {
+                include WP_AGENCY_PATH . 'src/Views/admin/agency/forms/create-agency-form.php';
+            }
+        } catch (\Exception $e) {
+            echo '<p class="error">' . esc_html($e->getMessage()) . '</p>';
+        }
+
+        wp_die();
+    }
+
+    /**
+     * Handle save agency (create/update)
+     */
+    public function handle_save_agency(): void {
+        @ini_set('display_errors', '0');
+        ob_start();
+
+        $nonce = $_POST['nonce'] ?? '';
+        if (!wp_verify_nonce($nonce, 'wpdt_nonce')) {
+            ob_end_clean();
+            wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
+            wp_die();
+        }
+
+        $mode = $_POST['mode'] ?? 'create';
+        $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
+
+        // Check permissions
+        if ($mode === 'edit') {
+            if (!current_user_can('manage_options') &&
+                !current_user_can('edit_all_agencies') &&
+                !current_user_can('edit_own_agency')) {
+                ob_end_clean();
+                wp_send_json_error(['message' => __('Permission denied', 'wp-agency')]);
+                wp_die();
+            }
+        } else {
+            if (!current_user_can('manage_options') && !current_user_can('add_agency')) {
+                ob_end_clean();
+                wp_send_json_error(['message' => __('Permission denied', 'wp-agency')]);
+                wp_die();
+            }
+        }
+
+        // Prepare data
+        $data = [
+            'name' => sanitize_text_field($_POST['name'] ?? ''),
+            'province_id' => !empty($_POST['province_id']) ? (int) $_POST['province_id'] : null,
+            'regency_id' => !empty($_POST['regency_id']) ? (int) $_POST['regency_id'] : null,
+            'address' => sanitize_textarea_field($_POST['address'] ?? ''),
+            'phone' => sanitize_text_field($_POST['phone'] ?? ''),
+            'email' => sanitize_email($_POST['email'] ?? ''),
+        ];
+
+        try {
+            if ($mode === 'edit' && $agency_id) {
+                // Update existing
+                $result = $this->model->update($agency_id, $data);
+
+                if ($result) {
+                    $agency = $this->model->find($agency_id);
+
+                    ob_end_clean();
+                    wp_send_json_success([
+                        'message' => __('Agency updated successfully', 'wp-agency'),
+                        'agency' => $agency
+                    ]);
+                } else {
+                    ob_end_clean();
+                    wp_send_json_error(['message' => __('Failed to update agency', 'wp-agency')]);
+                }
+            } else {
+                // Create new
+                $result = $this->model->create($data);
+
+                if ($result) {
+                    $agency = $this->model->find($result);
+
+                    ob_end_clean();
+                    wp_send_json_success([
+                        'message' => __('Agency created successfully', 'wp-agency'),
+                        'agency' => $agency
+                    ]);
+                } else {
+                    ob_end_clean();
+                    wp_send_json_error(['message' => __('Failed to create agency', 'wp-agency')]);
+                }
+            }
+        } catch (\Exception $e) {
+            ob_end_clean();
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Handle delete agency
+     */
+    public function handle_delete_agency(): void {
+        $nonce = $_POST['nonce'] ?? '';
+        if (!wp_verify_nonce($nonce, 'wpdt_nonce')) {
+            wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
+        }
+
+        if (!current_user_can('manage_options') && !current_user_can('delete_agency')) {
+            wp_send_json_error(['message' => __('Permission denied', 'wp-agency')]);
+        }
+
+        $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
+
+        if (!$agency_id) {
+            wp_send_json_error(['message' => __('Invalid agency ID', 'wp-agency')]);
+        }
+
+        try {
+            $this->model->delete($agency_id);
+            wp_send_json_success(['message' => __('Agency deleted successfully', 'wp-agency')]);
+        } catch (\Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
     }
 }
