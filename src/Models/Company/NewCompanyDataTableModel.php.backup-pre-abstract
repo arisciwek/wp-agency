@@ -35,11 +35,11 @@
 
 namespace WPAgency\Models\Company;
 
-use WPDataTable\Core\AbstractDataTable;
+use WPAppCore\Models\DataTable\DataTableModel;
 
 defined('ABSPATH') || exit;
 
-class NewCompanyDataTableModel extends AbstractDataTable {
+class NewCompanyDataTableModel extends DataTableModel {
 
     /**
      * Constructor
@@ -88,11 +88,9 @@ class NewCompanyDataTableModel extends AbstractDataTable {
     /**
      * Get columns for SELECT clause
      *
-     * Required by AbstractDataTable for building SELECT clause.
-     *
      * @return array Column definitions
      */
-    protected function get_select_columns(): array {
+    protected function get_columns(): array {
         return [
             'cb.id as id',
             'cb.code as code',
@@ -105,22 +103,12 @@ class NewCompanyDataTableModel extends AbstractDataTable {
     }
 
     /**
-     * DEPRECATED: Use get_select_columns() instead
-     * Kept for backward compatibility
-     *
-     * @return array Columns configuration
-     */
-    public function get_columns(): array {
-        return $this->get_select_columns();
-    }
-
-    /**
      * Format row data for DataTable output
      *
      * @param object $row Database row
      * @return array Formatted row data
      */
-    public function format_row($row): array {
+    protected function format_row($row): array {
         return [
             'DT_RowId' => 'branch-' . ($row->id ?? 0),
             'DT_RowData' => [
@@ -142,7 +130,7 @@ class NewCompanyDataTableModel extends AbstractDataTable {
      * @param object $row Database row
      * @return string HTML for action buttons
      */
-    protected function generate_action_buttons($row, array $options = []): string {
+    private function generate_action_buttons($row): string {
         $actions = '';
         $branch_id = $row->id ?? 0;
         $agency_id = $row->agency_id ?? 0;

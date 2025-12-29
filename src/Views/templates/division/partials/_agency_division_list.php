@@ -25,7 +25,7 @@ defined('ABSPATH') || exit;
 
 ?>
 
-<div id="division-list" class="tab-content">
+<div id="division-list" class="wpdt-tab-content">
 
     <div class="wp-agency-division-header">
         <div class="division-header-left">

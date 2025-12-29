@@ -53,11 +53,11 @@
 
 namespace WPAgency\Models\Employee;
 
-use WPDataTable\Core\AbstractDataTable;
+use WPAppCore\Models\DataTable\DataTableModel;
 
 defined('ABSPATH') || exit;
 
-class EmployeeDataTableModel extends AbstractDataTable {
+class EmployeeDataTableModel extends DataTableModel {
 
     /**
      * Constructor
@@ -90,11 +90,9 @@ class EmployeeDataTableModel extends AbstractDataTable {
     /**
      * Get columns for SELECT clause
      *
-     * Required by AbstractDataTable for building SELECT clause.
-     *
      * @return array Column definitions
      */
-    protected function get_select_columns(): array {
+    protected function get_columns(): array {
         return [
             'e.name as name',
             'e.position as position',
@@ -106,26 +104,16 @@ class EmployeeDataTableModel extends AbstractDataTable {
     }
 
     /**
-     * DEPRECATED: Use get_select_columns() instead
-     * Kept for backward compatibility
-     *
-     * @return array Columns configuration
-     */
-    public function get_columns(): array {
-        return $this->get_select_columns();
-    }
-
-    /**
      * Format row data for DataTable output
      *
      * @param object $row Database row
      * @return array Formatted row data
      */
-    public function format_row($row): array {
+    protected function format_row($row): array {
         $employee_id = $row->id ?? 0;
 
         // Generate action buttons with permission check
-        $actions = $this->generate_action_buttons($row);
+        $actions = $this->generate_action_buttons($employee_id);
 
         return [
             'DT_RowId' => 'employee-' . $employee_id,
@@ -144,13 +132,11 @@ class EmployeeDataTableModel extends AbstractDataTable {
     /**
      * Generate action buttons for employee row
      *
-     * @param object $row Database row object
-     * @param array $options Additional options
+     * @param int $employee_id Employee ID
      * @return string HTML for action buttons
      */
-    protected function generate_action_buttons($row, array $options = []): string {
+    private function generate_action_buttons(int $employee_id): string {
         $buttons = '';
-        $employee_id = $row->id ?? 0;
 
         // Edit button - check permission
         if (current_user_can('edit_all_agencies') || current_user_can('edit_own_agency')) {
@@ -277,7 +263,7 @@ class EmployeeDataTableModel extends AbstractDataTable {
      * @param string $status Status value
      * @return string HTML badge
      */
-    protected function format_status_badge(string $status, array $options = []): string {
+    private function format_status_badge(string $status): string {
         $badge_class = $status === 'active' ? 'success' : 'error';
         $status_text = $status === 'active'
             ? __('Active', 'wp-agency')

@@ -147,21 +147,23 @@ class DivisionModel {
     // Tambahkan cache untuk existsByCode
     public function existsByCode(string $code): bool {
         global $wpdb;
-        
+
         // Cek cache terlebih dahulu
+        // IMPORTANT: Wrap value in array to distinguish between cache miss (false) and cached false value
         $cached = $this->cache->get('division_code_exists', $code);
-        if ($cached !== null) {
-            return (bool) $cached;
+        if ($cached !== false && is_array($cached)) {
+            return (bool) $cached['exists'];
         }
-        
+
         $exists = (bool) $wpdb->get_var($wpdb->prepare(
             "SELECT EXISTS (SELECT 1 FROM {$this->table} WHERE code = %s) as result",
             $code
         ));
-        
+
         // Simpan ke cache dengan expiry lebih pendek
-        $this->cache->set('division_code_exists', $exists, 5 * MINUTE_IN_SECONDS, $code);
-        
+        // Wrap in array to avoid cache miss ambiguity
+        $this->cache->set('division_code_exists', ['exists' => $exists], 5 * MINUTE_IN_SECONDS, $code);
+
         return $exists;
     }
 
@@ -286,6 +288,9 @@ class DivisionModel {
         if ($new_id) {
             do_action('wp_agency_division_created', $new_id, $insertData);
         }
+
+        // Invalidate division code exists cache for the new code
+        $this->cache->delete('division_code_exists', $insertData['code']);
 
         // Invalidate unrestricted count cache
         $this->cache->delete('division_total_count_unrestricted');
@@ -494,6 +499,9 @@ class DivisionModel {
         if ($result !== false && $result !== 0) {
             // Fire after delete hook (for cascade cleanup)
             do_action('wp_agency_division_deleted', $id, $division_data, $is_hard_delete);
+
+            // Invalidate division code exists cache (code is now available)
+            $this->cache->delete('division_code_exists', $division_data['code']);
 
             // Invalidate unrestricted count cache
             $this->cache->delete('division_total_count_unrestricted');

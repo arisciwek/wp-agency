@@ -146,23 +146,16 @@ class WPAgency {
         // NOTE: Activation/deactivation hooks now registered at file level (before plugins_loaded)
         // This ensures tables are created during plugin activation
 
-        // Enable wp-datatable dual panel assets for agency list page
-        // MUST be registered early (before admin_enqueue_scripts)
-        add_filter('wpdt_use_dual_panel', function($use_dual_panel) {
-            if (isset($_GET['page']) && $_GET['page'] === 'wp-agency-disnaker') {
-                error_log('[WPAgency] Filter wpdt_use_dual_panel called, returning TRUE for wp-agency-disnaker');
-                return true;
-            }
-            error_log('[WPAgency] Filter wpdt_use_dual_panel called, page=' . ($_GET['page'] ?? 'NOT SET') . ', returning: ' . ($use_dual_panel ? 'TRUE' : 'FALSE'));
-            return $use_dual_panel;
-        }, 5);
-
-        // Initialize dependencies (wp-agency-specific assets only)
+        // Initialize dependencies
         $dependencies = new WP_Agency_Dependencies($this->plugin_name, $this->version);
 
         // Register asset hooks - DIRECT (bypass loader for reliability)
         add_action('admin_enqueue_scripts', [$dependencies, 'enqueue_styles'], 10);
         add_action('admin_enqueue_scripts', [$dependencies, 'enqueue_scripts'], 10);
+
+        // Legacy loader registration (keeping for other hooks)
+        //$this->loader->add_action('admin_enqueue_scripts', $dependencies, 'enqueue_styles');
+        //$this->loader->add_action('admin_enqueue_scripts', $dependencies, 'enqueue_scripts');
 
         // Initialize menu
         $this->menu_manager = new \WPAgency\Controllers\MenuManager($this->plugin_name, $this->version);
@@ -267,59 +260,89 @@ class WPAgency {
      * Initialize plugin controllers
      */
     private function initControllers() {
-        // NOTE: This is called from initHooks() which is called during __construct()
-        // __construct() is called during plugins_loaded priority 30
-        // So we can safely instantiate controllers here directly
-        error_log("[wp-agency] initControllers() called, initializing all controllers...");
+        // Delay initialization until after wp-app-core is loaded (plugins_loaded hook)
+        $self = $this; // Store reference for closure
+        add_action('plugins_loaded', function() use ($self) {
+            error_log('[wp-agency] plugins_loaded hook fired, initializing controllers...');
+            // Check if wp-app-core AbstractCrudModel is available
+            if (!class_exists('WPAppCore\\Models\\Abstract\\AbstractCrudModel')) {
+                error_log('ERROR: wp-app-core AbstractCrudModel not loaded, controllers not initialized');
+                return;
+            }
+            error_log('[wp-agency] AbstractCrudModel found, proceeding with controller initialization...');
 
-        // Check if wp-app-core AbstractCrudModel is available
-        if (!class_exists("WPAppCore\Models\Abstract\AbstractCrudModel")) {
-            error_log("ERROR: wp-app-core AbstractCrudModel not loaded, controllers not initialized");
-            return;
-        }
-        error_log("[wp-agency] AbstractCrudModel found, proceeding with controller initialization...");
+            // Agency Controller (needs AbstractCrudModel)
+            $self->agency_controller = new \WPAgency\Controllers\Agency\AgencyController();
 
-        // Agency Controller (needs AbstractCrudModel)
-        $this->agency_controller = new \WPAgency\Controllers\Agency\AgencyController();
+            // Set AgencyController to MenuManager (for menu callback)
+            if ($self->menu_manager) {
+                $self->menu_manager->setAgencyController($self->agency_controller);
+            }
 
-        // Set AgencyController to MenuManager (for menu callback)
-        if ($this->menu_manager) {
-            $this->menu_manager->setAgencyController($this->agency_controller);
-        }
+            // Agency Dashboard Controller (needs wp-datatable)
+            error_log('[wp-agency] Checking for wp-datatable DashboardTemplate...');
+            if (class_exists('WPDataTable\\Templates\\DualPanel\\DashboardTemplate')) {
+                error_log('[wp-agency] DashboardTemplate found, initializing AgencyDashboardController...');
+                // Force autoloader to check for the class
+                if (!class_exists('WPAgency\\Controllers\\Agency\\AgencyDashboardController')) {
+                    error_log('ERROR: AgencyDashboardController class not found by autoloader');
+                    return;
+                }
 
-        // Agency Dashboard Controller (needs wp-datatable)
-        error_log("[wp-agency] Checking for wp-datatable DashboardTemplate...");
-        if (class_exists("WPDataTable\Templates\DualPanel\DashboardTemplate")) {
-            error_log("[wp-agency] DashboardTemplate found, initializing AgencyDashboardController...");
-            // Force autoloader to check for the class
-            if (!class_exists("WPAgency\Controllers\Agency\AgencyDashboardController")) {
-                error_log("ERROR: AgencyDashboardController class not found by autoloader");
+                try {
+                    $self->dashboard_controller = new \WPAgency\Controllers\Agency\AgencyDashboardController();
+                    error_log('[wp-agency] AgencyDashboardController initialized successfully');
+                } catch (\Exception $e) {
+                    error_log('ERROR initializing AgencyDashboardController: ' . $e->getMessage());
+                } catch (\Error $e) {
+                    error_log('FATAL ERROR initializing AgencyDashboardController: ' . $e->getMessage());
+                }
+            } else {
+                error_log('ERROR: wp-datatable not loaded, AgencyDashboardController not initialized');
+            }
+            // Employee Controller
+            new \WPAgency\Controllers\Employee\AgencyEmployeeController();
+
+            // Division Controller
+            new \WPAgency\Controllers\Division\DivisionController();
+
+            // Jurisdiction Controller
+            new \WPAgency\Controllers\Division\JurisdictionController();
+
+            // New Company Controller
+            new \WPAgency\Controllers\Company\NewCompanyController();
+
+        }, 20); // Priority 20 ensures wp-app-core loaded first
+
+        // Audit Log Controller - Register AJAX handler IMMEDIATELY (before any hooks)
+        // This ensures AJAX action is registered even during early AJAX requests
+        error_log('[wp-agency] Registering AuditLog AJAX handler directly...');
+        add_action('wp_ajax_get_audit_logs', function() {
+            error_log('[AuditLog] AJAX handler called (direct registration)');
+
+            // Lazy-load controller when needed
+            if (!class_exists('WPAppCore\\Models\\DataTable\\DataTableModel')) {
+                error_log('[AuditLog] ERROR - WPAppCore not loaded during AJAX request');
+                wp_send_json_error(['message' => 'System not ready']);
                 return;
             }
 
-            try {
-                $this->dashboard_controller = new \WPAgency\Controllers\Agency\AgencyDashboardController();
-                error_log("[wp-agency] AgencyDashboardController initialized successfully");
-            } catch (\Exception $e) {
-                error_log("ERROR initializing AgencyDashboardController: " . $e->getMessage());
-            } catch (\Error $e) {
-                error_log("FATAL ERROR initializing AgencyDashboardController: " . $e->getMessage());
-            }
-        } else {
-            error_log("ERROR: wp-datatable not loaded, AgencyDashboardController not initialized");
-        }
+            // Create controller instance on-demand
+            $controller = new \WPAgency\Controllers\AuditLog\AuditLogController();
+            $controller->handleGetAuditLogs();
+        });
+        error_log('[wp-agency] AuditLog AJAX handler registered');
 
-        // Employee Controller
-        new \WPAgency\Controllers\Employee\AgencyEmployeeController();
+        // Register AJAX handlers
+        add_action('wp_ajax_get_agency_stats', [$this->agency_controller, 'getStats']);
+        add_action('wp_ajax_handle_agency_datatable', [$this->agency_controller, 'handleDataTableRequest']);
+        // Updated for centralized panel handler (TODO-1180)
+        add_action('wp_ajax_get_agency', [$this->agency_controller, 'handle_get_agency']);
 
-        // Division Controller
-        new \WPAgency\Controllers\Division\DivisionController();
+        // OLD: CompanyFilters integration with wp-customer - REMOVED
+        // File AgencyCompanyFilters.php deleted - hooks no longer used
+        // Replaced by RoleBasedFilter for all cross-plugin filtering
 
-        // Jurisdiction Controller
-        new \WPAgency\Controllers\Division\JurisdictionController();
-
-        // New Company Controller
-        new \WPAgency\Controllers\Company\NewCompanyController();
     }
 
     /**

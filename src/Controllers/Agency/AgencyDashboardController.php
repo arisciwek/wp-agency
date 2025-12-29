@@ -80,7 +80,6 @@ use WPAgency\Models\Agency\AgencyDataTableModel;
 use WPAgency\Models\Agency\AgencyModel;
 use WPAgency\Models\Division\DivisionDataTableModel;
 use WPAgency\Models\Employee\EmployeeDataTableModel;
-use WPAppCore\Controllers\DataTable\DataTableController;
 
 class AgencyDashboardController {
 
@@ -95,30 +94,76 @@ class AgencyDashboardController {
     private $model;
 
     /**
-     * @var DataTableController DataTable controller instance
-     */
-    private $datatable_controller;
-
-    /**
      * Constructor
      * Register all hooks for dashboard components
      */
     public function __construct() {
-// error_log('=== AGENCY DASHBOARD CONTROLLER CONSTRUCTOR ===');
-
         $this->datatable_model = new AgencyDataTableModel();
-// error_log('AgencyDataTableModel initialized');
-
         $this->model = new AgencyModel();
-// error_log('AgencyModel initialized');
-
-        $this->datatable_controller = new DataTableController();
-// error_log('DataTableController initialized');
 
         // Register hooks for dashboard components
-// error_log('About to register hooks...');
         $this->register_hooks();
-// error_log('Hooks registered successfully');
+
+        // WORKAROUND: Force load wp-datatable dual-panel JS
+        // AssetController enqueue_assets() tidak terpanggil - debug needed
+        add_action('admin_enqueue_scripts', [$this, 'force_load_dual_panel_js'], 999);
+    }
+
+    /**
+     * WORKAROUND: Force load dual-panel JavaScript
+     *
+     * Temporary fix - AssetController enqueue_assets() not being called
+     */
+    public function force_load_dual_panel_js() {
+        $screen = get_current_screen();
+        if ($screen && $screen->id === 'toplevel_page_wp-agency-disnaker') {
+            $plugin_url = plugin_dir_url(WP_DATATABLE_FILE);
+            $version = WP_DATATABLE_VERSION;
+
+            // Panel Manager
+            wp_enqueue_script(
+                'wpdt-panel-manager',
+                $plugin_url . 'assets/js/dual-panel/panel-manager.js',
+                ['jquery', 'datatables'],
+                $version,
+                true
+            );
+
+            // Tab Manager
+            wp_enqueue_script(
+                'wpdt-tab-manager',
+                $plugin_url . 'assets/js/dual-panel/tab-manager.js',
+                ['jquery', 'wpdt-panel-manager'],
+                $version,
+                true
+            );
+
+            // Auto Refresh
+            wp_enqueue_script(
+                'wpdt-auto-refresh',
+                $plugin_url . 'assets/js/dual-panel/auto-refresh.js',
+                ['jquery', 'datatables'],
+                $version,
+                true
+            );
+
+            // Localize config
+            wp_localize_script('wpdt-panel-manager', 'wpdtConfig', [
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('wpdt_nonce'),
+                'debug' => defined('WP_DEBUG') && WP_DEBUG,
+            ]);
+
+            // CRITICAL FIX: Add inline CSS to ensure tabs hide/show correctly
+            wp_add_inline_style('wpdt-dual-panel', '
+                .wpdt-tab-content {
+                    display: none !important;
+                }
+                .wpdt-tab-content.active {
+                    display: block !important;
+                }
+            ');
+        }
     }
 
     /**
@@ -151,6 +196,9 @@ class AgencyDashboardController {
         // Filter hooks (scope local - echo HTML sendiri)
         add_action('wpdt_dashboard_filters', [$this, 'render_filters'], 10, 2);
 
+        // Enable wp-datatable dual panel assets
+        add_filter('wpdt_use_dual_panel', [$this, 'enable_dual_panel']);
+
         // Statistics hook
         add_filter('wpdt_datatable_stats', [$this, 'register_stats'], 10, 2);
 
@@ -158,6 +206,7 @@ class AgencyDashboardController {
         add_filter('wpdt_datatable_tabs', [$this, 'register_tabs'], 10, 2);
 
         // Tab content injection hooks (per-tab registration for better decoupling)
+        // Using Hook-Based Pattern because panel content loaded via AJAX
         add_action('wpdt_tab_view_content', [$this, 'render_info_tab'], 10, 3);
         add_action('wpdt_tab_view_content', [$this, 'render_divisions_tab'], 10, 3);
         add_action('wpdt_tab_view_content', [$this, 'render_employees_tab'], 10, 3);
@@ -213,20 +262,14 @@ class AgencyDashboardController {
      * @param array $config Configuration array from PanelLayoutTemplate
      */
     public function render_datatable($config): void {
-// error_log('=== RENDER DATATABLE DEBUG ===');
-// error_log('Config received: ' . print_r($config, true));
-
         // Extract entity from config
         if (!is_array($config)) {
-// error_log('ERROR: Config is not an array, received: ' . gettype($config));
             return;
         }
 
         $entity = $config['entity'] ?? '';
-// error_log('Entity extracted: ' . $entity);
 
         if ($entity !== 'agency') {
-// error_log('Entity is not agency, skipping render');
             return;
         }
 
@@ -413,42 +456,36 @@ class AgencyDashboardController {
     }
 
     /**
-     * Register tabs for right panel
+     * Enable wp-datatable dual panel assets
+     *
+     * Hooked to: wpdt_use_dual_panel
+     *
+     * Activates dual panel CSS and JS loading for agency list page.
+     * Required for panel opening, tab switching, and AJAX functionality.
+     *
+     * @param bool $use_dual_panel Current value
+     * @return bool True to enable dual panel
+     */
+    public function enable_dual_panel($use_dual_panel): bool {
+        // Enable dual panel on agency list page
+        if (isset($_GET['page']) && $_GET['page'] === 'wp-agency-disnaker') {
+            return true;
+        }
+
+        return $use_dual_panel;
+    }
+
+    /**
+     * Register tabs via filter hook
      *
      * Hooked to: wpdt_datatable_tabs
      *
-     * Registers 4 tabs:
-     * - info: Agency information (immediate load)
-     * - divisions: Divisions DataTable (lazy load on click)
-     * - employees: Employees DataTable (lazy load on click)
-     * - new-companies: New Companies DataTable (lazy load on click)
-     *
-     * Pattern: Hook-based content injection (entity-owned)
-     * - register_tabs() defines tab metadata (title, priority)
-     * - render_tab_contents() triggers hooks (Line 933, 938)
-     * - render_info_tab() / render_divisions_tab() / render_employees_tab()
-     *   respond to hooks and include template files
-     *
-     * Hook flow:
-     * 1. wpdt_tab_view_content (Priority 10) - Core content rendering
-     * 2. wpdt_tab_view_after_content (Priority 20+) - Extension content injection
-     *
-     * @see render_tab_contents() Line 910-948
-     * @see render_info_tab() Line 683-704
-     * @see render_divisions_tab() Line 732-752
-     * @see render_employees_tab() Line 780-800
-     *
      * @param array $tabs Existing tabs
-     * @param string $entity Entity type
+     * @param string $entity Entity name
      * @return array Modified tabs array
      */
     public function register_tabs($tabs, $entity) {
-// error_log('=== REGISTER TABS DEBUG ===');
-// error_log('Tabs received: ' . print_r($tabs, true));
-// error_log('Entity: ' . $entity);
-
         if ($entity !== 'agency') {
-// error_log('Entity is not agency, returning original tabs');
             return $tabs;
         }
 
@@ -482,7 +519,6 @@ class AgencyDashboardController {
             'priority' => 50
         ];
 
-// error_log('Returning agency tabs: ' . print_r($agency_tabs, true));
         return $agency_tabs;
     }
 
@@ -669,35 +705,23 @@ class AgencyDashboardController {
      * @return void
      */
     public function render_history_tab($entity, $tab_id, $data): void {
-        error_log('[History Tab] render_history_tab called - entity: ' . $entity . ', tab_id: ' . $tab_id);
-
         // Only respond to agency entity and history tab
         if ($entity !== 'agency' || $tab_id !== 'history') {
-            error_log('[History Tab] Skipping - not agency/history');
             return;
         }
-
-        error_log('[History Tab] Data received: ' . print_r($data, true));
 
         // Extract $agency from $data for view file
         $agency = $data['agency'] ?? null;
 
         if (!$agency) {
-            error_log('[History Tab] ERROR - No agency data');
             echo '<p>' . __('Data not available', 'wp-agency') . '</p>';
             return;
         }
 
-        error_log('[History Tab] Agency ID: ' . $agency->id);
-
         // Include audit log template
         $template_path = WP_AGENCY_PATH . 'src/Views/templates/audit-log/history-tab.php';
-        error_log('[History Tab] Template path: ' . $template_path);
-        error_log('[History Tab] Template exists: ' . (file_exists($template_path) ? 'YES' : 'NO'));
 
         include $template_path;
-
-        error_log('[History Tab] Template included');
     }
 
     /**
@@ -716,7 +740,6 @@ class AgencyDashboardController {
 
         // Verify nonce - use base panel system nonce
         if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
-            error_log('ERROR: Nonce verification failed');
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
@@ -766,33 +789,15 @@ class AgencyDashboardController {
      * Returns agency data for right panel display
      */
     public function handle_get_details(): void {
-        error_log('=== handle_get_details called ===');
-        error_log('POST data: ' . print_r($_POST, true));
-        error_log('Nonce received: ' . (isset($_POST['nonce']) ? $_POST['nonce'] : 'NOT SET'));
-        error_log('Action: ' . (isset($_POST['action']) ? $_POST['action'] : 'NOT SET'));
-
         // Verify nonce - use base panel system nonce
         if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
-            error_log('Nonce verification FAILED for action: get_agency_details');
-            error_log('Expected nonce action: wpdt_nonce');
-            error_log('Nonce field name: nonce');
-            error_log('Nonce value: ' . (isset($_POST['nonce']) ? $_POST['nonce'] : 'MISSING'));
-
-            // Verify the nonce manually to see what's wrong
-            $manual_verify = wp_verify_nonce($_POST['nonce'] ?? '', 'wpdt_nonce');
-            error_log('Manual nonce verification result: ' . $manual_verify . ' (1=valid, 2=valid-regenerating, false=invalid)');
-
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
-        error_log('Nonce verification PASSED');
-        // error_log('Nonce verification OK');
 
         $agency_id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
-        // error_log('Agency ID: ' . $agency_id);
 
         if (!$agency_id) {
-            error_log('Invalid agency ID');
             wp_send_json_error(['message' => __('Invalid agency ID', 'wp-agency')]);
             return;
         }
@@ -809,12 +814,9 @@ class AgencyDashboardController {
         }
 
         try {
-            // error_log('Calling model->find(' . $agency_id . ')');
             $agency = $this->model->find($agency_id);
-            // error_log('Model result: ' . print_r($agency, true));
 
             if (!$agency) {
-                error_log('Agency not found in database');
                 wp_send_json_error(['message' => __('Agency not found', 'wp-agency')]);
                 return;
             }
@@ -828,30 +830,9 @@ class AgencyDashboardController {
                 'agency' => $agency // Keep for backward compatibility
             ];
 
-            // error_log('=== FINAL RESPONSE DEBUG ===');
-            // error_log('Response title: ' . $response['title']);
-            // error_log('Response tabs count: ' . count($response['tabs']));
-            // error_log('Response tabs keys: ' . print_r(array_keys($response['tabs']), true));
-            // foreach ($response['tabs'] as $tab_id => $content) {
-            //     error_log("Tab {$tab_id} final length: " . strlen($content));
-            // }
-            // error_log('Response agency: ' . print_r($agency, true));
-            // error_log('Full response structure: ' . print_r([
-            //     'success' => true,
-            //     'data' => [
-            //         'title' => $response['title'],
-            //         'tabs_count' => count($response['tabs']),
-            //         'agency_id' => $agency->id ?? 'N/A'
-            //     ]
-            // ], true));
-            // error_log('=== END FINAL RESPONSE DEBUG ===');
-
             wp_send_json_success($response);
 
         } catch (\Exception $e) {
-            error_log('EXCEPTION in get_details: ' . $e->getMessage());
-            error_log('Exception trace: ' . $e->getTraceAsString());
-
             wp_send_json_error([
                 'message' => __('Error loading agency', 'wp-agency')
             ]);
@@ -1074,10 +1055,6 @@ class AgencyDashboardController {
             ]);
 
         } catch (\Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Load New Companies Tab Error: ' . $e->getMessage());
-            }
-
             wp_send_json_error([
                 'message' => __('Error loading new companies', 'wp-agency')
             ]);
@@ -1093,61 +1070,26 @@ class AgencyDashboardController {
      * for server-side processing
      */
     public function handle_divisions_datatable(): void {
-        error_log('=== DIVISIONS DATATABLE AJAX HANDLER CALLED ===');
-        error_log('POST agency_id: ' . ($_POST['agency_id'] ?? 'NOT SET'));
-        error_log('POST status_filter: ' . ($_POST['status_filter'] ?? 'NOT SET'));
-        error_log('POST action: ' . ($_POST['action'] ?? 'NOT SET'));
-
         // Verify nonce
         if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
-            error_log('ERROR: Nonce verification failed');
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
             return;
         }
-        error_log('Nonce verified OK');
 
         // Check permission
         $can_view = current_user_can('view_agency_list');
-        error_log('User has view_agency_list: ' . ($can_view ? 'YES' : 'NO'));
-
         $can_view = apply_filters('wp_agency_can_view_agency', $can_view, 0);
-        error_log('After filter, can_view: ' . ($can_view ? 'YES' : 'NO'));
 
         if (!$can_view) {
-            error_log('ERROR: Permission denied');
             wp_send_json_error(['message' => __('Permission denied', 'wp-agency')]);
             return;
         }
 
         try {
-            error_log('Creating DivisionDataTableModel...');
             $model = new DivisionDataTableModel();
-
-            error_log('Calling get_datatable_data...');
             $response = $model->get_datatable_data($_POST);
-
-            error_log('Total records: ' . ($response['recordsTotal'] ?? 'N/A'));
-            error_log('Filtered records: ' . ($response['recordsFiltered'] ?? 'N/A'));
-            error_log('Data rows: ' . count($response['data'] ?? []));
-
-            // Log first 3 rows with wilayah_kerja data
-            if (isset($response['data']) && is_array($response['data'])) {
-                $sample_rows = array_slice($response['data'], 0, 3);
-                foreach ($sample_rows as $index => $row) {
-                    error_log(sprintf(
-                        'Row %d: code=%s, name=%s, wilayah_kerja=%s',
-                        $index,
-                        $row['code'] ?? 'N/A',
-                        $row['name'] ?? 'N/A',
-                        $row['wilayah_kerja'] ?? 'N/A'
-                    ));
-                }
-            }
-
             wp_send_json($response);
         } catch (\Exception $e) {
-            error_log('EXCEPTION in handle_divisions_datatable: ' . $e->getMessage());
-            error_log('Stack trace: ' . $e->getTraceAsString());
             wp_send_json_error(['message' => __('Error loading divisions', 'wp-agency')]);
         }
     }
@@ -1214,9 +1156,6 @@ class AgencyDashboardController {
             $response = $model->get_datatable_data($_POST);
             wp_send_json($response);
         } catch (\Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('New Companies DataTable Error: ' . $e->getMessage());
-            }
             wp_send_json_error(['message' => __('Error loading new companies', 'wp-agency')]);
         }
     }
@@ -1319,7 +1258,6 @@ class AgencyDashboardController {
         if (file_exists($template)) {
             include $template;
         } else {
-            error_log("Template not found: {$template}");
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 echo '<p>' . sprintf(__('Template "%s" not found', 'wp-agency'), esc_html($partial)) . '</p>';
             }

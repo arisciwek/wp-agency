@@ -36,11 +36,11 @@
 
 namespace WPAgency\Models\AuditLog;
 
-use WPDataTable\Core\AbstractDataTable;
+use WPAppCore\Models\DataTable\DataTableModel;
 
 defined('ABSPATH') || exit;
 
-class AuditLogDataTableModel extends AbstractDataTable {
+class AuditLogDataTableModel extends DataTableModel {
 
     /**
      * Constructor
@@ -76,7 +76,7 @@ class AuditLogDataTableModel extends AbstractDataTable {
      *
      * @return array Column definitions
      */
-    public function get_columns(): array {
+    protected function get_columns(): array {
         return [
             'al.id',
             'al.auditable_type',
@@ -97,7 +97,7 @@ class AuditLogDataTableModel extends AbstractDataTable {
      * @param object $row Database row
      * @return array Formatted row data
      */
-    public function format_row($row): array {
+    protected function format_row($row): array {
         // Decode JSON values
         $old_values = !empty($row->old_values) ? json_decode($row->old_values, true) : null;
         $new_values = !empty($row->new_values) ? json_decode($row->new_values, true) : null;
@@ -200,7 +200,7 @@ class AuditLogDataTableModel extends AbstractDataTable {
      * @param string $event Event type
      * @return string HTML summary
      */
-    protected function generate_changes_summary($old_values, $new_values, $event): string {
+    private function generate_changes_summary($old_values, $new_values, $event): string {
         if ($event === 'created') {
             return '<span class="audit-event-created">' . __('Record created', 'wp-agency') . '</span>';
         }
@@ -243,7 +243,7 @@ class AuditLogDataTableModel extends AbstractDataTable {
      * @param int $id Entity ID
      * @return string Formatted label
      */
-    protected function format_entity_label($type, $id): string {
+    private function format_entity_label($type, $id): string {
         $labels = [
             'agency' => __('Agency', 'wp-agency'),
             'division' => __('Division', 'wp-agency'),
@@ -260,7 +260,7 @@ class AuditLogDataTableModel extends AbstractDataTable {
      * @param string $event Event type
      * @return string Formatted HTML
      */
-    protected function format_event($event): string {
+    private function format_event($event): string {
         $classes = [
             'created' => 'audit-badge-created',
             'updated' => 'audit-badge-updated',
@@ -285,7 +285,7 @@ class AuditLogDataTableModel extends AbstractDataTable {
      * @param string $datetime MySQL datetime
      * @return string Formatted datetime
      */
-    protected function format_datetime($datetime): string {
+    private function format_datetime($datetime): string {
         if (empty($datetime)) {
             return '-';
         }
@@ -302,7 +302,7 @@ class AuditLogDataTableModel extends AbstractDataTable {
      * @param object $row Database row
      * @return string HTML for action buttons
      */
-    protected function generate_action_buttons($row, array $options = []): string {
+    private function generate_action_buttons($row): string {
         $audit_id = $row->id ?? 0;
 
         // View details button (opens modal with old/new comparison)

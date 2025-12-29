@@ -50,11 +50,11 @@
 
 namespace WPAgency\Models\Division;
 
-use WPDataTable\Core\AbstractDataTable;
+use WPAppCore\Models\DataTable\DataTableModel;
 
 defined('ABSPATH') || exit;
 
-class DivisionDataTableModel extends AbstractDataTable {
+class DivisionDataTableModel extends DataTableModel {
 
     /**
      * Constructor
@@ -74,7 +74,7 @@ class DivisionDataTableModel extends AbstractDataTable {
         ];
 
         // Base joins for jurisdiction data
-        $this->base_joins = $this->get_joins([]);
+        $this->base_joins = $this->get_joins();
 
         // Base WHERE for agency filtering
         $this->base_where = [];
@@ -105,10 +105,9 @@ class DivisionDataTableModel extends AbstractDataTable {
     /**
      * Get JOIN clauses for query
      *
-     * @param array $request_data Request data from DataTables
      * @return array JOIN clauses
      */
-    protected function get_joins(array $request_data): array {
+    protected function get_joins(): array {
         global $wpdb;
 
         return [
@@ -121,12 +120,10 @@ class DivisionDataTableModel extends AbstractDataTable {
     /**
      * Get columns for SELECT clause
      *
-     * Required by AbstractDataTable for building SELECT clause.
-     *
      * @return array Column definitions
      */
-    protected function get_select_columns(): array {
-        error_log('[DivisionDataTableModel] get_select_columns() called');
+    protected function get_columns(): array {
+        error_log('[DivisionDataTableModel] get_columns() called');
 
         global $wpdb;
 
@@ -147,26 +144,16 @@ class DivisionDataTableModel extends AbstractDataTable {
     }
 
     /**
-     * DEPRECATED: Use get_select_columns() instead
-     * Kept for backward compatibility
-     *
-     * @return array Columns configuration
-     */
-    public function get_columns(): array {
-        return $this->get_select_columns();
-    }
-
-    /**
      * Format row data for DataTable output
      *
      * @param object $row Database row
      * @return array Formatted row data
      */
-    public function format_row($row): array {
+    protected function format_row($row): array {
         $division_id = $row->id ?? 0;
 
         // Generate action buttons with permission check
-        $actions = $this->generate_action_buttons($row);
+        $actions = $this->generate_action_buttons($division_id);
 
         // Return associative array like wp-customer BranchDataTableModel
         return [
@@ -185,13 +172,11 @@ class DivisionDataTableModel extends AbstractDataTable {
     /**
      * Generate action buttons for division row
      *
-     * @param object $row Database row object
-     * @param array $options Optional parameters
+     * @param int $division_id Division ID
      * @return string HTML for action buttons
      */
-    protected function generate_action_buttons($row, array $options = []): string {
+    private function generate_action_buttons(int $division_id): string {
         $buttons = '';
-        $division_id = $row->id ?? 0;
 
         // Edit button - check permission
         if (current_user_can('edit_all_divisions') || current_user_can('edit_own_division')) {

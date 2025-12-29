@@ -202,7 +202,7 @@ class WPAgencyAutoloader {
      * Debug logging
      */
     private function log($message) {
-        // Disabled verbose autoloader logging to prevent AJAX response pollution
+        // Disabled verbose autoloader logging to prevent pollution
         // if ($this->debugMode) {
         //     error_log("[WPAgencyAutoloader] $message");
         // }

@@ -19,7 +19,7 @@
 defined('ABSPATH') || exit;
 ?>
 
-<div id="agency-details" class="tab-content">
+<div id="agency-details" class="wpdt-tab-content active">
 
 
     <div class="export-actions">

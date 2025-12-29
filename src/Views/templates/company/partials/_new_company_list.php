@@ -26,7 +26,7 @@ defined('ABSPATH') || exit;
 
 ?>
 
-<div id="new-company" class="tab-content">
+<div id="new-company" class="wpdt-tab-content">
 
     <div class="wp-agency-new-company-header">
         <div class="new-company-header-title">

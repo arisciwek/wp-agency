@@ -67,12 +67,17 @@ class AutoEntityCreator {
      * Automatically creates division pusat for the new agency
      *
      * @param int $agency_id The newly created agency ID
-     * @param array $agency_data The agency data used for creation
+     * @param array|object $agency_data The agency data (array or stdClass from DB)
      */
-    public function handleAgencyCreated(int $agency_id, array $agency_data): void {
+    public function handleAgencyCreated(int $agency_id, array|object $agency_data): void {
         error_log("[AutoEntityCreator] handleAgencyCreated triggered for agency ID: {$agency_id}");
 
         try {
+            // Convert object to array if needed
+            if (is_object($agency_data)) {
+                $agency_data = (array) $agency_data;
+            }
+
             // Validate agency exists
             $agency = $this->agencyModel->find($agency_id);
             if (!$agency) {
@@ -121,12 +126,17 @@ class AutoEntityCreator {
      * Automatically creates user (if admin data provided) and employee
      *
      * @param int $division_id The newly created division ID
-     * @param array $division_data The division data used for creation
+     * @param array|object $division_data The division data (array or stdClass from DB)
      */
-    public function handleDivisionCreated(int $division_id, array $division_data): void {
+    public function handleDivisionCreated(int $division_id, array|object $division_data): void {
         error_log("[AutoEntityCreator] handleDivisionCreated triggered for division ID: {$division_id}");
 
         try {
+            // Convert object to array if needed
+            if (is_object($division_data)) {
+                $division_data = (array) $division_data;
+            }
+
             // Validate division exists
             $division = $this->divisionModel->find($division_id);
             if (!$division) {
@@ -300,11 +310,16 @@ class AutoEntityCreator {
      * - Production: SOFT DELETE (set status = 'inactive')
      *
      * @param int $division_id The deleted division ID
-     * @param array $division_data The division data before deletion
+     * @param array|object $division_data The division data before deletion (array or stdClass)
      * @param bool $is_hard_delete Whether this was a hard delete or soft delete
      */
-    public function handleDivisionDeleted(int $division_id, array $division_data, bool $is_hard_delete): void {
+    public function handleDivisionDeleted(int $division_id, array|object $division_data, bool $is_hard_delete): void {
         error_log("[AutoEntityCreator] handleDivisionDeleted triggered for division ID: {$division_id}, hard_delete: " . ($is_hard_delete ? 'YES' : 'NO'));
+
+        // Convert object to array if needed
+        if (is_object($division_data)) {
+            $division_data = (array) $division_data;
+        }
 
         try {
             global $wpdb;

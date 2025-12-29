@@ -293,6 +293,20 @@ class DivisionDemoData extends AbstractDemoData {
 
         $generated_count = 0;
 
+        // Register AutoEntityCreator hook if not already registered
+        // In production (web context), hook is registered via wp-agency.php plugins_loaded
+        // In WP-CLI context, plugins_loaded may have passed, so we register here
+        global $wp_filter;
+        $autoEntityCreator = null;
+
+        if (!isset($wp_filter['wp_agency_division_created'])) {
+            $autoEntityCreator = new \WPAgency\Handlers\AutoEntityCreator();
+            add_action('wp_agency_division_created', [$autoEntityCreator, 'handleDivisionCreated'], 10, 2);
+            $this->debug('Registered AutoEntityCreator hook (WP-CLI context)');
+        } else {
+            $this->debug('Using existing AutoEntityCreator hook (production context)');
+        }
+
         try {
             // Get all active agencies
             $agency_index = 1; // Start from 1 to match DivisionUsersData index (1-10)
@@ -354,8 +368,22 @@ class DivisionDemoData extends AbstractDemoData {
                 $this->debug("Division generation completed. Total new divisions processed: {$generated_count}");
             }
 
+            // Remove hook only if we registered it (WP-CLI context)
+            if ($autoEntityCreator !== null) {
+                remove_action('wp_agency_division_created', [$autoEntityCreator, 'handleDivisionCreated'], 10);
+                $this->debug('Removed AutoEntityCreator hook (WP-CLI cleanup)');
+            } else {
+                $this->debug('Kept production AutoEntityCreator hook active');
+            }
+
         } catch (\Exception $e) {
             $this->debug("Error in division generation: " . $e->getMessage());
+
+            // Remove hook on error too if we registered it
+            if (isset($autoEntityCreator) && $autoEntityCreator !== null) {
+                remove_action('wp_agency_division_created', [$autoEntityCreator, 'handleDivisionCreated'], 10);
+            }
+
             throw $e;
         }
     }

@@ -169,18 +169,86 @@ class AgencyModel extends AbstractCrudModel {
     // ========================================
 
     /**
-     * Create agency with audit logging
+     * Create agency with audit logging and static ID injection support
      *
      * @param array $data Agency data
      * @return int|null Agency ID or null on failure
      */
     public function create(array $data): ?int {
-        // Call parent create method
-        $agency_id = parent::create($data);
+        global $wpdb;
+
+        // Prepare insert data
+        $insertData = [
+            'code' => $data['code'] ?? $this->generateAgencyCode(),
+            'name' => $data['name'],
+            'status' => $data['status'] ?? 'active',
+            'user_id' => $data['user_id'] ?? null,
+            'province_id' => $data['province_id'] ?? null,
+            'regency_id' => $data['regency_id'] ?? null,
+            'reg_type' => $data['reg_type'] ?? null,
+            'created_by' => $data['created_by'] ?? get_current_user_id(),
+            'created_at' => current_time('mysql'),
+            'updated_at' => current_time('mysql')
+        ];
+
+        /**
+         * Filter: Allow modification of insert data before insertion
+         *
+         * Use cases:
+         * - Demo data: Force static IDs for predictable test data
+         * - Migration: Import agencies with preserved IDs from external system
+         *
+         * @param array $insertData Prepared data ready for $wpdb->insert
+         * @param array $data Original input data
+         * @return array Modified insert data (can include 'id' key for static ID)
+         */
+        $insertData = apply_filters('wp_agency_before_insert', $insertData, $data);
+
+        // If 'id' field was injected via filter, reorder to put it first
+        if (isset($insertData['id'])) {
+            $static_id = $insertData['id'];
+            unset($insertData['id']);
+            $insertData = array_merge(['id' => $static_id], $insertData);
+        }
+
+        // Prepare format array (must match key order)
+        $format = [];
+        if (isset($insertData['id'])) {
+            $format[] = '%d';  // id
+        }
+        $format = array_merge($format, [
+            '%s', // code
+            '%s', // name
+            '%s', // status
+            '%d', // user_id
+            '%d', // province_id
+            '%d', // regency_id
+            '%s', // reg_type
+            '%d', // created_by
+            '%s', // created_at
+            '%s'  // updated_at
+        ]);
+
+        $result = $wpdb->insert(
+            $this->getTableName(),
+            $insertData,
+            $format
+        );
+
+        if ($result === false) {
+            error_log('Failed to insert agency: ' . $wpdb->last_error);
+            error_log('Insert data: ' . print_r($insertData, true));
+            return null;
+        }
+
+        $agency_id = (int) $wpdb->insert_id;
 
         // Log creation
         if ($agency_id) {
-            $this->logAudit('created', $agency_id, null, $data);
+            $this->logAudit('created', $agency_id, null, $insertData);
+
+            // Fire hook for auto-create division pusat and employee
+            do_action('wp_agency_agency_created', $agency_id, $data);
         }
 
         return $agency_id;

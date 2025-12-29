@@ -294,6 +294,22 @@ class AgencyDemoData extends AbstractDemoData {
             return $insert_data;
         }, 10, 2);
 
+        // Register AutoEntityCreator hooks if not already registered
+        // In production (web context), hooks are registered via wp-agency.php plugins_loaded
+        // In WP-CLI context, plugins_loaded may have passed, so we register here
+        global $wp_filter;
+        $autoEntityCreator = null;
+
+        if (!isset($wp_filter['wp_agency_agency_created']) ||
+            !isset($wp_filter['wp_agency_division_created'])) {
+            $autoEntityCreator = new \WPAgency\Handlers\AutoEntityCreator();
+            add_action('wp_agency_agency_created', [$autoEntityCreator, 'handleAgencyCreated'], 10, 2);
+            add_action('wp_agency_division_created', [$autoEntityCreator, 'handleDivisionCreated'], 10, 2);
+            $this->debug('Registered AutoEntityCreator hooks (WP-CLI context)');
+        } else {
+            $this->debug('Using existing AutoEntityCreator hooks (production context)');
+        }
+
         $userGenerator = new WPUserGenerator();
         $generated_count = 0;
         $failed_count = 0;
@@ -370,8 +386,17 @@ class AgencyDemoData extends AbstractDemoData {
 
         $this->debug("Generation completed: {$generated_count} succeeded, {$failed_count} failed");
 
-        // Remove the filter hook after generation
+        // Remove filter after generation
         remove_all_filters('wp_agency_before_insert', 10);
+
+        // Remove hooks only if we registered them (WP-CLI context)
+        if ($autoEntityCreator !== null) {
+            remove_action('wp_agency_agency_created', [$autoEntityCreator, 'handleAgencyCreated'], 10);
+            remove_action('wp_agency_division_created', [$autoEntityCreator, 'handleDivisionCreated'], 10);
+            $this->debug('Removed AutoEntityCreator hooks (WP-CLI cleanup)');
+        } else {
+            $this->debug('Kept production AutoEntityCreator hooks active');
+        }
     }
 
     /**

@@ -30,7 +30,7 @@ defined('ABSPATH') || exit;
 <div class="wp-agency-panel-content">
 
 
-<div class="nav-tab-wrapper">
+<div class="wpdt-tab-wrapper">
     <a href="#" class="nav-tab nav-tab-agency-details nav-tab-active" data-tab="agency-details">Data Disnaker</a>
     <a href="#" class="nav-tab" data-tab="division-list">Unit</a>
     <a href="#" class="nav-tab" data-tab="employee-list">Staff</a>
