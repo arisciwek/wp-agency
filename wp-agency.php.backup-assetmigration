@@ -127,6 +127,7 @@ class WPAgency {
         require_once WP_AGENCY_PATH . 'includes/class-role-manager.php';
         require_once WP_AGENCY_PATH . 'includes/class-activator.php';
         require_once WP_AGENCY_PATH . 'includes/class-deactivator.php';
+        require_once WP_AGENCY_PATH . 'includes/class-dependencies.php';
         require_once WP_AGENCY_PATH . 'includes/class-init-hooks.php';
 
         // Load WP Customer integration (TODO-2065)
@@ -156,9 +157,12 @@ class WPAgency {
             return $use_dual_panel;
         }, 5);
 
-        // Initialize AssetController (wp-agency-specific assets only)
-        // AssetController is a Singleton - registers hooks in constructor
-        \WPAgency\Controllers\Assets\AssetController::get_instance()->init();
+        // Initialize dependencies (wp-agency-specific assets only)
+        $dependencies = new WP_Agency_Dependencies($this->plugin_name, $this->version);
+
+        // Register asset hooks - DIRECT (bypass loader for reliability)
+        add_action('admin_enqueue_scripts', [$dependencies, 'enqueue_styles'], 10);
+        add_action('admin_enqueue_scripts', [$dependencies, 'enqueue_scripts'], 10);
 
         // Initialize menu
         $this->menu_manager = new \WPAgency\Controllers\MenuManager($this->plugin_name, $this->version);

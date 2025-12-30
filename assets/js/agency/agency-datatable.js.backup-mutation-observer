@@ -3,7 +3,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Assets/JS/Agency
- * @version     2.3.0
+ * @version     2.2.0
  * @author      arisciwek
  *
  * Path: /wp-agency/assets/js/agency/agency-datatable.js
@@ -13,13 +13,6 @@
  *              Menangani server-side processing dan event handling.
  *
  * Changelog:
- * 2.3.0 - 2025-12-30 (Boundary Refactor)
- * - BREAKING: Removed MutationObserver (global scope violation)
- * - Migrated to event-driven pattern (wpdt:tab-switched)
- * - Consistent with wp-customer pattern
- * - Better performance (no document.body observer)
- * - Added wpdt:panel-content-loaded handler
- * - Backup: agency-datatable.js.backup-mutation-observer
  * 2.2.0 - 2025-11-01 (TODO-3097)
  * - Added support for new-company entity (Tab 4: Perusahaan Baru)
  * - Added column configuration for branches without inspector
@@ -96,7 +89,7 @@
 
             this.initDataTable();
             this.bindEvents();
-            this.bindLazyTableEvents();
+            this.watchForLazyTables();
 
             this.initialized = true;
             console.log('[AgencyDataTable] Initialized successfully');
@@ -259,63 +252,47 @@
         },
 
         /**
-         * Bind event listeners for lazy-load tables
+         * Watch for lazy-load tables being added to DOM
          *
-         * Event-driven approach - listens to framework events instead of
-         * using MutationObserver. This is more performant and consistent
-         * with wp-customer pattern.
-         *
-         * Events:
-         * - wpdt:tab-switched: Fired by wp-datatable when tab is activated
-         * - wpdt:panel-content-loaded: Fired after AJAX content loaded (if available)
+         * Uses MutationObserver to detect when AJAX content containing
+         * .agency-lazy-datatable tables is loaded into the page.
          */
-        bindLazyTableEvents() {
+        watchForLazyTables() {
             const self = this;
 
-            /**
-             * Handle tab switching from wp-datatable framework
-             * When user clicks tab, framework triggers this event
-             */
-            $(document).on('wpdt:tab-switched', function(e, data) {
-                console.log('[AgencyDataTable] Tab switched event received:', data);
+            // Create observer to watch for lazy-load tables
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    // Check if new nodes were added
+                    if (mutation.addedNodes.length > 0) {
+                        mutation.addedNodes.forEach(function(node) {
+                            // Only process element nodes
+                            if (node.nodeType === 1) {
+                                const $node = $(node);
 
-                // Find the tab content container
-                const $container = $('#' + data.tabId);
-
-                // Check if this tab has lazy-load tables
-                const $lazyTables = $container.find('.agency-lazy-datatable');
-
-                if ($lazyTables.length > 0) {
-                    console.log('[AgencyDataTable] Found ' + $lazyTables.length + ' lazy table(s) in tab:', data.tabId);
-
-                    // Small delay to ensure DOM is fully ready
-                    setTimeout(function() {
-                        self.initLazyDataTables($container);
-                    }, 100);
-                } else {
-                    console.log('[AgencyDataTable] No lazy tables found in tab:', data.tabId);
-                }
-            });
-
-            /**
-             * Alternative: Handle panel content loaded event (if framework provides it)
-             * This is triggered after AJAX content is injected into panel
-             */
-            $(document).on('wpdt:panel-content-loaded', function(e, data) {
-                console.log('[AgencyDataTable] Panel content loaded event received:', data);
-
-                // Only handle agency entity
-                if (data.entity === 'agency' && data.$container) {
-                    const $lazyTables = data.$container.find('.agency-lazy-datatable');
-
-                    if ($lazyTables.length > 0) {
-                        console.log('[AgencyDataTable] Found ' + $lazyTables.length + ' lazy table(s) after panel load');
-                        self.initLazyDataTables(data.$container);
+                                // Check if the node itself is a lazy table
+                                if ($node.hasClass('agency-lazy-datatable')) {
+                                    console.log('[AgencyDataTable] Lazy table detected in DOM');
+                                    self.initLazyDataTables($node.parent());
+                                }
+                                // Or if it contains lazy tables
+                                else if ($node.find('.agency-lazy-datatable').length > 0) {
+                                    console.log('[AgencyDataTable] Container with lazy table(s) detected in DOM');
+                                    self.initLazyDataTables($node);
+                                }
+                            }
+                        });
                     }
-                }
+                });
             });
 
-            console.log('[AgencyDataTable] Lazy table event listeners bound');
+            // Start observing the document body for changes
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            console.log('[AgencyDataTable] Watching for lazy-load tables');
         },
 
         /**
