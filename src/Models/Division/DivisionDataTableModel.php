@@ -194,9 +194,10 @@ class DivisionDataTableModel extends AbstractDataTable {
         $division_id = $row->id ?? 0;
 
         // Edit button - check permission
+        // Uses wpdt-edit-btn class for auto-wire modal system integration
         if (current_user_can('edit_all_divisions') || current_user_can('edit_own_division')) {
             $buttons .= sprintf(
-                '<button type="button" class="button button-small edit-division" data-id="%d" title="%s">
+                '<button type="button" class="button button-small wpdt-edit-btn" data-id="%d" data-entity="division" title="%s">
                     <span class="dashicons dashicons-edit"></span>
                 </button> ',
                 $division_id,
@@ -205,9 +206,10 @@ class DivisionDataTableModel extends AbstractDataTable {
         }
 
         // Delete button - check permission
+        // Uses wpdt-delete-btn class for auto-wire modal system integration
         if (current_user_can('delete_division')) {
             $buttons .= sprintf(
-                '<button type="button" class="button button-small delete-division" data-id="%d" title="%s">
+                '<button type="button" class="button button-small wpdt-delete-btn" data-id="%d" data-entity="division" title="%s">
                     <span class="dashicons dashicons-trash"></span>
                 </button>',
                 $division_id,

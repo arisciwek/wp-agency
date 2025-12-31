@@ -153,9 +153,10 @@ class EmployeeDataTableModel extends AbstractDataTable {
         $employee_id = $row->id ?? 0;
 
         // Edit button - check permission
+        // Uses wpdt-edit-btn class for auto-wire modal system integration
         if (current_user_can('edit_all_agencies') || current_user_can('edit_own_agency')) {
             $buttons .= sprintf(
-                '<button type="button" class="button button-small edit-employee" data-id="%d" title="%s">
+                '<button type="button" class="button button-small wpdt-edit-btn" data-id="%d" data-entity="employee" title="%s">
                     <span class="dashicons dashicons-edit"></span>
                 </button> ',
                 $employee_id,
@@ -164,9 +165,10 @@ class EmployeeDataTableModel extends AbstractDataTable {
         }
 
         // Delete button - check permission
+        // Uses wpdt-delete-btn class for auto-wire modal system integration
         if (current_user_can('delete_agency')) {
             $buttons .= sprintf(
-                '<button type="button" class="button button-small delete-employee" data-id="%d" title="%s">
+                '<button type="button" class="button button-small wpdt-delete-btn" data-id="%d" data-entity="employee" title="%s">
                     <span class="dashicons dashicons-trash"></span>
                 </button>',
                 $employee_id,

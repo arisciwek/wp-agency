@@ -90,6 +90,10 @@ class DivisionController extends AbstractCrudController {
         add_action('wp_ajax_update_division', [$this, 'update']);
         add_action('wp_ajax_delete_division', [$this, 'delete']);
 
+        // Modal form handlers (auto-wire system)
+        add_action('wp_ajax_get_division_form', [$this, 'handleGetDivisionForm']);
+        add_action('wp_ajax_save_division', [$this, 'handleSaveDivision']);
+
         // DataTable
         add_action('wp_ajax_handle_division_datatable', [$this, 'handleDataTableRequest']);
         add_action('wp_ajax_nopriv_handle_division_datatable', [$this, 'handleDataTableRequest']);
@@ -820,5 +824,58 @@ class DivisionController extends AbstractCrudController {
         return '<button type="button" class="btn btn-primary" id="create-division-btn">
                     <i class="fas fa-plus"></i> Tambah Cabang
                 </button>';
+    }
+
+    /**
+     * Handle get division form (create/edit)
+     * For auto-wire modal system
+     */
+    public function handleGetDivisionForm(): void {
+        check_ajax_referer('wpdt_nonce', 'nonce');
+
+        $mode = $_GET['mode'] ?? 'create';
+        $division_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+
+        try {
+            if ($mode === 'edit' && $division_id) {
+                $division = $this->model->find($division_id);
+
+                if (!$division) {
+                    echo '<p class="error">' . __('Division not found', 'wp-agency') . '</p>';
+                    wp_die();
+                }
+
+                include WP_AGENCY_PATH . 'src/Views/admin/division/forms/edit-division-form.php';
+            } else {
+                include WP_AGENCY_PATH . 'src/Views/admin/division/forms/create-division-form.php';
+            }
+        } catch (\Exception $e) {
+            echo '<p class="error">' . esc_html($e->getMessage()) . '</p>';
+        }
+
+        wp_die();
+    }
+
+    /**
+     * Handle save division (create/update)
+     * For auto-wire modal system
+     */
+    public function handleSaveDivision(): void {
+        check_ajax_referer('wpdt_nonce', 'nonce');
+
+        $mode = $_POST['mode'] ?? 'create';
+        $division_id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+
+        try {
+            if ($mode === 'edit' && $division_id) {
+                // Update mode - delegate to update() method
+                $this->update();
+            } else {
+                // Create mode - delegate to store() method
+                $this->store();
+            }
+        } catch (\Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
     }
 }

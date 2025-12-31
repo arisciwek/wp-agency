@@ -232,6 +232,9 @@ class AgencyDashboardController {
         add_action('wp_ajax_get_agency_form', [$this, 'handle_get_agency_form']);
         add_action('wp_ajax_save_agency', [$this, 'handle_save_agency']);
         add_action('wp_ajax_delete_agency', [$this, 'handle_delete_agency']);
+
+        // Auto-wire config injection for modal system
+        add_filter('wpdt_localize_data', [$this, 'inject_autowire_config']);
     }
 
     /**
@@ -1327,7 +1330,7 @@ class AgencyDashboardController {
      */
     public function handle_get_agency_form(): void {
         $nonce = $_REQUEST['nonce'] ?? '';
-        if (!wp_verify_nonce($nonce, 'wp_agency_nonce')) {
+        if (!wp_verify_nonce($nonce, 'wpdt_nonce')) {
             echo '<p class="error">' . __('Security check failed', 'wp-agency') . '</p>';
             wp_die();
         }
@@ -1486,5 +1489,86 @@ class AgencyDashboardController {
         } catch (\Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Inject auto-wire config for modal system
+     *
+     * Provides configuration for agency, division, and employee CRUD operations
+     * via auto-wire modal system from wp-datatable.
+     *
+     * @param array $data Existing localize data from wp-datatable
+     * @return array Modified data with entity configs
+     */
+    public function inject_autowire_config($data) {
+        // Only inject on wp-agency-disnaker page
+        if (!isset($_GET['page']) || $_GET['page'] !== 'wp-agency-disnaker') {
+            return $data;
+        }
+
+        // Agency entity config
+        $data['agency'] = [
+            'action_buttons' => [
+                'edit' => [
+                    'enabled' => true,
+                    'ajax_action' => 'get_agency_form',
+                    'submit_action' => 'save_agency',
+                    'modal_title' => __('Edit Agency', 'wp-agency'),
+                    'success_message' => __('Agency updated successfully!', 'wp-agency'),
+                    'modal_size' => 'large',
+                ],
+                'delete' => [
+                    'enabled' => true,
+                    'ajax_action' => 'delete_agency',
+                    'confirm_title' => __('Delete Agency', 'wp-agency'),
+                    'confirm_message' => __('Are you sure you want to delete this agency? This action cannot be undone.', 'wp-agency'),
+                    'success_message' => __('Agency deleted successfully!', 'wp-agency'),
+                ],
+            ],
+        ];
+
+        // Division entity config
+        $data['division'] = [
+            'action_buttons' => [
+                'edit' => [
+                    'enabled' => true,
+                    'ajax_action' => 'get_division_form',
+                    'submit_action' => 'save_division',
+                    'modal_title' => __('Edit Division', 'wp-agency'),
+                    'success_message' => __('Division updated successfully!', 'wp-agency'),
+                    'modal_size' => 'large',
+                ],
+                'delete' => [
+                    'enabled' => true,
+                    'ajax_action' => 'delete_division',
+                    'confirm_title' => __('Delete Division', 'wp-agency'),
+                    'confirm_message' => __('Are you sure you want to delete this division?', 'wp-agency'),
+                    'success_message' => __('Division deleted successfully!', 'wp-agency'),
+                ],
+            ],
+        ];
+
+        // Employee entity config
+        $data['employee'] = [
+            'action_buttons' => [
+                'edit' => [
+                    'enabled' => true,
+                    'ajax_action' => 'get_employee_form',
+                    'submit_action' => 'save_employee',
+                    'modal_title' => __('Edit Employee', 'wp-agency'),
+                    'success_message' => __('Employee updated successfully!', 'wp-agency'),
+                    'modal_size' => 'large',
+                ],
+                'delete' => [
+                    'enabled' => true,
+                    'ajax_action' => 'delete_employee',
+                    'confirm_title' => __('Delete Employee', 'wp-agency'),
+                    'confirm_message' => __('Are you sure you want to delete this employee?', 'wp-agency'),
+                    'success_message' => __('Employee deleted successfully!', 'wp-agency'),
+                ],
+            ],
+        ];
+
+        return $data;
     }
 }

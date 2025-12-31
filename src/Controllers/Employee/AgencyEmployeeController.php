@@ -68,6 +68,10 @@ class AgencyEmployeeController extends AbstractCrudController {
         add_action('wp_ajax_update_agency_employee', [$this, 'update']);
         add_action('wp_ajax_delete_agency_employee', [$this, 'delete']);
 
+        // Modal form handlers (auto-wire system)
+        add_action('wp_ajax_get_employee_form', [$this, 'handleGetEmployeeForm']);
+        add_action('wp_ajax_save_employee', [$this, 'handleSaveEmployee']);
+
         // DataTable
         add_action('wp_ajax_handle_agency_employee_datatable', [$this, 'handleDataTableRequest']);
         add_action('wp_ajax_nopriv_handle_agency_employee_datatable', [$this, 'handleDataTableRequest']);
@@ -504,5 +508,58 @@ class AgencyEmployeeController extends AbstractCrudController {
         return '<button type="button" class="btn btn-primary" id="create-employee-btn">
                     <i class="fas fa-plus"></i> Tambah Karyawan
                 </button>';
+    }
+
+    /**
+     * Handle get employee form (create/edit)
+     * For auto-wire modal system
+     */
+    public function handleGetEmployeeForm(): void {
+        check_ajax_referer('wpdt_nonce', 'nonce');
+
+        $mode = $_GET['mode'] ?? 'create';
+        $employee_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+
+        try {
+            if ($mode === 'edit' && $employee_id) {
+                $employee = $this->model->find($employee_id);
+
+                if (!$employee) {
+                    echo '<p class="error">' . __('Employee not found', 'wp-agency') . '</p>';
+                    wp_die();
+                }
+
+                include WP_AGENCY_PATH . 'src/Views/admin/employee/forms/edit-employee-form.php';
+            } else {
+                include WP_AGENCY_PATH . 'src/Views/admin/employee/forms/create-employee-form.php';
+            }
+        } catch (\Exception $e) {
+            echo '<p class="error">' . esc_html($e->getMessage()) . '</p>';
+        }
+
+        wp_die();
+    }
+
+    /**
+     * Handle save employee (create/update)
+     * For auto-wire modal system
+     */
+    public function handleSaveEmployee(): void {
+        check_ajax_referer('wpdt_nonce', 'nonce');
+
+        $mode = $_POST['mode'] ?? 'create';
+        $employee_id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+
+        try {
+            if ($mode === 'edit' && $employee_id) {
+                // Update mode - delegate to update() method
+                $this->update();
+            } else {
+                // Create mode - delegate to store() method
+                $this->store();
+            }
+        } catch (\Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
     }
 }

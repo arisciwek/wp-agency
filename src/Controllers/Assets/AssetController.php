@@ -346,21 +346,21 @@ class AssetController {
             ]
         ]);
 
-        // Agency filter & modal
+        // Agency filter
         wp_enqueue_script('agency-filter', WP_AGENCY_URL . 'assets/js/agency/agency-filter.js', ['jquery', 'datatables'], $this->version, true);
-        wp_enqueue_script('agency-modal-handler', WP_AGENCY_URL . 'assets/js/agency-modal-handler.js', ['jquery', 'wp-modal'], $this->version, true);
 
-        // Localize modal handler
-        wp_localize_script('agency-modal-handler', 'wpAgencyConfig', [
-            'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('wp_agency_nonce'),
-            'i18n' => [
-                'loading' => __('Loading...', 'wp-agency'),
-                'error' => __('Error', 'wp-agency'),
-                'success' => __('Success', 'wp-agency'),
-                'confirm' => __('Are you sure?', 'wp-agency')
-            ]
-        ]);
+        // DEPRECATED: Commented out - now using auto-wire modal system from wp-datatable
+        // wp_enqueue_script('agency-modal-handler', WP_AGENCY_URL . 'assets/js/agency-modal-handler.js', ['jquery', 'wp-modal'], $this->version, true);
+        // wp_localize_script('agency-modal-handler', 'wpAgencyConfig', [
+        //     'ajaxUrl' => admin_url('admin-ajax.php'),
+        //     'nonce' => wp_create_nonce('wp_agency_nonce'),
+        //     'i18n' => [
+        //         'loading' => __('Loading...', 'wp-agency'),
+        //         'error' => __('Error', 'wp-agency'),
+        //         'success' => __('Success', 'wp-agency'),
+        //         'confirm' => __('Are you sure?', 'wp-agency')
+        //     ]
+        // ]);
 
         // Forms
         wp_enqueue_script('create-agency-form', WP_AGENCY_URL . 'assets/js/agency/create-agency-form.js', ['jquery', 'jquery-validate', 'wp-agency-toast'], $this->version, true);
