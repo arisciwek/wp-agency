@@ -54,15 +54,19 @@
         processing: true,
         serverSide: true,
         ajax: {
-            url: ajaxurl,
+            url: wpAgencyAuditLog.ajaxUrl,
             type: 'POST',
             data: function(d) {
-                d.action = 'get_audit_logs';
-                d.nonce = wpAgencyAuditLog.nonce;
-                d.agency_id = agencyId;
+                return {
+                    ...d,
+                    action: 'get_agency_audit_logs',
+                    nonce: wpAgencyAuditLog.nonce,
+                    agency_id: agencyId
+                };
             },
             error: function(xhr, error, code) {
-                console.error('DataTable AJAX Error:', error, code);
+                console.error('[Audit Log] DataTable AJAX Error:', error, code);
+                console.error('[Audit Log] XHR:', xhr);
             }
         },
         columns: [
@@ -78,8 +82,6 @@
         lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
         language: wpAgencyAuditLog.i18n
     });
-
-        console.log('[Audit Log] DataTable initialized for agency:', agencyId);
 
         // View audit detail button click
         $table.on('click', '.view-audit-detail', function(e) {
@@ -199,8 +201,6 @@
     $(document).on('wpdt:tab-switched', function(e, data) {
         // Initialize DataTable when history tab becomes active
         if (data.tabId === 'history') {
-            console.log('[Audit Log] Tab switched to history');
-
             // Small delay to ensure DOM is ready
             setTimeout(function() {
                 initAuditLogDataTable();
@@ -216,7 +216,6 @@
         const $historyTab = $('.nav-tab[data-tab="history"]');
 
         if ($historyTab.hasClass('nav-tab-active')) {
-            console.log('[Audit Log] History tab active on load');
             setTimeout(function() {
                 initAuditLogDataTable();
             }, 100);

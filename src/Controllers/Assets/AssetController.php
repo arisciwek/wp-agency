@@ -380,12 +380,14 @@ class AssetController {
         // New Company scripts
         wp_enqueue_script('new-company-datatable', WP_AGENCY_URL . 'assets/js/company/new-company-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);
 
-        // Audit Log scripts
-        wp_enqueue_script('audit-log', WP_AGENCY_URL . 'assets/js/audit-log/audit-log.js', ['jquery', 'datatables'], $this->version, true);
+        // Audit Log scripts (cache busting for recent fixes)
+        $audit_log_version = $this->version . '.' . filemtime(WP_AGENCY_PATH . 'assets/js/audit-log/audit-log.js');
+        wp_enqueue_script('audit-log', WP_AGENCY_URL . 'assets/js/audit-log/audit-log.js', ['jquery', 'datatables'], $audit_log_version, true);
 
         // Localize audit log
         wp_localize_script('audit-log', 'wpAgencyAuditLog', [
-            'nonce' => wp_create_nonce('wp_agency_ajax_nonce'),
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('wp_agency_nonce'),
             'i18n' => [
                 'processing' => __('Loading...', 'wp-agency'),
                 'search' => __('Search:', 'wp-agency'),

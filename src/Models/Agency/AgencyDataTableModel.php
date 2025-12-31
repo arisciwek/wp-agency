@@ -257,7 +257,7 @@ class AgencyDataTableModel extends AbstractDataTable {
 
         if ($can_edit) {
             $buttons[] = sprintf(
-                '<button type="button" class="button button-small wpdt-edit-agency" data-id="%d" title="%s">
+                '<button type="button" class="button button-small wpdt-edit-btn" data-id="%d" data-entity="agency" title="%s">
                     <span class="dashicons dashicons-edit"></span>
                 </button>',
                 esc_attr($row->id),
@@ -268,7 +268,7 @@ class AgencyDataTableModel extends AbstractDataTable {
         // Delete button (if user has permission)
         if (current_user_can('manage_options') || current_user_can('delete_agency')) {
             $buttons[] = sprintf(
-                '<button type="button" class="button button-small wpdt-delete-agency" data-id="%d" title="%s">
+                '<button type="button" class="button button-small wpdt-delete-btn" data-id="%d" data-entity="agency" title="%s">
                     <span class="dashicons dashicons-trash"></span>
                 </button>',
                 esc_attr($row->id),

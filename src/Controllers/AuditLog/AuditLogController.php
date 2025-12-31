@@ -46,11 +46,7 @@ class AuditLogController {
         error_log('[AuditLog] POST data: ' . print_r($_POST, true));
 
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'wp_agency_ajax_nonce')) {
-            error_log('[AuditLog] Nonce check failed');
-            wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
-        }
-
+        check_ajax_referer('wp_agency_nonce', 'nonce');
         error_log('[AuditLog] Nonce verified');
 
         // Check permissions (user must be logged in at minimum)
@@ -113,10 +109,7 @@ class AuditLogController {
      * Handle view audit detail (for modal)
      */
     public function handleViewAuditDetail(): void {
-        // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'wp_agency_ajax_nonce')) {
-            wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
-        }
+        check_ajax_referer('wp_agency_nonce', 'nonce');
 
         if (!is_user_logged_in()) {
             wp_send_json_error(['message' => __('Unauthorized', 'wp-agency')]);

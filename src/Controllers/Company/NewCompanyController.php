@@ -31,16 +31,19 @@
 namespace WPAgency\Controllers\Company;
 
 use WPAgency\Models\Company\NewCompanyModel;
+use WPAgency\Models\Company\NewCompanyDataTableModel;
 use WPAgency\Validators\Company\NewCompanyValidator;
 use WPAgency\Cache\AgencyCacheManager;
 
 class NewCompanyController {
     private NewCompanyModel $model;
+    private NewCompanyDataTableModel $datatableModel;
     private NewCompanyValidator $validator;
     private AgencyCacheManager $cache;
 
     public function __construct() {
         $this->model = new NewCompanyModel();
+        $this->datatableModel = new NewCompanyDataTableModel();
         $this->validator = new NewCompanyValidator();
         $this->cache = new AgencyCacheManager();
 
@@ -61,106 +64,32 @@ class NewCompanyController {
 
     /**
      * Handle DataTable AJAX request
+     *
+     * Uses NewCompanyDataTableModel for server-side processing.
+     * The model handles data retrieval, formatting, and action buttons.
      */
     public function handleDataTableRequest() {
+        check_ajax_referer('wp_agency_nonce', 'nonce');
+
+        $agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
+        if (!$agency_id) {
+            wp_send_json_error(['message' => __('Invalid agency ID', 'wp-agency')]);
+            return;
+        }
+
+        // Check permissions
+        if (!$this->validator->canViewNewCompanies($agency_id)) {
+            wp_send_json_error(['message' => __('Permission denied', 'wp-agency')]);
+            return;
+        }
+
         try {
-            check_ajax_referer('wp_agency_nonce', 'nonce');
-
-            $agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
-            if (!$agency_id) {
-                throw new \Exception('Invalid agency ID');
-            }
-
-            // Check permissions
-            if (!$this->validator->canViewNewCompanies($agency_id)) {
-                throw new \Exception('Permission denied');
-            }
-
-            $draw = isset($_POST['draw']) ? intval($_POST['draw']) : 1;
-            $start = isset($_POST['start']) ? intval($_POST['start']) : 0;
-            $length = isset($_POST['length']) ? intval($_POST['length']) : 10;
-            $search = isset($_POST['search']['value']) ? sanitize_text_field($_POST['search']['value']) : '';
-
-            $orderColumn = isset($_POST['order'][0]['column']) ? intval($_POST['order'][0]['column']) : 0;
-            $orderDir = isset($_POST['order'][0]['dir']) ? sanitize_text_field($_POST['order'][0]['dir']) : 'asc';
-
-            $columns = ['code', 'company_name', 'division_name', 'regency_name', 'actions'];
-            $orderBy = isset($columns[$orderColumn]) ? $columns[$orderColumn] : 'code';
-            if ($orderBy === 'actions') {
-                $orderBy = 'code';
-            }
-
-            // Get data from model
-            $result = $this->model->getDataTableData(
-                $agency_id,
-                $start,
-                $length,
-                $search,
-                $orderBy,
-                $orderDir
-            );
-
-            if (!$result) {
-                throw new \Exception('No data returned from model');
-            }
-
-            $data = [];
-            foreach ($result['data'] as $branch) {
-                $data[] = [
-                    'id' => $branch->id,
-                    'code' => esc_html($branch->code),
-                    'company_name' => esc_html($branch->company_name),
-                    'division_name' => esc_html($branch->division_name ?? '-'),
-                    'regency_name' => esc_html($branch->regency_name ?? '-'),
-                    'actions' => $this->generateActionButtons($branch)
-                ];
-            }
-
-            $response = [
-                'draw' => $draw,
-                'recordsTotal' => $result['total'],
-                'recordsFiltered' => $result['filtered'],
-                'data' => $data,
-            ];
-
+            // Use DataTableModel - it handles everything (format_row, action buttons, etc.)
+            $response = $this->datatableModel->get_datatable_data($_POST);
             wp_send_json($response);
-
         } catch (\Exception $e) {
-            wp_send_json_error([
-                'message' => $e->getMessage(),
-                'code' => $e->getCode()
-            ], 400);
+            wp_send_json_error(['message' => __('Error loading new companies', 'wp-agency')]);
         }
-    }
-
-    /**
-     * Generate action buttons for DataTable
-     */
-    private function generateActionButtons($branch) {
-        $actions = '';
-
-        // View button
-        $actions .= sprintf(
-            '<button type="button" class="button view-company" data-id="%d" title="%s">
-                <i class="dashicons dashicons-visibility"></i>
-            </button> ',
-            $branch->id,
-            __('Lihat', 'wp-agency')
-        );
-
-        // Assign inspector button
-        if ($this->validator->canAssignInspector($branch->agency_id)) {
-            $actions .= sprintf(
-                '<button type="button" class="button assign-inspector" data-id="%d" data-company="%s" title="%s">
-                    <i class="dashicons dashicons-admin-users"></i>
-                </button>',
-                $branch->id,
-                esc_attr($branch->company_name),
-                __('Assign Inspector', 'wp-agency')
-            );
-        }
-
-        return $actions;
     }
 
     /**

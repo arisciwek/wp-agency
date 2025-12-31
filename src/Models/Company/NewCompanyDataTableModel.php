@@ -7,7 +7,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Company
- * @version     1.0.1
+ * @version     1.0.2
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Company/NewCompanyDataTableModel.php
@@ -18,6 +18,12 @@
  *              Follows centralization pattern from TODO-3094/3095/3096.
  *
  * Changelog:
+ * 1.0.2 - 2025-12-30
+ * - CRITICAL FIX: filter_where() now checks model instance
+ * - Prevents filter conflict with wp-customer's CompanyDataTableModel
+ * - Added instanceof check to only apply filters to NewCompanyDataTableModel
+ * - Fixes bug where Companies page showed only unassigned branches
+ *
  * 1.0.1 - 2025-11-01 (TODO-3097 Fix)
  * - FIXED: Renamed get_where() to filter_where() (proper wp-app-core pattern)
  * - FIXED: Register filter hook in constructor
@@ -186,12 +192,21 @@ class NewCompanyDataTableModel extends AbstractDataTable {
      * Note: Role-based access control is now handled by RoleBasedFilter (wp-agency/src/Filters/RoleBasedFilter.php)
      *       which filters by jurisdiction (province/regency) for new company assignment page.
      *
+     * IMPORTANT: Only apply these filters if $model is instance of NewCompanyDataTableModel.
+     *            This prevents conflicts with CompanyDataTableModel from wp-customer plugin.
+     *
      * @param array $where_conditions Current WHERE conditions
      * @param array $request_data DataTables request data
      * @param DataTableModel $model Model instance
      * @return array Modified WHERE conditions
      */
     public function filter_where($where_conditions, $request_data, $model): array {
+        // CRITICAL: Only apply filter if model is NewCompanyDataTableModel
+        // This prevents applying "unassigned branches" filter to wp-customer's CompanyDataTableModel
+        if (!($model instanceof NewCompanyDataTableModel)) {
+            return $where_conditions;
+        }
+
         global $wpdb;
 
         // Role-based filtering is handled by RoleBasedFilter hook (wpapp_datatable_where_{role})

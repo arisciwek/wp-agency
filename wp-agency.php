@@ -90,6 +90,7 @@ class WPAgency {
     private $agency_controller;
     private $dashboard_controller;
     private $menu_manager;
+    private $audit_log_controller;
 
     /**
      * Get single instance of WPAgency
@@ -316,6 +317,13 @@ class WPAgency {
 
         // New Company Controller
         new \WPAgency\Controllers\Company\NewCompanyController();
+
+        // Audit Log Controller
+        $this->audit_log_controller = new \WPAgency\Controllers\AuditLog\AuditLogController();
+
+        // Register Audit Log AJAX handlers
+        add_action('wp_ajax_get_agency_audit_logs', [$this->audit_log_controller, 'handleGetAuditLogs']);
+        add_action('wp_ajax_view_agency_audit_detail', [$this->audit_log_controller, 'handleViewAuditDetail']);
     }
 
     /**
