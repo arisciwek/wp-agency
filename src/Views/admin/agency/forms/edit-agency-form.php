@@ -32,9 +32,8 @@ if (!isset($agency) || !is_object($agency)) {
 ?>
 
 <form id="agency-form" class="wpapp-modal-form">
-    <input type="hidden" name="action" value="update_agency">
+    <!-- Auto-wire system will inject action and nonce automatically -->
     <input type="hidden" name="id" value="<?php echo esc_attr($agency->id); ?>">
-    <input type="hidden" name="nonce" value="<?php echo wp_create_nonce('wp_agency_nonce'); ?>">
 
     <!-- Two Column Layout -->
     <div class="wpapp-form-grid">
@@ -71,30 +70,19 @@ if (!isset($agency) || !is_object($agency)) {
             </div>
 
             <div class="wpapp-form-field">
-                <label for="agency-phone">
-                    <?php _e('Phone', 'wp-agency'); ?>
+                <label for="agency-status">
+                    <?php _e('Status', 'wp-agency'); ?>
                 </label>
-                <input type="text"
-                       id="agency-phone"
-                       name="phone"
-                       value="<?php echo esc_attr($agency->phone ?? ''); ?>"
-                       placeholder="<?php esc_attr_e('Enter phone number', 'wp-agency'); ?>">
+                <select id="agency-status" name="status" class="wilayah-select">
+                    <option value="inactive" <?php selected($agency->status, 'inactive'); ?>>
+                        <?php _e('Inactive', 'wp-agency'); ?>
+                    </option>
+                    <option value="active" <?php selected($agency->status, 'active'); ?>>
+                        <?php _e('Active', 'wp-agency'); ?>
+                    </option>
+                </select>
                 <span class="description">
-                    <?php _e('Contact phone number', 'wp-agency'); ?>
-                </span>
-            </div>
-
-            <div class="wpapp-form-field">
-                <label for="agency-email">
-                    <?php _e('Email', 'wp-agency'); ?>
-                </label>
-                <input type="email"
-                       id="agency-email"
-                       name="email"
-                       value="<?php echo esc_attr($agency->email ?? ''); ?>"
-                       placeholder="<?php esc_attr_e('Enter email address', 'wp-agency'); ?>">
-                <span class="description">
-                    <?php _e('Contact email address', 'wp-agency'); ?>
+                    <?php _e('Agency status', 'wp-agency'); ?>
                 </span>
             </div>
         </div>
@@ -148,18 +136,6 @@ if (!isset($agency) || !is_object($agency)) {
                 </span>
             </div>
 
-            <div class="wpapp-form-field">
-                <label for="agency-address">
-                    <?php _e('Address', 'wp-agency'); ?>
-                </label>
-                <textarea id="agency-address"
-                          name="address"
-                          rows="4"
-                          placeholder="<?php esc_attr_e('Enter agency address', 'wp-agency'); ?>"><?php echo esc_textarea($agency->address ?? ''); ?></textarea>
-                <span class="description">
-                    <?php _e('Full address', 'wp-agency'); ?>
-                </span>
-            </div>
         </div>
     </div>
 </form>

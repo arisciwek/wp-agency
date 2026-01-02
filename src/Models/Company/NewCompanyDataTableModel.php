@@ -7,17 +7,33 @@
  *
  * @package     WP_Agency
  * @subpackage  Models/Company
- * @version     1.0.2
+ * @version     1.2.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Models/Company/NewCompanyDataTableModel.php
  *
  * Description: Server-side DataTable model untuk menampilkan daftar
  *              branches (companies) yang belum memiliki inspector.
- *              Filter otomatis berdasarkan agency_id.
+ *              Filter otomatis berdasarkan province_id dari agency.
+ *              Menampilkan hanya branches di provinsi yang sama dengan agency.
  *              Follows centralization pattern from TODO-3094/3095/3096.
  *
  * Changelog:
+ * 1.2.0 - 2026-01-02 (Province-Based Filtering)
+ * - BREAKING: Changed filter logic from "unassigned branches" to "province-based"
+ * - CHANGED: Filter now shows branches in same province as agency (province_id match)
+ * - CHANGED: Branches without inspector (inspector_id IS NULL) in agency's province
+ * - REMOVED: Filter for agency_id IS NULL (old logic)
+ * - ADDED: Query agency province_id and filter branches by matching province
+ * - RATIONALE: Agencies are province-scoped (Disnaker Provinsi)
+ * - BENEFIT: Each agency only sees branches in their jurisdiction
+ * - Example: Disnaker Provinsi Aceh only sees Aceh branches
+ * 1.1.0 - 2026-01-02 (Auto-Wire Migration)
+ * - MIGRATED: Assign button to auto-wire modal system
+ * - CHANGED: Button class from .assign-inspector to .wpdt-edit-btn
+ * - ADDED: data-entity="new-company" for auto-wire detection
+ * - BENEFIT: Zero JavaScript needed, config-driven modal handling
+ * - CONSISTENT: Follows division/employee pattern
  * 1.0.2 - 2025-12-30
  * - CRITICAL FIX: filter_where() now checks model instance
  * - Prevents filter conflict with wp-customer's CompanyDataTableModel
@@ -163,15 +179,15 @@ class NewCompanyDataTableModel extends AbstractDataTable {
         );
 
         // Assign inspector button - check permission
-        // Only users with assign_inspector_to_branch capability can see this button
-        // (agency_admin_dinas and agency_admin_unit have this capability)
+        // Uses wpdt-edit-btn class for auto-wire modal system integration
+        // Auto-wire system will handle modal display and form submission automatically
+        // (agency_admin_dinas and agency_admin_unit have assign_inspector_to_branch capability)
         if (current_user_can('assign_inspector_to_branch')) {
             $actions .= sprintf(
-                '<button type="button" class="button button-small button-primary assign-inspector" data-id="%d" data-company="%s" title="%s">
+                '<button type="button" class="button button-small button-primary wpdt-edit-btn" data-id="%d" data-entity="new-company" title="%s">
                     <span class="dashicons dashicons-admin-users" style="font-size: 16px; width: 16px; height: 16px;"></span>
                 </button>',
                 $branch_id,
-                esc_attr($row->company_name ?? ''),
                 __('Assign Pengawas', 'wp-agency')
             );
         }
@@ -184,13 +200,9 @@ class NewCompanyDataTableModel extends AbstractDataTable {
      *
      * Hook callback for wpapp_datatable_{table}_where filter.
      * Applies filters:
-     * 1. Role-based filtering (handled by RoleBasedFilter - jurisdiction/province)
-     * 2. Agency filter (branches WITHOUT agency assignment)
-     * 3. Inspector filter (branches without inspector)
-     * 4. Status filter (active only)
-     *
-     * Note: Role-based access control is now handled by RoleBasedFilter (wp-agency/src/Filters/RoleBasedFilter.php)
-     *       which filters by jurisdiction (province/regency) for new company assignment page.
+     * 1. Province filter (branches in same province as agency)
+     * 2. Inspector filter (branches without inspector)
+     * 3. Status filter (active only)
      *
      * IMPORTANT: Only apply these filters if $model is instance of NewCompanyDataTableModel.
      *            This prevents conflicts with CompanyDataTableModel from wp-customer plugin.
@@ -202,24 +214,44 @@ class NewCompanyDataTableModel extends AbstractDataTable {
      */
     public function filter_where($where_conditions, $request_data, $model): array {
         // CRITICAL: Only apply filter if model is NewCompanyDataTableModel
-        // This prevents applying "unassigned branches" filter to wp-customer's CompanyDataTableModel
+        // This prevents applying filter to wp-customer's CompanyDataTableModel
         if (!($model instanceof NewCompanyDataTableModel)) {
             return $where_conditions;
         }
 
         global $wpdb;
 
-        // Role-based filtering is handled by RoleBasedFilter hook (wpapp_datatable_where_{role})
-        // No need for manual filtering here - it's done automatically by wp-app-core
+        // Get agency_id from request
+        $agency_id = isset($request_data['agency_id']) ? intval($request_data['agency_id']) : 0;
 
-        // 1. Filter branches WITHOUT agency (new companies)
-        $where_conditions[] = '(cb.agency_id IS NULL OR cb.agency_id = 0)';
+        if (!$agency_id) {
+            error_log('[NewCompanyDataTableModel] No agency_id in request - cannot filter by province');
+            return $where_conditions;
+        }
 
-        // 2. Filter branches without inspector
+        // Get agency's province_id
+        $agency_province_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT province_id FROM {$wpdb->prefix}app_agencies WHERE id = %d",
+            $agency_id
+        ));
+
+        if (!$agency_province_id) {
+            error_log('[NewCompanyDataTableModel] Agency province_id not found for agency_id: ' . $agency_id);
+            return $where_conditions;
+        }
+
+        error_log('[NewCompanyDataTableModel] Filtering branches by province_id: ' . $agency_province_id . ' for agency_id: ' . $agency_id);
+
+        // 1. Filter branches in same province as agency
+        $where_conditions[] = $wpdb->prepare('cb.province_id = %d', $agency_province_id);
+
+        // 2. Filter branches without inspector (available for assignment)
         $where_conditions[] = 'cb.inspector_id IS NULL';
 
         // 3. Filter active branches only
         $where_conditions[] = $wpdb->prepare('cb.status = %s', 'active');
+
+        error_log('[NewCompanyDataTableModel] Final WHERE conditions: ' . print_r($where_conditions, true));
 
         return $where_conditions;
     }
@@ -229,6 +261,7 @@ class NewCompanyDataTableModel extends AbstractDataTable {
      *
      * Helper method for dashboard statistics.
      * Reuses same filtering logic as DataTable.
+     * Counts branches in same province as agency that don't have inspector yet.
      *
      * @param int $agency_id Agency ID to filter by
      * @return int Total count

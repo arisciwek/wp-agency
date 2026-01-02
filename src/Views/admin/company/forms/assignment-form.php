@@ -31,9 +31,9 @@ defined('ABSPATH') || exit;
 ?>
 
 <form id="assign-agency-form">
-    <!-- Hidden fields -->
-    <input type="hidden" id="assign-branch-id" value="<?php echo esc_attr($branch_id); ?>" />
-    <input type="hidden" id="assign-agency-id" value="<?php echo esc_attr($current_agency_id); ?>" />
+    <!-- Hidden fields for auto-wire submission -->
+    <input type="hidden" id="assign-branch-id" name="branch_id" value="<?php echo esc_attr($branch_id); ?>" />
+    <input type="hidden" id="assign-agency-id" name="agency_id" value="<?php echo esc_attr($current_agency_id); ?>" />
 
     <!-- Company Name (Readonly) -->
     <div class="form-group" style="margin-bottom: 15px;">
@@ -82,8 +82,16 @@ defined('ABSPATH') || exit;
                 class="regular-text"
                 required
                 style="width: 100%;"
-                disabled>
-            <option value=""><?php esc_html_e('Memuat unit kerja...', 'wp-agency'); ?></option>
+                <?php echo empty($divisions) ? 'disabled' : ''; ?>>
+            <option value="">
+                <?php
+                if (empty($divisions)) {
+                    esc_html_e('-- Tidak Ada Unit Kerja --', 'wp-agency');
+                } else {
+                    esc_html_e('-- Pilih Unit Kerja --', 'wp-agency');
+                }
+                ?>
+            </option>
             <?php if (!empty($divisions)): ?>
                 <?php foreach ($divisions as $division): ?>
                     <option value="<?php echo esc_attr($division->id); ?>">

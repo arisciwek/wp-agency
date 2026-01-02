@@ -165,6 +165,51 @@ class AgencyModel extends AbstractCrudModel {
     }
 
     // ========================================
+    // OVERRIDE PARENT METHODS
+    // ========================================
+
+    /**
+     * Override find() to include province and regency names
+     *
+     * Joins with wi_provinces and wi_regencies tables to get location names.
+     * Maintains cache functionality from parent.
+     *
+     * @param int $id Agency ID
+     * @return object|null Agency object with provinsi_name and regency_name or null
+     */
+    public function find(int $id): ?object {
+        // 1. Check cache
+        $cached = $this->cache->getAgency($id);
+        if ($cached !== false) {
+            return $cached;
+        }
+
+        // 2. Query database with JOIN
+        global $wpdb;
+        $table = $this->getTableName();
+
+        $query = "
+            SELECT
+                a.*,
+                p.name as provinsi_name,
+                r.name as regency_name
+            FROM {$table} a
+            LEFT JOIN {$wpdb->prefix}wi_provinces p ON a.province_id = p.id
+            LEFT JOIN {$wpdb->prefix}wi_regencies r ON a.regency_id = r.id
+            WHERE a.id = %d
+        ";
+
+        $result = $wpdb->get_row($wpdb->prepare($query, $id));
+
+        // 3. Cache result (if found)
+        if ($result) {
+            $this->cache->setAgency($id, $result);
+        }
+
+        return $result;
+    }
+
+    // ========================================
     // AUDIT LOG INTEGRATION
     // ========================================
 

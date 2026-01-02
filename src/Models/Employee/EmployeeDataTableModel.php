@@ -129,14 +129,16 @@ class EmployeeDataTableModel extends AbstractDataTable {
 
         return [
             'DT_RowId' => 'employee-' . $employee_id,
+            'DT_RowClass' => 'wpdt-clickable-row', // Required for row highlight
             'DT_RowData' => [
-                'id' => $employee_id
+                'id' => $employee_id,
+                'entity' => 'employee' // Required for panel entity detection
             ],
             'name' => esc_html($row->name ?? ''),
             'position' => esc_html($row->position ?? ''),
             'email' => esc_html($row->email ?? ''),
             'phone' => esc_html($row->phone ?? ''),
-            'status' => $this->format_status_badge($row->status ?? ''),
+            'status' => $row->status ?? 'inactive', // Return raw status, let client render badge
             'actions' => $actions
         ];
     }

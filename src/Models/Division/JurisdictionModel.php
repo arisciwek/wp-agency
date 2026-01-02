@@ -157,7 +157,7 @@ class JurisdictionModel {
 
         // Check cache first
         $cached = $this->cache->get($cache_key);
-        if ($cached !== null) {
+        if ($cached !== null && is_array($cached)) {
             return $cached;
         }
 
@@ -171,10 +171,13 @@ class JurisdictionModel {
 
         $jurisdictions = $wpdb->get_results($query);
 
-        // Cache the result
-        $this->cache->set($cache_key, $jurisdictions, self::CACHE_EXPIRY);
+        // Ensure we always return an array
+        $result = is_array($jurisdictions) ? $jurisdictions : [];
 
-        return $jurisdictions ?: [];
+        // Cache the result
+        $this->cache->set($cache_key, $result, self::CACHE_EXPIRY);
+
+        return $result;
     }
 
     /**
@@ -194,8 +197,16 @@ class JurisdictionModel {
         $agency_model = new AgencyModel();
         $agency = $agency_model->find($agency_id);
 
-        $cache_key = 'available_regencies_agency_' . $agency_id . '_v11';
-        $filter_province = $province_code ?: ($agency ? $agency->provinsi_code : '');
+        // Determine province code to filter
+        $filter_province = $province_code;
+        if (!$filter_province && $agency && $agency->province_id) {
+            $filter_province = $wpdb->get_var($wpdb->prepare(
+                "SELECT code FROM {$wpdb->prefix}wi_provinces WHERE id = %d",
+                $agency->province_id
+            ));
+        }
+
+        $cache_key = 'available_regencies_agency_' . $agency_id . '_v12';
         if ($filter_province) {
             $cache_key .= '_province_' . $filter_province;
         }
@@ -203,51 +214,81 @@ class JurisdictionModel {
             $cache_key .= '_exclude_' . $exclude_division_id;
         }
 
+        error_log('DEBUG AVAILABLE REGENCIES: Cache key: ' . $cache_key);
+
         // Check cache first
         $cached = $this->cache->get($cache_key);
-        if ($cached !== null) {
+        if ($cached !== null && is_array($cached)) {
+            error_log('DEBUG AVAILABLE REGENCIES: CACHE HIT - Returning ' . count($cached) . ' regencies from cache');
             return $cached;
         }
 
+        error_log('DEBUG AVAILABLE REGENCIES: CACHE MISS - Fetching fresh data from database');
+
         // Delete old cache keys
-        $old_cache_key = str_replace('_v7', '_v6', $cache_key);
-        $this->cache->delete($old_cache_key);
-        $old_cache_key2 = str_replace('_v7', '_v5', $cache_key);
-        $this->cache->delete($old_cache_key2);
-
-        // Get regencies in province that are not assigned as jurisdictions to any division in the agency
-        $query = "
-            SELECT r.id, r.code, r.name, p.name as province_name
-            FROM {$wpdb->prefix}wi_regencies r
-            JOIN {$wpdb->prefix}wi_provinces p ON p.id = r.province_id AND p.code = %s
-            LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_regency_id = r.id
-            LEFT JOIN {$wpdb->prefix}app_agency_divisions d ON aj.division_id = d.id AND d.agency_id = %d";
-        $params = [$filter_province, $agency_id];
-
-        if ($exclude_division_id) {
-            // For edit mode: exclude current division's jurisdiction assignments from the "assigned" check
-            $query .= " AND d.id != %d";
-            $params[] = $exclude_division_id;
+        $old_versions = ['_v11', '_v10', '_v9', '_v8', '_v7', '_v6', '_v5'];
+        foreach ($old_versions as $old_ver) {
+            $old_cache_key = str_replace('_v12', $old_ver, $cache_key);
+            $this->cache->delete($old_cache_key);
         }
 
-        $query .= "
-            WHERE aj.jurisdiction_regency_id IS NULL
-            ORDER BY r.code ASC";
+        // Get regencies in province that are available for this division
+        if ($exclude_division_id) {
+            // EDIT MODE: Show regencies that are either:
+            // 1. Not assigned to any division in this agency, OR
+            // 2. Assigned to the current division being edited
+            $query = "
+                SELECT DISTINCT r.id, r.code, r.name, p.name as province_name
+                FROM {$wpdb->prefix}wi_regencies r
+                JOIN {$wpdb->prefix}wi_provinces p ON p.id = r.province_id AND p.code = %s
+                WHERE r.id NOT IN (
+                    SELECT aj2.jurisdiction_regency_id
+                    FROM {$wpdb->prefix}app_agency_jurisdictions aj2
+                    JOIN {$wpdb->prefix}app_agency_divisions d2 ON aj2.division_id = d2.id
+                    WHERE d2.agency_id = %d
+                    AND d2.id != %d
+                )
+                ORDER BY r.code ASC";
+            $params = [$filter_province, $agency_id, $exclude_division_id];
+        } else {
+            // CREATE MODE: Show only truly unassigned regencies
+            $query = "
+                SELECT r.id, r.code, r.name, p.name as province_name
+                FROM {$wpdb->prefix}wi_regencies r
+                JOIN {$wpdb->prefix}wi_provinces p ON p.id = r.province_id AND p.code = %s
+                LEFT JOIN {$wpdb->prefix}app_agency_jurisdictions aj ON aj.jurisdiction_regency_id = r.id
+                LEFT JOIN {$wpdb->prefix}app_agency_divisions d ON aj.division_id = d.id AND d.agency_id = %d
+                WHERE aj.jurisdiction_regency_id IS NULL
+                ORDER BY r.code ASC";
+            $params = [$filter_province, $agency_id];
+        }
 
-        error_log("DEBUG MODEL: Query: " . $wpdb->prepare($query, $params));
+        $prepared_query = $wpdb->prepare($query, $params);
+        error_log("DEBUG MODEL: Query: " . $prepared_query);
         error_log("DEBUG MODEL: Params: " . print_r($params, true));
 
-        $available_regencies = $wpdb->get_results($wpdb->prepare($query, $params));
+        $available_regencies = $wpdb->get_results($prepared_query);
 
-        error_log("DEBUG MODEL: Found " . count($available_regencies) . " available regencies");
-        if (!empty($available_regencies)) {
-            error_log("DEBUG MODEL: Sample results: " . print_r(array_slice($available_regencies, 0, 3), true));
+        // Check for SQL errors
+        if ($wpdb->last_error) {
+            error_log("DEBUG MODEL: SQL Error: " . $wpdb->last_error);
+        }
+
+        // Ensure we always have an array
+        $result = is_array($available_regencies) ? $available_regencies : [];
+
+        error_log("DEBUG MODEL: Found " . count($result) . " available regencies");
+        if (!empty($result)) {
+            error_log("DEBUG MODEL: Sample results: " . print_r(array_slice($result, 0, 3), true));
+        } else {
+            error_log("DEBUG MODEL: No available regencies found - all might be assigned or query issue");
         }
 
         // Cache the result
-        $this->cache->set($cache_key, $available_regencies ?: [], self::CACHE_EXPIRY);
+        $this->cache->set($cache_key, $result, self::CACHE_EXPIRY);
+        error_log('DEBUG AVAILABLE REGENCIES: Cached ' . count($result) . ' regencies with key: ' . $cache_key);
 
-        return $available_regencies ?: [];
+        return $result;
     }
 
     /**
@@ -265,21 +306,66 @@ class JurisdictionModel {
 
         $agency_id = $division->agency_id;
 
+        error_log('DEBUG CACHE INVALIDATION: Starting for division ' . $division_id . ', agency ' . $agency_id);
+
         // Clear division-specific caches
         $this->cache->delete('division_jurisdictions_' . $division_id);
+        error_log('DEBUG CACHE INVALIDATION: Deleted division_jurisdictions_' . $division_id);
 
         // Clear available regencies caches (need to consider province and version)
         $agency_model = new AgencyModel();
         $agency = $agency_model->find($agency_id);
-        $base_key = 'available_regencies_agency_' . $agency_id . '_v11';
-        $filter_province = $agency ? $agency->provinsi_code : '';
+
+        // Get province code from province_id
+        global $wpdb;
+        $filter_province = '';
+        if ($agency && $agency->province_id) {
+            $filter_province = $wpdb->get_var($wpdb->prepare(
+                "SELECT code FROM {$wpdb->prefix}wi_provinces WHERE id = %d",
+                $agency->province_id
+            ));
+        }
+
+        $base_key = 'available_regencies_agency_' . $agency_id . '_v12';
         if ($filter_province) {
             $base_key .= '_province_' . $filter_province;
         }
+
+        // Delete base cache key (without exclude parameter)
         $this->cache->delete($base_key);
-        $this->cache->delete($base_key . '_exclude_' . $division_id);
+        error_log('DEBUG CACHE INVALIDATION: Deleted base key: ' . $base_key);
+
+        // Get ALL divisions in this agency and delete their exclude caches
+        $all_divisions = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}app_agency_divisions WHERE agency_id = %d",
+            $agency_id
+        ));
+
+        error_log('DEBUG CACHE INVALIDATION: Found ' . count($all_divisions) . ' divisions in agency');
+
+        // Delete cache for ALL divisions (not just the current one)
+        foreach ($all_divisions as $div_id) {
+            $exclude_key = $base_key . '_exclude_' . $div_id;
+            $this->cache->delete($exclude_key);
+            error_log('DEBUG CACHE INVALIDATION: Deleted: ' . $exclude_key);
+        }
+
+        // Also delete old version caches for ALL divisions
+        $old_versions = ['_v11', '_v10', '_v9'];
+        foreach ($old_versions as $old_ver) {
+            $old_base_key = str_replace('_v12', $old_ver, $base_key);
+            $this->cache->delete($old_base_key);
+
+            foreach ($all_divisions as $div_id) {
+                $old_exclude_key = $old_base_key . '_exclude_' . $div_id;
+                $this->cache->delete($old_exclude_key);
+            }
+        }
+
+        error_log('DEBUG CACHE INVALIDATION: Deleted old version caches');
 
         // Clear DataTable cache
         $this->cache->invalidateDataTableCache('division_list', ['agency_id' => $agency_id]);
+        error_log('DEBUG CACHE INVALIDATION: Invalidated DataTable cache for agency ' . $agency_id);
     }
 }

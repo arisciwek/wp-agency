@@ -234,7 +234,12 @@ class AgencyDashboardController {
         add_action('wp_ajax_delete_agency', [$this, 'handle_delete_agency']);
 
         // Auto-wire config injection for modal system
-        add_filter('wpdt_localize_data', [$this, 'inject_autowire_config']);
+        add_filter('wpdt_localize_data', [$this, 'inject_autowire_config'], 10, 1);
+
+        // Backup: Direct localize via admin_enqueue_scripts (priority 20, after wp-datatable's 10)
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_autowire_config'], 20);
+
+        error_log('[wp-agency] Registered wpdt_localize_data filter hook in AgencyDashboardController');
     }
 
     /**
@@ -301,7 +306,7 @@ class AgencyDashboardController {
         // For now, use 0 as placeholder - will be updated via AJAX response
         wp_localize_script('wp-agency-new-company-datatable', 'wpAgencyNewCompany', array(
             'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('wp_agency_nonce'),
+            'nonce' => wp_create_nonce('wpdt_nonce'),
             'agency_id' => 0, // Placeholder - actual ID from tab data-agency-id
             'i18n' => array(
                 'loading' => __('Loading...', 'wp-agency'),
@@ -683,7 +688,7 @@ class AgencyDashboardController {
         }
 
         // Include lazy-loaded DataTable view
-        include WP_AGENCY_PATH . 'src/Views/agency/tabs/new-companies.php';
+        include WP_AGENCY_PATH . 'src/Views/admin/agency/new-companies-tab.php';
     }
 
     /**
@@ -921,11 +926,8 @@ class AgencyDashboardController {
      * Implements Perfex CRM lazy loading pattern
      */
     public function handle_load_divisions_tab(): void {
-        // Verify nonce - use base panel system nonce
-        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
-            wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
-            return;
-        }
+        // Verify nonce for security
+        check_ajax_referer('wpdt_nonce', 'nonce');
 
         $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
 
@@ -971,11 +973,8 @@ class AgencyDashboardController {
      * Implements Perfex CRM lazy loading pattern
      */
     public function handle_load_employees_tab(): void {
-        // Verify nonce - use base panel system nonce
-        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
-            wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
-            return;
-        }
+        // Verify nonce for security
+        check_ajax_referer('wpdt_nonce', 'nonce');
 
         $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
 
@@ -1022,11 +1021,8 @@ class AgencyDashboardController {
      * Implements Perfex CRM lazy loading pattern
      */
     public function handle_load_new_companies_tab(): void {
-        // Verify nonce - use base panel system nonce
-        if (!check_ajax_referer('wpdt_nonce', 'nonce', false)) {
-            wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
-            return;
-        }
+        // Verify nonce for security
+        check_ajax_referer('wpdt_nonce', 'nonce');
 
         $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
 
@@ -1335,8 +1331,11 @@ class AgencyDashboardController {
             wp_die();
         }
 
-        $mode = $_GET['mode'] ?? 'create';
-        $agency_id = isset($_GET['agency_id']) ? (int) $_GET['agency_id'] : 0;
+        // Auto-wire sends 'id', legacy sends 'agency_id'
+        $agency_id = isset($_GET['id']) ? (int) $_GET['id'] : (isset($_GET['agency_id']) ? (int) $_GET['agency_id'] : 0);
+
+        // Determine mode: if ID exists, it's edit mode
+        $mode = $agency_id > 0 ? 'edit' : ($_GET['mode'] ?? 'create');
 
         // Check permissions
         if ($mode === 'edit') {
@@ -1358,26 +1357,33 @@ class AgencyDashboardController {
                 $agency = $this->model->find($agency_id);
 
                 if (!$agency) {
-                    echo '<p class="error">' . __('Agency not found', 'wp-agency') . '</p>';
-                    wp_die();
+                    wp_send_json_error(['message' => __('Agency not found', 'wp-agency')]);
+                    return;
                 }
 
-                // Use output buffering to capture form output
+                // Load edit form and capture output for auto-wire system
                 ob_start();
                 include WP_AGENCY_PATH . 'src/Views/admin/agency/forms/edit-agency-form.php';
-                $form_html = ob_get_clean();
-                echo $form_html;
+                $html = ob_get_clean();
+
+                wp_send_json_success(['html' => $html]);
             } else {
+                // Create mode - check if create form exists
+                $create_form_path = WP_AGENCY_PATH . 'src/Views/admin/agency/forms/create-agency-form.php';
+                if (!file_exists($create_form_path)) {
+                    wp_send_json_error(['message' => __('Create form not found', 'wp-agency')]);
+                    return;
+                }
+
                 ob_start();
-                include WP_AGENCY_PATH . 'src/Views/admin/agency/forms/create-agency-form.php';
-                $form_html = ob_get_clean();
-                echo $form_html;
+                include $create_form_path;
+                $html = ob_get_clean();
+
+                wp_send_json_success(['html' => $html]);
             }
         } catch (\Exception $e) {
-            echo '<p class="error">' . esc_html($e->getMessage()) . '</p>';
+            wp_send_json_error(['message' => $e->getMessage()]);
         }
-
-        wp_die();
     }
 
     /**
@@ -1391,11 +1397,14 @@ class AgencyDashboardController {
         if (!wp_verify_nonce($nonce, 'wpdt_nonce')) {
             ob_end_clean();
             wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
-            wp_die();
+            return;
         }
 
-        $mode = $_POST['mode'] ?? 'create';
-        $agency_id = isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0;
+        // Auto-wire sends 'id', legacy sends 'agency_id'
+        $agency_id = isset($_POST['id']) ? (int) $_POST['id'] : (isset($_POST['agency_id']) ? (int) $_POST['agency_id'] : 0);
+
+        // Determine mode: if ID exists, it's edit mode
+        $mode = $agency_id > 0 ? 'edit' : ($_POST['mode'] ?? 'create');
 
         // Check permissions
         if ($mode === 'edit') {
@@ -1404,24 +1413,22 @@ class AgencyDashboardController {
                 !current_user_can('edit_own_agency')) {
                 ob_end_clean();
                 wp_send_json_error(['message' => __('Permission denied', 'wp-agency')]);
-                wp_die();
+                return;
             }
         } else {
             if (!current_user_can('manage_options') && !current_user_can('add_agency')) {
                 ob_end_clean();
                 wp_send_json_error(['message' => __('Permission denied', 'wp-agency')]);
-                wp_die();
+                return;
             }
         }
 
-        // Prepare data
+        // Prepare data (only fields that exist in database)
         $data = [
             'name' => sanitize_text_field($_POST['name'] ?? ''),
+            'status' => in_array($_POST['status'] ?? '', ['active', 'inactive']) ? $_POST['status'] : 'inactive',
             'province_id' => !empty($_POST['province_id']) ? (int) $_POST['province_id'] : null,
             'regency_id' => !empty($_POST['regency_id']) ? (int) $_POST['regency_id'] : null,
-            'address' => sanitize_textarea_field($_POST['address'] ?? ''),
-            'phone' => sanitize_text_field($_POST['phone'] ?? ''),
-            'email' => sanitize_email($_POST['email'] ?? ''),
         ];
 
         try {
@@ -1501,10 +1508,20 @@ class AgencyDashboardController {
      * @return array Modified data with entity configs
      */
     public function inject_autowire_config($data) {
+        error_log('[wp-agency] ========================================');
+        error_log('[wp-agency] inject_autowire_config() CALLED');
+        error_log('[wp-agency] Current page: ' . ($_GET['page'] ?? 'NOT SET'));
+        error_log('[wp-agency] Request URI: ' . ($_SERVER['REQUEST_URI'] ?? 'N/A'));
+        error_log('[wp-agency] Data keys before: ' . print_r(array_keys($data), true));
+
         // Only inject on wp-agency-disnaker page
         if (!isset($_GET['page']) || $_GET['page'] !== 'wp-agency-disnaker') {
+            error_log('[wp-agency] Page check FAILED - returning unchanged');
+            error_log('[wp-agency] ========================================');
             return $data;
         }
+
+        error_log('[wp-agency] Page check PASSED - injecting config');
 
         // Agency entity config
         $data['agency'] = [
@@ -1537,6 +1554,7 @@ class AgencyDashboardController {
                     'modal_title' => __('Edit Division', 'wp-agency'),
                     'success_message' => __('Division updated successfully!', 'wp-agency'),
                     'modal_size' => 'large',
+                    'datatable_id' => '#division-table',  // Custom table ID
                 ],
                 'delete' => [
                     'enabled' => true,
@@ -1544,6 +1562,7 @@ class AgencyDashboardController {
                     'confirm_title' => __('Delete Division', 'wp-agency'),
                     'confirm_message' => __('Are you sure you want to delete this division?', 'wp-agency'),
                     'success_message' => __('Division deleted successfully!', 'wp-agency'),
+                    'datatable_id' => '#division-table',  // Custom table ID
                 ],
             ],
         ];
@@ -1553,22 +1572,155 @@ class AgencyDashboardController {
             'action_buttons' => [
                 'edit' => [
                     'enabled' => true,
-                    'ajax_action' => 'get_employee_form',
-                    'submit_action' => 'save_employee',
+                    'ajax_action' => 'get_agency_employee_form',
+                    'submit_action' => 'save_agency_employee',
                     'modal_title' => __('Edit Employee', 'wp-agency'),
                     'success_message' => __('Employee updated successfully!', 'wp-agency'),
                     'modal_size' => 'large',
+                    'datatable_id' => '#employee-table',  // Custom table ID
                 ],
                 'delete' => [
                     'enabled' => true,
-                    'ajax_action' => 'delete_employee',
+                    'ajax_action' => 'delete_agency_employee',
                     'confirm_title' => __('Delete Employee', 'wp-agency'),
                     'confirm_message' => __('Are you sure you want to delete this employee?', 'wp-agency'),
                     'success_message' => __('Employee deleted successfully!', 'wp-agency'),
+                    'datatable_id' => '#employee-table',  // Custom table ID
                 ],
             ],
         ];
 
+        // New Company entity config (for assign inspector)
+        $data['new-company'] = [
+            'action_buttons' => [
+                'edit' => [
+                    'enabled' => true,
+                    'ajax_action' => 'get_assignment_form',
+                    'submit_action' => 'assign_inspector',
+                    'modal_title' => __('Assign to Agency', 'wp-agency'),
+                    'success_message' => __('Agency, division, dan inspector berhasil ditugaskan!', 'wp-agency'),
+                    'modal_size' => 'medium',
+                    'datatable_id' => '#new-companies-datatable',  // Custom table ID
+                ],
+            ],
+        ];
+
+        error_log('[wp-agency] Data after inject: ' . print_r(array_keys($data), true));
+        error_log('[wp-agency] Agency config injected successfully');
+
         return $data;
+    }
+
+    /**
+     * Enqueue auto-wire config directly via wp_localize_script
+     * Fallback method if wpdt_localize_data filter doesn't work
+     */
+    public function enqueue_autowire_config() {
+        // Only on wp-agency-disnaker page
+        if (!isset($_GET['page']) || $_GET['page'] !== 'wp-agency-disnaker') {
+            return;
+        }
+
+        error_log('[wp-agency] enqueue_autowire_config() called - injecting directly');
+
+        // Build config
+        $config = [
+            'agency' => [
+                'action_buttons' => [
+                    'edit' => [
+                        'enabled' => true,
+                        'ajax_action' => 'get_agency_form',
+                        'submit_action' => 'save_agency',
+                        'modal_title' => __('Edit Agency', 'wp-agency'),
+                        'success_message' => __('Agency updated successfully!', 'wp-agency'),
+                        'modal_size' => 'large',
+                    ],
+                    'delete' => [
+                        'enabled' => true,
+                        'ajax_action' => 'delete_agency',
+                        'confirm_title' => __('Delete Agency', 'wp-agency'),
+                        'confirm_message' => __('Are you sure you want to delete this agency? This action cannot be undone.', 'wp-agency'),
+                        'success_message' => __('Agency deleted successfully!', 'wp-agency'),
+                    ],
+                ],
+            ],
+            'division' => [
+                'action_buttons' => [
+                    'edit' => [
+                        'enabled' => true,
+                        'ajax_action' => 'get_division_form',
+                        'submit_action' => 'save_division',
+                        'modal_title' => __('Edit Division', 'wp-agency'),
+                        'success_message' => __('Division updated successfully!', 'wp-agency'),
+                        'modal_size' => 'large',
+                        'datatable_id' => '#division-table',  // Custom table ID
+                    ],
+                    'delete' => [
+                        'enabled' => true,
+                        'ajax_action' => 'delete_division',
+                        'confirm_title' => __('Delete Division', 'wp-agency'),
+                        'confirm_message' => __('Are you sure you want to delete this division?', 'wp-agency'),
+                        'success_message' => __('Division deleted successfully!', 'wp-agency'),
+                        'datatable_id' => '#division-table',  // Custom table ID
+                    ],
+                ],
+            ],
+            'employee' => [
+                'action_buttons' => [
+                    'edit' => [
+                        'enabled' => true,
+                        'ajax_action' => 'get_agency_employee_form',
+                        'submit_action' => 'save_agency_employee',
+                        'modal_title' => __('Edit Employee', 'wp-agency'),
+                        'success_message' => __('Employee updated successfully!', 'wp-agency'),
+                        'modal_size' => 'large',
+                        'datatable_id' => '#employee-table',  // Custom table ID
+                    ],
+                    'delete' => [
+                        'enabled' => true,
+                        'ajax_action' => 'delete_agency_employee',
+                        'confirm_title' => __('Delete Employee', 'wp-agency'),
+                        'confirm_message' => __('Are you sure you want to delete this employee?', 'wp-agency'),
+                        'success_message' => __('Employee deleted successfully!', 'wp-agency'),
+                        'datatable_id' => '#employee-table',  // Custom table ID
+                    ],
+                ],
+            ],
+            'new-company' => [
+                'action_buttons' => [
+                    'edit' => [
+                        'enabled' => true,
+                        'ajax_action' => 'get_assignment_form',
+                        'submit_action' => 'assign_inspector',
+                        'modal_title' => __('Assign to Agency', 'wp-agency'),
+                        'success_message' => __('Agency, division, dan inspector berhasil ditugaskan!', 'wp-agency'),
+                        'modal_size' => 'medium',
+                        'datatable_id' => '#new-companies-datatable',  // Custom table ID
+                    ],
+                ],
+            ],
+        ];
+
+        // Inject into wpdtConfig
+        wp_localize_script('wpdt-panel-manager', 'wpAgencyAutoWireConfig', $config);
+
+        error_log('[wp-agency] Config injected as wpAgencyAutoWireConfig');
+
+        // Also try to merge into wpdtConfig via inline script
+        $inline_script = '
+        (function($) {
+            $(document).ready(function() {
+                if (typeof wpdtConfig !== "undefined" && typeof wpAgencyAutoWireConfig !== "undefined") {
+                    console.log("[wp-agency] Merging wpAgencyAutoWireConfig into wpdtConfig");
+                    $.extend(true, wpdtConfig, wpAgencyAutoWireConfig);
+                    console.log("[wp-agency] Final wpdtConfig:", wpdtConfig);
+                }
+            });
+        })(jQuery);
+        ';
+
+        wp_add_inline_script('wpdt-panel-manager', $inline_script);
+
+        error_log('[wp-agency] Inline script added to merge configs');
     }
 }

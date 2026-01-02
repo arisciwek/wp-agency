@@ -37,43 +37,33 @@
          currentHighlight: null,
          agencyId: null,
          statusFilter: 'active', // Default filter: active only
-         $container: null,
-         $tableContainer: null,
-         $loadingState: null,
-         $emptyState: null,
-         $errorState: null,
 
          init(agencyId) {
-             // Cache DOM elements
-             this.$container = $('#division-list');
-             this.$tableContainer = this.$container.find('.wi-table-container');
-             this.$loadingState = this.$container.find('.division-loading-state');
-             this.$emptyState = this.$container.find('.empty-state');
-             this.$errorState = this.$container.find('.error-state');
+             console.log('[Division DataTable] init() called with agency:', agencyId);
 
              // Always reinitialize when called to ensure fresh data
              this.agencyId = agencyId;
              this.statusFilter = 'active'; // Reset to active on init
-             this.showLoading();
+
              this.initDataTable();
              this.bindEvents();
+
+             console.log('[Division DataTable] Initialization complete');
          },
 
          bindEvents() {
+             console.log('[Division DataTable] Binding events');
+
              // CRUD event listeners
              $(document)
                  .off('division:created.datatable division:updated.datatable division:deleted.datatable')
                  .on('division:created.datatable division:updated.datatable division:deleted.datatable',
                      () => this.refresh());
 
-             // Reload button handler
-             this.$errorState.find('.reload-table').off('click').on('click', () => {
-                 this.refresh();
-             });
-
             // Status filter change handler
             $('#division-status-filter').off('change').on('change', (e) => {
                 this.statusFilter = $(e.target).val();
+                console.log('[Division DataTable] Status filter changed to:', this.statusFilter);
                 this.refresh();
             });
 
@@ -142,24 +132,15 @@
          },
 
         initDataTable() {
+            console.log('[Division DataTable] initDataTable() called');
+
             if ($.fn.DataTable.isDataTable('#division-table')) {
+                console.log('[Division DataTable] Destroying existing DataTable');
                 $('#division-table').DataTable().destroy();
             }
 
-            $('#division-table').empty().html(`
-                <thead>
-                    <tr>
-                        <th>Kode</th>
-                        <th>Nama</th>
-                        <th>Admin</th>
-                        <th>Tipe</th>
-                        <th>Status</th>
-                        <th>Yuridiksi</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            `);
+            // DO NOT overwrite HTML - table structure already loaded from server
+            console.log('[Division DataTable] Initializing DataTable with agency_id:', this.agencyId);
 
             const self = this;
             this.table = $('#division-table').DataTable({
@@ -172,57 +153,39 @@
                     data: (d) => {
                         return {
                             ...d,
-                            action: 'handle_division_datatable',
+                            action: 'get_divisions_datatable',
                             agency_id: this.agencyId,
                             status_filter: this.statusFilter,
                             nonce: wpAgencyData.nonce
                         };
                     },
                     error: (xhr, error, thrown) => {
-                        console.error('DataTables Error:', error);
-                        this.showError();
+                        console.error('[Division DataTable] AJAX Error:', error, thrown);
                     },
                     dataSrc: function(response) {
-                        if (!response.data || response.data.length === 0) {
-                            self.showEmpty();
-                        } else {
-                            self.showTable();
+                        console.log('[Division DataTable] Data received:', response);
+                        if (response.data && response.data.length > 0) {
+                            console.log('[Division DataTable] Total rows:', response.data.length);
                         }
-                        return response.data;
+                        return response.data || [];
                     }
                 },
 
                 columns: [
-                    { data: 'code', width: '10%', className: 'column-code' },
-                    { data: 'name', width: '20%', className: 'column-name' },
                     {
-                        data: 'admin_name',
-                        width: '12%',
-                        className: 'column-admin',
-                        render: (data) => data || '-'
+                        data: 'code',
+                        width: '15%',
+                        className: 'column-code'
                     },
                     {
-                        data: 'type',
-                        width: '8%',
-                        className: 'column-type',
-                        render: (data) => data === 'pusat' ? 'Pusat' : 'Cabang'
+                        data: 'name',
+                        width: '35%',
+                        className: 'column-name'
                     },
                     {
-                        data: 'status',
-                        width: '10%',
-                        className: 'column-status',
-                        render: (data) => {
-                            if (data === 'active') {
-                                return '<span class="status-badge status-active">Aktif</span>';
-                            } else {
-                                return '<span class="status-badge status-inactive">Tidak Aktif</span>';
-                            }
-                        }
-                    },
-                    {
-                        data: 'jurisdictions',
-                        width: '25%',
-                        className: 'column-jurisdictions',
+                        data: 'wilayah_kerja',
+                        width: '35%',
+                        className: 'column-wilayah',
                         render: (data) => data || '-'
                     },
                     {
@@ -268,52 +231,53 @@
              // Just handle other action buttons if needed
          },
 
-         showLoading() {
-             this.$tableContainer.hide();
-             this.$emptyState.hide();
-             this.$errorState.hide();
-             this.$loadingState.show();
-         },
-
-         showEmpty() {
-             this.$tableContainer.hide();
-             this.$loadingState.hide();
-             this.$errorState.hide();
-             this.$emptyState.show();
-         },
-
-         showError() {
-             this.$tableContainer.hide();
-             this.$loadingState.hide();
-             this.$emptyState.hide();
-             this.$errorState.show();
-         },
-
-         showTable() {
-             this.$loadingState.hide();
-             this.$emptyState.hide();
-             this.$errorState.hide();
-             this.$tableContainer.show();
-         },
-
          refresh() {
              if (this.table) {
-                 this.showLoading();
+                 console.log('[Division DataTable] Refreshing table');
                  this.table.ajax.reload(() => {
+                     console.log('[Division DataTable] Table reloaded');
                      const info = this.table.page.info();
-                     if (info.recordsTotal === 0) {
-                         this.showEmpty();
-                     } else {
-                         this.showTable();
-                     }
+                     console.log('[Division DataTable] Total records:', info.recordsTotal);
                  }, false);
              }
          }
      };
 
+     // Expose to window immediately (not inside document.ready)
+     window.DivisionDataTable = DivisionDataTable;
+
      // Initialize when document is ready
      $(document).ready(() => {
-         window.DivisionDataTable = DivisionDataTable;
+         // Listen for tab content loaded event from wp-datatable framework
+         // This event is triggered AFTER AJAX content is loaded into tab
+         $(document).on('wpdt:tab-content-loaded', (e, data) => {
+             // Initialize DataTable when divisions tab content loaded
+             if (data.tabId === 'divisions') {
+                 console.log('[Division DataTable] Tab content loaded, initializing...');
+
+                 const $table = $('#division-table');
+
+                 if (!$table.length) {
+                     console.error('[Division DataTable] Table not found');
+                     return;
+                 }
+
+                 if ($.fn.DataTable.isDataTable($table)) {
+                     console.log('[Division DataTable] Table already initialized');
+                     return;
+                 }
+
+                 const agencyId = $table.data('agency-id');
+
+                 if (!agencyId) {
+                     console.error('[Division DataTable] agency-id not found on table');
+                     return;
+                 }
+
+                 console.log('[Division DataTable] Initializing for agency:', agencyId);
+                 DivisionDataTable.init(agencyId);
+             }
+         });
      });
 
  })(jQuery);

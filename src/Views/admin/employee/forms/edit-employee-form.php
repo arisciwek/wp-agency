@@ -26,20 +26,21 @@
  * - Added AJAX integration
  */
 defined('ABSPATH') || exit;
+
+// Ensure $employee object exists (loaded by controller)
+if (!isset($employee) || !is_object($employee)) {
+    echo '<p class="error">' . __('Employee data not found', 'wp-agency') . '</p>';
+    return;
+}
 ?>
 
-<div id="edit-employee-modal" class="modal-overlay wp-agency-modal" style="display: none;">
-    <div class="modal-container">
-        <div class="modal-header">
-            <h3><?php _e('Edit Karyawan', 'wp-agency'); ?></h3>
-            <button type="button" class="modal-close" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-
-        <form id="edit-employee-form" method="post">
-            <?php wp_nonce_field('wp_agency_nonce'); ?>
-            <input type="hidden" name="id" id="edit-employee-id">
+<form id="edit-employee-form" method="post" class="wpapp-modal-form">
+            <input type="hidden" name="action" value="save_agency_employee">
+            <input type="hidden" name="mode" value="edit">
+            <input type="hidden" name="id" value="<?php echo esc_attr($employee->id); ?>">
+            <input type="hidden" name="agency_id" value="<?php echo esc_attr($employee->agency_id); ?>">
+            <input type="hidden" name="user_id" value="<?php echo esc_attr($employee->user_id); ?>">
+            <input type="hidden" name="nonce" value="<?php echo wp_create_nonce('wpdt_nonce'); ?>">
 
             <div class="modal-content">
               <div class="row left-side">
@@ -55,6 +56,7 @@ defined('ABSPATH') || exit;
                     <input type="text"
                            id="edit-employee-name"
                            name="name"
+                           value="<?php echo esc_attr($employee->name); ?>"
                            class="regular-text"
                            maxlength="100"
                            required>
@@ -67,6 +69,7 @@ defined('ABSPATH') || exit;
                     <input type="text"
                            id="edit-employee-position"
                            name="position"
+                           value="<?php echo esc_attr($employee->position ?? ''); ?>"
                            class="regular-text"
                            maxlength="100"
                            required>
@@ -84,11 +87,13 @@ defined('ABSPATH') || exit;
                         </label>
                         <select id="edit-employee-roles" name="roles[]" multiple required>
                             <?php
-                            $available_roles = \WP_Agency_Activator::getRoles();
-                            // Exclude administrator from selection
-                            unset($available_roles['administrator']);
-                            foreach ($available_roles as $role_slug => $role_name) : ?>
-                                <option value="<?php echo esc_attr($role_slug); ?>">
+                            $available_roles = \WP_Agency_Role_Manager::getRoles();
+                            // Exclude 'agency' role - reserved for agency owner/admin
+                            unset($available_roles['agency']);
+                            foreach ($available_roles as $role_slug => $role_name) :
+                                $selected = in_array($role_slug, $current_roles ?? []) ? 'selected' : '';
+                                ?>
+                                <option value="<?php echo esc_attr($role_slug); ?>" <?php echo $selected; ?>>
                                     <?php echo esc_html($role_name); ?>
                                 </option>
                             <?php endforeach; ?>
@@ -99,19 +104,26 @@ defined('ABSPATH') || exit;
                     </div>
                 </div>
 
-                 <!-- Division -->
+                 <!-- Unit Kerja -->
                  <div class="employee-form-section">
                     <div class="section-header">
-                       <h4><?php _e('Informasi Division', 'wp-agency'); ?></h4>
+                       <h4><?php _e('Unit Kerja', 'wp-agency'); ?></h4>
                     </div>
 
                    <div class="employee-form-group">
                      <label for="edit-employee-division" class="required-field">
-                       <?php _e('Cabang', 'wp-agency'); ?>
+                       <?php _e('Unit Kerja', 'wp-agency'); ?>
                      </label>
                      <select id="edit-employee-division" name="division_id" required>
-                       <option value=""><?php _e('Pilih Division', 'wp-agency'); ?></option>
-                       <!-- Options will be populated via JavaScript -->
+                       <option value=""><?php _e('Pilih Unit Kerja', 'wp-agency'); ?></option>
+                       <?php
+                       if (!empty($divisions)) {
+                           foreach ($divisions as $division) {
+                               $selected = ($division->id == $employee->division_id) ? 'selected' : '';
+                               echo '<option value="' . esc_attr($division->id) . '" ' . $selected . '>' . esc_html($division->name) . '</option>';
+                           }
+                       }
+                       ?>
                      </select>
                    </div>
                  </div>
@@ -129,6 +141,7 @@ defined('ABSPATH') || exit;
                      <input type="email"
                             id="edit-employee-email"
                             name="email"
+                            value="<?php echo esc_attr($employee->email); ?>"
                             class="regular-text"
                             maxlength="100"
                             required>
@@ -144,6 +157,7 @@ defined('ABSPATH') || exit;
                      <input type="tel"
                             id="edit-employee-phone"
                             name="phone"
+                            value="<?php echo esc_attr($employee->phone ?? ''); ?>"
                             class="regular-text"
                             maxlength="20">
                      <p class="description">
@@ -163,8 +177,8 @@ defined('ABSPATH') || exit;
                        <?php _e('Status', 'wp-agency'); ?>
                      </label>
                      <select id="edit-employee-status" name="status" required>
-                       <option value="active"><?php _e('Aktif', 'wp-agency'); ?></option>
-                       <option value="inactive"><?php _e('Nonaktif', 'wp-agency'); ?></option>
+                       <option value="active" <?php selected($employee->status, 'active'); ?>><?php _e('Aktif', 'wp-agency'); ?></option>
+                       <option value="inactive" <?php selected($employee->status, 'inactive'); ?>><?php _e('Nonaktif', 'wp-agency'); ?></option>
                      </select>
                    </div>
                  </div>
@@ -183,7 +197,7 @@ defined('ABSPATH') || exit;
                                 name="keterangan"
                                 class="regular-text"
                                 maxlength="200"
-                                rows="3"></textarea>
+                                rows="3"><?php echo esc_textarea($employee->keterangan ?? ''); ?></textarea>
                         <p class="description">
                             <?php _e('Maksimal 200 karakter', 'wp-agency'); ?>
                         </p>
@@ -191,17 +205,5 @@ defined('ABSPATH') || exit;
                 </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <div class="employee-form-actions">
-                    <button type="button" class="button cancel-edit">
-                        <?php _e('Batal', 'wp-agency'); ?>
-                    </button>
-                    <button type="submit" class="button button-primary">
-                        <?php _e('Perbarui', 'wp-agency'); ?>
-                    </button>
-                    <span class="spinner"></span>
-                </div>
-            </div>
+            <!-- Form footer removed - WP Modal provides its own footer -->
         </form>
-    </div>
-</div>

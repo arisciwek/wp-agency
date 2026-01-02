@@ -159,7 +159,7 @@ class DivisionValidator extends AbstractValidator {
         return false;
     }
 
-    protected function checkUpdatePermission(array $relation): bool {
+    public function checkUpdatePermission(array $relation): bool {
         if ($relation['is_admin']) return true;
         if ($relation['is_owner'] && current_user_can('edit_own_division')) return true;
         if ($relation['is_division_admin'] && current_user_can('edit_own_division')) return true;
@@ -167,7 +167,7 @@ class DivisionValidator extends AbstractValidator {
         return false;
     }
 
-    protected function checkDeletePermission(array $relation): bool {
+    public function checkDeletePermission(array $relation): bool {
         if ($relation['is_admin'] && current_user_can('delete_division')) return true;
         if ($relation['is_owner']) return true;
         if ($relation['is_division_admin'] && current_user_can('delete_division')) return true;

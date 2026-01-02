@@ -69,8 +69,9 @@ class AgencyEmployeeController extends AbstractCrudController {
         add_action('wp_ajax_delete_agency_employee', [$this, 'delete']);
 
         // Modal form handlers (auto-wire system)
-        add_action('wp_ajax_get_employee_form', [$this, 'handleGetEmployeeForm']);
-        add_action('wp_ajax_save_employee', [$this, 'handleSaveEmployee']);
+        add_action('wp_ajax_get_agency_employee_form', [$this, 'handleGetEmployeeForm']);
+        add_action('wp_ajax_save_agency_employee', [$this, 'handleSaveEmployee']);
+        add_action('wp_ajax_delete_agency_employee', [$this, 'handleDeleteEmployee']);
 
         // DataTable
         add_action('wp_ajax_handle_agency_employee_datatable', [$this, 'handleDataTableRequest']);
@@ -236,6 +237,22 @@ class AgencyEmployeeController extends AbstractCrudController {
             $updated = $this->model->update($id, $data);
 
             if ($updated) {
+                // Update user roles if provided
+                if (isset($_POST['roles']) && is_array($_POST['roles']) && $employee->user_id) {
+                    $user = get_userdata($employee->user_id);
+                    if ($user) {
+                        // Remove all current roles
+                        foreach ($user->roles as $role) {
+                            $user->remove_role($role);
+                        }
+
+                        // Add new roles
+                        foreach ($_POST['roles'] as $role) {
+                            $user->add_role(sanitize_text_field($role));
+                        }
+                    }
+                }
+
                 // Invalidate cache
                 $this->cache->delete('employee', $id);
                 $this->cache->invalidateDataTableCache('employee_list', ['agency_id' => $employee->agency_id]);
@@ -515,29 +532,58 @@ class AgencyEmployeeController extends AbstractCrudController {
      * For auto-wire modal system
      */
     public function handleGetEmployeeForm(): void {
-        check_ajax_referer('wpdt_nonce', 'nonce');
-
-        $mode = $_GET['mode'] ?? 'create';
-        $employee_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
-
         try {
-            if ($mode === 'edit' && $employee_id) {
+            // Auto-wire system sends wpdt_nonce
+            $nonce = $_GET['nonce'] ?? $_POST['nonce'] ?? '';
+
+            if (!wp_verify_nonce($nonce, 'wpdt_nonce')) {
+                wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
+                return;
+            }
+
+            $employee_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+
+            if ($employee_id) {
+                // Edit mode
                 $employee = $this->model->find($employee_id);
 
                 if (!$employee) {
-                    echo '<p class="error">' . __('Employee not found', 'wp-agency') . '</p>';
-                    wp_die();
+                    wp_send_json_error(['message' => __('Employee not found', 'wp-agency')]);
+                    return;
                 }
 
+                // Get additional data for form
+                global $wpdb;
+
+                // Get divisions for this agency
+                $divisions = $wpdb->get_results($wpdb->prepare(
+                    "SELECT id, name FROM {$wpdb->prefix}app_agency_divisions
+                     WHERE agency_id = %d AND status = 'active'
+                     ORDER BY name ASC",
+                    $employee->agency_id
+                ));
+
+                // Get current user roles
+                $user = get_userdata($employee->user_id);
+                $current_roles = $user ? $user->roles : [];
+
+                // Load edit form and capture output for auto-wire system
+                ob_start();
                 include WP_AGENCY_PATH . 'src/Views/admin/employee/forms/edit-employee-form.php';
+                $html = ob_get_clean();
+
+                wp_send_json_success(['html' => $html]);
             } else {
+                // Create mode
+                ob_start();
                 include WP_AGENCY_PATH . 'src/Views/admin/employee/forms/create-employee-form.php';
+                $html = ob_get_clean();
+
+                wp_send_json_success(['html' => $html]);
             }
         } catch (\Exception $e) {
-            echo '<p class="error">' . esc_html($e->getMessage()) . '</p>';
+            wp_send_json_error(['message' => $e->getMessage()]);
         }
-
-        wp_die();
     }
 
     /**
@@ -545,12 +591,17 @@ class AgencyEmployeeController extends AbstractCrudController {
      * For auto-wire modal system
      */
     public function handleSaveEmployee(): void {
-        check_ajax_referer('wpdt_nonce', 'nonce');
-
-        $mode = $_POST['mode'] ?? 'create';
-        $employee_id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
-
         try {
+            // Auto-wire system sends wpdt_nonce
+            $nonce = $_POST['nonce'] ?? $_GET['nonce'] ?? '';
+
+            if (!wp_verify_nonce($nonce, 'wpdt_nonce')) {
+                throw new \Exception(__('Security check failed', 'wp-agency'));
+            }
+
+            $mode = $_POST['mode'] ?? 'create';
+            $employee_id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+
             if ($mode === 'edit' && $employee_id) {
                 // Update mode - delegate to update() method
                 $this->update();
@@ -558,6 +609,50 @@ class AgencyEmployeeController extends AbstractCrudController {
                 // Create mode - delegate to store() method
                 $this->store();
             }
+        } catch (\Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Handle delete employee
+     * For auto-wire modal system
+     */
+    public function handleDeleteEmployee(): void {
+        try {
+            check_ajax_referer('wpdt_nonce', 'nonce');
+
+            $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+            if (!$id) {
+                throw new \Exception(__('Invalid employee ID', 'wp-agency'));
+            }
+
+            // Get employee for validation
+            $employee = $this->model->find($id);
+            if (!$employee) {
+                throw new \Exception(__('Employee not found', 'wp-agency'));
+            }
+
+            // Check permission
+            if (!$this->validator->canDeleteEmployee($id)) {
+                throw new \Exception(__('Permission denied', 'wp-agency'));
+            }
+
+            // Delete via model
+            $result = $this->model->delete($id);
+
+            if (!$result) {
+                throw new \Exception(__('Failed to delete employee', 'wp-agency'));
+            }
+
+            // Clear cache
+            $this->cache->delete('employee', $id);
+            $this->cache->invalidateDataTableCache('employee_list', ['agency_id' => $employee->agency_id]);
+
+            wp_send_json_success([
+                'message' => __('Employee deleted successfully', 'wp-agency')
+            ]);
+
         } catch (\Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }

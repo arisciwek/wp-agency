@@ -88,11 +88,13 @@ class DivisionController extends AbstractCrudController {
         add_action('wp_ajax_get_division', [$this, 'show']);
         add_action('wp_ajax_create_division', [$this, 'store']);
         add_action('wp_ajax_update_division', [$this, 'update']);
-        add_action('wp_ajax_delete_division', [$this, 'delete']);
+        // DISABLED: Conflict with auto-wire modal system (uses wpdt_nonce)
+        // add_action('wp_ajax_delete_division', [$this, 'delete']);
 
         // Modal form handlers (auto-wire system)
         add_action('wp_ajax_get_division_form', [$this, 'handleGetDivisionForm']);
         add_action('wp_ajax_save_division', [$this, 'handleSaveDivision']);
+        add_action('wp_ajax_delete_division', [$this, 'handleDeleteDivision']);
 
         // DataTable
         add_action('wp_ajax_handle_division_datatable', [$this, 'handleDataTableRequest']);
@@ -218,7 +220,8 @@ class DivisionController extends AbstractCrudController {
 
     public function store(): void {
         try {
-            check_ajax_referer($this->getNonceAction(), 'nonce');
+            // Nonce already verified by handleSaveDivision() - no need to check again
+            // check_ajax_referer($this->getNonceAction(), 'nonce');
 
             $this->debug_log('DEBUG STORE: All POST data: ' . print_r($_POST, true));
 
@@ -295,7 +298,8 @@ class DivisionController extends AbstractCrudController {
 
     public function update(): void {
         try {
-            check_ajax_referer($this->getNonceAction(), 'nonce');
+            // Nonce already verified by handleSaveDivision() - no need to check again
+            // check_ajax_referer($this->getNonceAction(), 'nonce');
 
             $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
             error_log('[DivisionController] Update called for ID: ' . $id);
@@ -342,24 +346,36 @@ class DivisionController extends AbstractCrudController {
                 ? array_map('sanitize_text_field', $_POST['jurisdictions'])
                 : [];
 
-            // Automatically determine primary jurisdiction based on division's regency_id
-            $primary_jurisdictions = [];
-            if ($updated_division && $updated_division->regency_id && in_array($updated_division->regency_id, $jurisdiction_codes)) {
-                $primary_jurisdictions = [$updated_division->regency_id];
-            }
+            error_log('[DivisionController] Received jurisdiction codes from form: ' . json_encode($jurisdiction_codes));
 
-            // Get current jurisdictions to check for primary jurisdiction removal
+            // Get current jurisdictions to preserve primary status
             $current_jurisdictions = $this->jurisdictionModel->getJurisdictionsByDivision($id);
-            $current_primary = array_column(array_filter($current_jurisdictions, fn($j) => $j->is_primary), 'regency_id');
 
-            // Validate that no primary jurisdictions are being removed
-            $removed_primaries = array_diff($current_primary, $jurisdiction_codes);
-            if (!empty($removed_primaries)) {
-                $invalid_removals = array_diff($removed_primaries, [$updated_division->regency_id ?? 0]);
-                if (!empty($invalid_removals)) {
-                    throw new \Exception('Wilayah kerja utama tidak dapat dihapus. Silakan hapus tanda utama terlebih dahulu.');
+            // Extract current primary jurisdiction CODES (not IDs)
+            $current_primary_codes = [];
+            foreach ($current_jurisdictions as $jur) {
+                if ($jur->is_primary) {
+                    $current_primary_codes[] = $jur->regency_code;
                 }
             }
+
+            error_log('[DivisionController] Current primary jurisdiction codes: ' . json_encode($current_primary_codes));
+
+            // CRITICAL: Ensure all current primary jurisdictions are included
+            // This protects against disabled checkboxes or JS issues
+            foreach ($current_primary_codes as $primary_code) {
+                if (!in_array($primary_code, $jurisdiction_codes)) {
+                    $jurisdiction_codes[] = $primary_code;
+                    error_log('[DivisionController] Added missing primary jurisdiction: ' . $primary_code);
+                }
+            }
+
+            // CRITICAL: Primary jurisdictions must be preserved
+            // Pass the same primary codes to saveJurisdictions
+            $primary_jurisdictions = $current_primary_codes;
+
+            error_log('[DivisionController] Final jurisdiction codes: ' . json_encode($jurisdiction_codes));
+            error_log('[DivisionController] Primary jurisdiction codes: ' . json_encode($primary_jurisdictions));
 
             if (!$this->jurisdictionModel->saveJurisdictions($id, $jurisdiction_codes, $primary_jurisdictions)) {
                 throw new \Exception('Gagal menyimpan wilayah kerja cabang');
@@ -831,29 +847,142 @@ class DivisionController extends AbstractCrudController {
      * For auto-wire modal system
      */
     public function handleGetDivisionForm(): void {
-        check_ajax_referer('wpdt_nonce', 'nonce');
-
-        $mode = $_GET['mode'] ?? 'create';
-        $division_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
-
         try {
-            if ($mode === 'edit' && $division_id) {
+            // Auto-wire system sends wpdt_nonce
+            $nonce = $_GET['nonce'] ?? $_POST['nonce'] ?? '';
+
+            if (!wp_verify_nonce($nonce, 'wpdt_nonce')) {
+                wp_send_json_error(['message' => __('Security check failed', 'wp-agency')]);
+                return;
+            }
+
+            $division_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+
+            if ($division_id) {
+                // Edit mode
                 $division = $this->model->find($division_id);
 
                 if (!$division) {
-                    echo '<p class="error">' . __('Division not found', 'wp-agency') . '</p>';
-                    wp_die();
+                    wp_send_json_error(['message' => __('Division not found', 'wp-agency')]);
+                    return;
                 }
 
+                // Get agency to determine province
+                $agency = $this->agencyModel->find($division->agency_id);
+                if (!$agency) {
+                    wp_send_json_error(['message' => __('Agency not found', 'wp-agency')]);
+                    return;
+                }
+
+                // Get province code and regency code for form population
+                global $wpdb;
+
+                // Get province code from division's province_id
+                if ($division->province_id) {
+                    $province_code = $wpdb->get_var($wpdb->prepare(
+                        "SELECT code FROM {$wpdb->prefix}wi_provinces WHERE id = %d",
+                        $division->province_id
+                    ));
+                    $division->provinsi_code = $province_code; // Add to division object for form
+                } else {
+                    // Fallback to agency province if division doesn't have one
+                    $province_code = $wpdb->get_var($wpdb->prepare(
+                        "SELECT code FROM {$wpdb->prefix}wi_provinces WHERE id = %d",
+                        $agency->province_id
+                    ));
+                    $division->provinsi_code = $province_code;
+                }
+
+                // Get regency code from division's regency_id
+                if ($division->regency_id) {
+                    $regency_code = $wpdb->get_var($wpdb->prepare(
+                        "SELECT code FROM {$wpdb->prefix}wi_regencies WHERE id = %d",
+                        $division->regency_id
+                    ));
+                    $division->regency_code = $regency_code; // Add to division object for form
+                }
+
+                // Debug logging - check what codes we have
+                error_log('[DivisionController] Division data for form:');
+                error_log('[DivisionController] - Division ID: ' . $division->id);
+                error_log('[DivisionController] - Province ID: ' . ($division->province_id ?? 'NULL'));
+                error_log('[DivisionController] - Province Code: ' . ($division->provinsi_code ?? 'NULL'));
+                error_log('[DivisionController] - Regency ID: ' . ($division->regency_id ?? 'NULL'));
+                error_log('[DivisionController] - Regency Code: ' . ($division->regency_code ?? 'NULL'));
+
+                // Get jurisdictions for this division
+                $jurisdictions = $this->jurisdictionModel->getJurisdictionsByDivision($division_id);
+
+                // Get available regencies for the division's province
+                $available_regencies = $this->jurisdictionModel->getAvailableRegenciesForAgency(
+                    $division->agency_id,
+                    $division_id, // exclude current division from "already assigned" check
+                    $province_code ?? ''
+                );
+
+                // Debug logging
+                error_log('[DivisionController] Edit Form Data:');
+                error_log('[DivisionController] - Division ID: ' . $division_id);
+                error_log('[DivisionController] - Agency ID: ' . $division->agency_id);
+                error_log('[DivisionController] - Province Code: ' . ($province_code ?? 'NULL'));
+                error_log('[DivisionController] - Jurisdictions Count: ' . count($jurisdictions));
+                error_log('[DivisionController] - Available Regencies Count: ' . count($available_regencies));
+
+                // Build unified jurisdiction list with status flags
+                $all_jurisdictions = [];
+
+                // Add assigned jurisdictions (from division)
+                foreach ($jurisdictions as $jur) {
+                    $all_jurisdictions[$jur->regency_code] = [
+                        'id' => $jur->regency_id,
+                        'code' => $jur->regency_code,
+                        'name' => $jur->regency_name,
+                        'is_assigned' => true,
+                        'is_primary' => (bool)($jur->is_primary ?? false)
+                    ];
+                }
+
+                // Add available regencies (not yet assigned)
+                foreach ($available_regencies as $reg) {
+                    if (!isset($all_jurisdictions[$reg->code])) {
+                        $all_jurisdictions[$reg->code] = [
+                            'id' => $reg->id,
+                            'code' => $reg->code,
+                            'name' => $reg->name,
+                            'is_assigned' => false,
+                            'is_primary' => false
+                        ];
+                    }
+                }
+
+                // Sort by name
+                uasort($all_jurisdictions, function($a, $b) {
+                    return strcmp($a['name'], $b['name']);
+                });
+
+                // Debug: Log final all_jurisdictions array
+                error_log('[DivisionController] - All Jurisdictions Total: ' . count($all_jurisdictions));
+                foreach ($all_jurisdictions as $code => $jur) {
+                    error_log('[DivisionController]   - ' . $jur['name'] . ' (code: ' . $code . ', assigned: ' . ($jur['is_assigned'] ? 'YES' : 'NO') . ', primary: ' . ($jur['is_primary'] ? 'YES' : 'NO') . ')');
+                }
+
+                // Load edit form and capture output for auto-wire system
+                ob_start();
                 include WP_AGENCY_PATH . 'src/Views/admin/division/forms/edit-division-form.php';
+                $html = ob_get_clean();
+
+                wp_send_json_success(['html' => $html]);
             } else {
+                // Create mode
+                ob_start();
                 include WP_AGENCY_PATH . 'src/Views/admin/division/forms/create-division-form.php';
+                $html = ob_get_clean();
+
+                wp_send_json_success(['html' => $html]);
             }
         } catch (\Exception $e) {
-            echo '<p class="error">' . esc_html($e->getMessage()) . '</p>';
+            wp_send_json_error(['message' => $e->getMessage()]);
         }
-
-        wp_die();
     }
 
     /**
@@ -861,12 +990,17 @@ class DivisionController extends AbstractCrudController {
      * For auto-wire modal system
      */
     public function handleSaveDivision(): void {
-        check_ajax_referer('wpdt_nonce', 'nonce');
-
-        $mode = $_POST['mode'] ?? 'create';
-        $division_id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
-
         try {
+            // Auto-wire system sends wpdt_nonce
+            $nonce = $_POST['nonce'] ?? $_GET['nonce'] ?? '';
+
+            if (!wp_verify_nonce($nonce, 'wpdt_nonce')) {
+                throw new \Exception(__('Security check failed', 'wp-agency'));
+            }
+
+            $mode = $_POST['mode'] ?? 'create';
+            $division_id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+
             if ($mode === 'edit' && $division_id) {
                 // Update mode - delegate to update() method
                 $this->update();
@@ -874,6 +1008,50 @@ class DivisionController extends AbstractCrudController {
                 // Create mode - delegate to store() method
                 $this->store();
             }
+        } catch (\Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Handle delete division
+     * For auto-wire modal system
+     */
+    public function handleDeleteDivision(): void {
+        try {
+            check_ajax_referer('wpdt_nonce', 'nonce');
+
+            $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+            if (!$id) {
+                throw new \Exception(__('Invalid division ID', 'wp-agency'));
+            }
+
+            // Get division for validation
+            $division = $this->model->find($id);
+            if (!$division) {
+                throw new \Exception(__('Division not found', 'wp-agency'));
+            }
+
+            // Check permission
+            if (!$this->validator->canDeleteDivision($id)) {
+                throw new \Exception(__('Permission denied', 'wp-agency'));
+            }
+
+            // Delete via model
+            $result = $this->model->delete($id);
+
+            if (!$result) {
+                throw new \Exception(__('Failed to delete division', 'wp-agency'));
+            }
+
+            // Clear cache
+            $this->cache->delete('division', $id);
+            $this->cache->invalidateDataTableCache('division_list', ['agency_id' => $division->agency_id]);
+
+            wp_send_json_success([
+                'message' => __('Division deleted successfully', 'wp-agency')
+            ]);
+
         } catch (\Exception $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }

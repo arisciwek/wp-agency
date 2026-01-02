@@ -200,7 +200,7 @@
                         }
                         return {
                             ...d,
-                            action: 'handle_employee_datatable',
+                            action: 'get_employees_datatable',
                             agency_id: self.agencyId,
                             status_filter: self.statusFilter,
                             nonce: wpAgencyData.nonce
@@ -231,33 +231,22 @@
                     }
                 },
                 columns: [
-                    { data: 'name', width: '16%' },
-                    { data: 'position', width: '16%' },
-                    { data: 'role', width: '22%' },
-                    { data: 'division_name', width: '16%' },
+                    { data: 'name', width: '20%' },
+                    { data: 'position', width: '18%' },
+                    { data: 'email', width: '20%' },
+                    { data: 'phone', width: '15%' },
                     {
                         data: 'status',
-                        width: '13%',
+                        width: '12%',
                         render: function(data, type, row) {
-                            // Pastikan data status adalah string murni
-                            // dan bukan HTML yang sudah di-generate
-                            console.log('Raw status:', data);
-
-                            // Normalisasi nilai status untuk perbandingan
-                            let statusValue = data;
-                            if (typeof data === 'string' && data.includes('status-badge')) {
-                                // Jika data sudah dalam bentuk HTML, ekstrak nilai aslinya
-                                statusValue = data.includes('Aktif') ? 'active' : 'inactive';
-                            }
-
-                            // Normalisasi untuk perbandingan
-                            statusValue = String(statusValue).toLowerCase().trim();
+                            // Server returns raw status value ('active' or 'inactive')
+                            const statusValue = String(data).toLowerCase().trim();
                             const isActive = statusValue === 'active';
 
-                            const statusClass = isActive ? 'status-active' : 'status-inactive';
+                            const badgeClass = isActive ? 'wpdt-badge-success' : 'wpdt-badge-error';
                             const statusText = isActive ? 'Aktif' : 'Nonaktif';
 
-                            return `<span class="status-badge ${statusClass}">${statusText}</span>`;
+                            return `<span class="wpdt-badge ${badgeClass}">${statusText}</span>`;
                         }
                     },
                     {
@@ -345,12 +334,44 @@
         }
     };
 
-    $(document).ready(() => {
-        window.EmployeeDataTable = EmployeeDataTable;
+    // Expose to window immediately (not inside document.ready)
+    window.EmployeeDataTable = EmployeeDataTable;
 
+    $(document).ready(() => {
         $(document).on('agency:selected', (event, agency) => {
             if (agency && agency.id) {
                 EmployeeDataTable.init(agency.id);
+            }
+        });
+
+        // Listen for tab content loaded event from wp-datatable framework
+        // This event is triggered AFTER AJAX content is loaded into tab
+        $(document).on('wpdt:tab-content-loaded', (e, data) => {
+            // Initialize DataTable when employees tab content loaded
+            if (data.tabId === 'employees') {
+                console.log('[Employee DataTable] Tab content loaded, initializing...');
+
+                const $table = $('#employee-table');
+
+                if (!$table.length) {
+                    console.error('[Employee DataTable] Table not found');
+                    return;
+                }
+
+                if ($.fn.DataTable.isDataTable($table)) {
+                    console.log('[Employee DataTable] Table already initialized');
+                    return;
+                }
+
+                const agencyId = $table.data('agency-id');
+
+                if (!agencyId) {
+                    console.error('[Employee DataTable] agency-id not found on table');
+                    return;
+                }
+
+                console.log('[Employee DataTable] Initializing for agency:', agencyId);
+                EmployeeDataTable.init(agencyId);
             }
         });
     });

@@ -37,7 +37,7 @@ defined('ABSPATH') || exit;
 ?>
 
 <div class="agency-datatable-wrapper">
-    <table id="agency-list-table" class="wpdt-datatable display" style="width:100%">
+    <table id="agency-datatable" class="wpdt-datatable display" style="width:100%">
         <thead>
             <tr>
                 <th><?php esc_html_e('Code', 'wp-agency'); ?></th>

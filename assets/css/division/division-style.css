@@ -604,8 +604,16 @@ div#division-table_filter input {
     /* Existing styles... */
 }
 
+/* Heading inside flexbox */
+.division-coordinates h4 {
+    flex: 1 0 100%;  /* Full width in flex container */
+    width: 100%;
+}
+
 /* Tambahkan styles untuk map */
 .division-coordinates-map {
+    flex: 1 0 100%;  /* CRITICAL: Full width as flex item, no shrink */
+    width: 100%;     /* Fallback for non-flex contexts */
     height: 300px;
     margin-bottom: 15px;
     border: 1px solid #ddd;

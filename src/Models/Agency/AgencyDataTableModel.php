@@ -148,6 +148,7 @@ class AgencyDataTableModel extends AbstractDataTable {
     public function format_row($row): array {
         return [
             'DT_RowId' => 'agency-' . $row->id,  // Required for panel open
+            'DT_RowClass' => 'wpdt-clickable-row', // Required for row highlight
             'DT_RowData' => [
                 'id' => $row->id,                 // Required for panel AJAX
                 'entity' => 'agency'              // Required for panel entity detection

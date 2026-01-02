@@ -89,7 +89,8 @@ class AgencyController extends AbstractCrudController {
         // CRUD hooks
         add_action('wp_ajax_create_agency', [$this, 'store']);
         add_action('wp_ajax_update_agency', [$this, 'update']);
-        add_action('wp_ajax_delete_agency', [$this, 'delete']);
+        // DISABLED: Conflict with AgencyDashboardController::handle_delete_agency (uses wpdt_nonce)
+        // add_action('wp_ajax_delete_agency', [$this, 'delete']);
         add_action('wp_ajax_validate_agency_access', [$this, 'validateAgencyAccess']);
 
         // DataTable

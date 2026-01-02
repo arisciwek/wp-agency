@@ -74,12 +74,12 @@ $can_filter = current_user_can('edit_all_divisions') || current_user_can('edit_o
 </div>
 <?php endif; ?>
 
-<table id="divisions-datatable"
+<table id="division-table"
        class="wpdt-datatable agency-lazy-datatable"
        style="width:100%"
        data-entity="division"
        data-agency-id="<?php echo esc_attr($agency_id); ?>"
-       data-ajax-action="handle_division_datatable">
+       data-ajax-action="get_divisions_datatable">
     <thead>
         <tr>
             <th><?php esc_html_e('Kode', 'wp-agency'); ?></th>

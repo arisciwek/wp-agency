@@ -3,7 +3,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Assets/JS/Agency
- * @version     2.3.0
+ * @version     2.4.0
  * @author      arisciwek
  *
  * Path: /wp-agency/assets/js/agency/agency-datatable.js
@@ -13,6 +13,14 @@
  *              Menangani server-side processing dan event handling.
  *
  * Changelog:
+ * 2.4.0 - 2026-01-02 (Tab Content Loaded Event Fix)
+ * - CRITICAL FIX: Added wpdt:tab-content-loaded event listener (PRIMARY)
+ * - ISSUE: New-companies tab data not showing on first click
+ * - ROOT CAUSE: Only listening to wpdt:tab-switched (fires BEFORE AJAX)
+ * - SOLUTION: Listen to wpdt:tab-content-loaded (fires AFTER AJAX)
+ * - Per wp-datatable design (tab-manager.js:323): "for DataTable initialization"
+ * - Kept wpdt:tab-switched as FALLBACK for non-lazy tabs
+ * - Now properly initializes lazy-loaded DataTables after content loaded
  * 2.3.0 - 2025-12-30 (Boundary Refactor)
  * - BREAKING: Removed MutationObserver (global scope violation)
  * - Migrated to event-driven pattern (wpdt:tab-switched)
@@ -34,7 +42,7 @@
  * - Migrated from inline script in datatable.php (TODO-3077)
  * - Integrated with wp-app-core base panel system
  * - Uses wpdt:open-panel event for panel integration
- * - Table ID: #agency-list-table (singular + list)
+ * - Table ID: #agency-datatable
  * - AJAX action: get_agencies_datatable
  * - Columns: code, name, provinsi_name, regency_name, actions
  * - Localized strings via wpAgencyDataTable object
@@ -81,7 +89,7 @@
             }
 
             // Check if table element exists
-            if ($('#agency-list-table').length === 0) {
+            if ($('#agency-datatable').length === 0) {
                 console.log('[AgencyDataTable] Table element not found');
                 return;
             }
@@ -108,7 +116,7 @@
         initDataTable() {
             const self = this;
 
-            this.table = $('#agency-list-table').DataTable({
+            this.table = $('#agency-datatable').DataTable({
                 processing: true,
                 serverSide: true,
                 ajax: {
@@ -227,7 +235,7 @@
              * NEW system (wpdt-panel-manager.js) handles row click automatically
              */
             /*
-            $('#agency-list-table tbody').on('click', 'tr', function() {
+            $('#agency-datatable tbody').on('click', 'tr', function() {
                 const data = self.table.row(this).data();
 
                 if (data && data.DT_RowData && data.DT_RowData.id) {
@@ -266,15 +274,45 @@
          * with wp-customer pattern.
          *
          * Events:
-         * - wpdt:tab-switched: Fired by wp-datatable when tab is activated
-         * - wpdt:panel-content-loaded: Fired after AJAX content loaded (if available)
+         * - wpdt:tab-content-loaded: PRIMARY - Fired AFTER AJAX tab content loaded (wp-datatable framework)
+         * - wpdt:tab-switched: FALLBACK - Fired when tab activated (before AJAX)
+         * - wpdt:panel-content-loaded: For panel content (not tabs)
          */
         bindLazyTableEvents() {
             const self = this;
 
             /**
-             * Handle tab switching from wp-datatable framework
+             * PRIMARY EVENT: Handle tab content loaded (AFTER AJAX)
+             *
+             * This is the correct event per wp-datatable design (tab-manager.js:323)
+             * Triggered AFTER AJAX content is injected into tab
+             * Comment from tab-manager.js: "Trigger custom event AFTER content loaded (for DataTable initialization)"
+             */
+            $(document).on('wpdt:tab-content-loaded', function(e, data) {
+                console.log('[AgencyDataTable] Tab content loaded event received:', data);
+
+                // Find the tab content container
+                const $container = $('#' + data.tabId);
+
+                // Check if this tab has lazy-load tables
+                const $lazyTables = $container.find('.agency-lazy-datatable');
+
+                if ($lazyTables.length > 0) {
+                    console.log('[AgencyDataTable] Found ' + $lazyTables.length + ' lazy table(s) in tab:', data.tabId);
+
+                    // Small delay to ensure DOM is fully ready
+                    setTimeout(function() {
+                        self.initLazyDataTables($container);
+                    }, 100);
+                } else {
+                    console.log('[AgencyDataTable] No lazy tables found in tab:', data.tabId);
+                }
+            });
+
+            /**
+             * FALLBACK: Handle tab switching from wp-datatable framework
              * When user clicks tab, framework triggers this event
+             * NOTE: This fires BEFORE AJAX, kept as fallback for non-lazy tabs
              */
             $(document).on('wpdt:tab-switched', function(e, data) {
                 console.log('[AgencyDataTable] Tab switched event received:', data);
@@ -401,7 +439,17 @@
                     columns: columns,
                     pageLength: 10,
                     lengthMenu: [[10, 25, 50], [10, 25, 50]],
-                    language: wpAgencyDataTable.i18n || {}
+                    language: wpAgencyDataTable.i18n || {},
+                    initComplete: function(settings, json) {
+                        // Fix rendering issues when table was hidden during initialization
+                        console.log('[AgencyDataTable] Table initialized, adjusting columns for:', tableId);
+                        this.api().columns.adjust().draw();
+                    },
+                    drawCallback: function(settings) {
+                        // Adjust columns after each draw to ensure proper rendering
+                        console.log('[AgencyDataTable] Table drawn, adjusting columns for:', tableId);
+                        this.api().columns.adjust();
+                    }
                 });
 
                 console.log('[AgencyDataTable] Lazy table initialized:', tableId);

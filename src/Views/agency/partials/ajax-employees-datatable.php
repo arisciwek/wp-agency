@@ -46,12 +46,12 @@ if (!isset($agency_id)) {
 }
 ?>
 
-<table id="employees-datatable"
+<table id="employee-table"
        class="wpdt-datatable agency-lazy-datatable"
        style="width:100%"
        data-entity="employee"
        data-agency-id="<?php echo esc_attr($agency_id); ?>"
-       data-ajax-action="handle_agency_employee_datatable">
+       data-ajax-action="get_employees_datatable">
     <thead>
         <tr>
             <th><?php esc_html_e('Name', 'wp-agency'); ?></th>

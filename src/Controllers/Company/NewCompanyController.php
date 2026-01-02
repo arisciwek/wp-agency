@@ -4,7 +4,7 @@
  *
  * @package     WP_Agency
  * @subpackage  Controllers/Company
- * @version     2.0.0
+ * @version     2.1.0
  * @author      arisciwek
  *
  * Path: /wp-agency/src/Controllers/Company/NewCompanyController.php
@@ -15,6 +15,16 @@
  *              dan response formatting untuk DataTables.
  *
  * Changelog:
+ * 2.1.0 - 2026-01-02 (Auto-Wire Compatibility)
+ * - ADDED: Support for auto-wire modal system parameters
+ * - ADDED: Auto-detect agency_id from user's employee record
+ * - ADDED: Fallback agency_id detection from regency jurisdiction
+ * - ADDED: Get company_name from branch record (no need to pass manually)
+ * - CHANGED: getAssignmentForm() now accepts 'id' (auto-wire) or 'branch_id' (legacy)
+ * - CHANGED: assignInspector() now accepts 'id' (auto-wire) or 'branch_id' (legacy)
+ * - CHANGED: Nonce support for both wpdt_nonce (auto-wire) and wp_agency_nonce (legacy)
+ * - FIXED: Form data populate issue - agency and company name now auto-detected
+ * - BENEFIT: Backward compatible with existing code while supporting auto-wire
  * 2.0.0 - 2025-01-13
  * - BREAKING: All-in-One Assignment (agency + division + inspector)
  * - Added getAllAgencies() handler
@@ -372,17 +382,78 @@ class NewCompanyController {
      */
     public function getAssignmentForm() {
         try {
-            check_ajax_referer('wp_agency_nonce', 'nonce');
+            // Check nonce - support both wpdt_nonce (auto-wire) and wp_agency_nonce (legacy)
+            // Try wpdt_nonce first (auto-wire system), fallback to wp_agency_nonce
+            $nonce_verified = false;
 
-            $branch_id = isset($_POST['branch_id']) ? intval($_POST['branch_id']) : 0;
-            $company_name = isset($_POST['company_name']) ? sanitize_text_field($_POST['company_name']) : '';
-            $current_agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
+            if (isset($_REQUEST['nonce'])) {
+                // Try wpdt_nonce first
+                if (wp_verify_nonce($_REQUEST['nonce'], 'wpdt_nonce')) {
+                    $nonce_verified = true;
+                } elseif (wp_verify_nonce($_REQUEST['nonce'], 'wp_agency_nonce')) {
+                    $nonce_verified = true;
+                }
+            }
+
+            if (!$nonce_verified) {
+                throw new \Exception('Security check failed');
+            }
+
+            // Support both 'id' (auto-wire) and 'branch_id' (legacy)
+            $branch_id = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : (isset($_POST['branch_id']) ? intval($_POST['branch_id']) : 0);
 
             if (!$branch_id) {
                 throw new \Exception('Branch ID required');
             }
 
             global $wpdb;
+
+            // Get branch data to retrieve company name and regency info
+            $branch = $wpdb->get_row($wpdb->prepare(
+                "SELECT cb.id, cb.regency_id, c.name as company_name
+                 FROM {$wpdb->prefix}app_customer_branches cb
+                 LEFT JOIN {$wpdb->prefix}app_customers c ON cb.customer_id = c.id
+                 WHERE cb.id = %d",
+                $branch_id
+            ));
+
+            if (!$branch) {
+                throw new \Exception('Branch not found');
+            }
+
+            $company_name = $branch->company_name ?? '';
+
+            // Auto-detect agency based on user's agency assignment or regency jurisdiction
+            $current_agency_id = 0;
+            $current_user_id = get_current_user_id();
+
+            // Try to get agency from user's employee record
+            $user_agency = $wpdb->get_var($wpdb->prepare(
+                "SELECT agency_id FROM {$wpdb->prefix}app_agency_employees
+                 WHERE user_id = %d AND status = 'active'
+                 LIMIT 1",
+                $current_user_id
+            ));
+
+            if ($user_agency) {
+                $current_agency_id = intval($user_agency);
+            }
+
+            // If no agency from user, try to find agency by regency jurisdiction
+            if (!$current_agency_id && $branch->regency_id) {
+                $jurisdiction_agency = $wpdb->get_var($wpdb->prepare(
+                    "SELECT DISTINCT d.agency_id
+                     FROM {$wpdb->prefix}app_agency_jurisdictions j
+                     INNER JOIN {$wpdb->prefix}app_agency_divisions d ON j.division_id = d.id
+                     WHERE j.jurisdiction_regency_id = %d AND d.status = 'active'
+                     LIMIT 1",
+                    $branch->regency_id
+                ));
+
+                if ($jurisdiction_agency) {
+                    $current_agency_id = intval($jurisdiction_agency);
+                }
+            }
 
             // Get all agencies
             $agencies = $wpdb->get_results(
@@ -403,7 +474,7 @@ class NewCompanyController {
             }
 
             // Check if template exists
-            $template_path = WP_AGENCY_PATH . 'src/Views/company/assignment-form.php';
+            $template_path = WP_AGENCY_PATH . 'src/Views/admin/company/forms/assignment-form.php';
             if (!file_exists($template_path)) {
                 throw new \Exception('Template not found');
             }
@@ -429,9 +500,26 @@ class NewCompanyController {
      */
     public function assignInspector() {
         try {
-            check_ajax_referer('wp_agency_nonce', 'nonce');
+            // Check nonce - support both wpdt_nonce (auto-wire) and wp_agency_nonce (legacy)
+            // Try wpdt_nonce first (auto-wire system), fallback to wp_agency_nonce
+            $nonce_verified = false;
 
-            $branch_id = isset($_POST['branch_id']) ? intval($_POST['branch_id']) : 0;
+            if (isset($_POST['nonce'])) {
+                // Try wpdt_nonce first
+                if (wp_verify_nonce($_POST['nonce'], 'wpdt_nonce')) {
+                    $nonce_verified = true;
+                } elseif (wp_verify_nonce($_POST['nonce'], 'wp_agency_nonce')) {
+                    $nonce_verified = true;
+                }
+            }
+
+            if (!$nonce_verified) {
+                wp_send_json_error(['message' => 'Security check failed']);
+                return;
+            }
+
+            // Support both 'id' (auto-wire) and 'branch_id' (legacy)
+            $branch_id = isset($_POST['id']) ? intval($_POST['id']) : (isset($_POST['branch_id']) ? intval($_POST['branch_id']) : 0);
             $agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
             $division_id = isset($_POST['division_id']) ? intval($_POST['division_id']) : 0;
             $inspector_id = isset($_POST['inspector_id']) ? intval($_POST['inspector_id']) : 0;

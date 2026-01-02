@@ -82,24 +82,23 @@ class DivisionDataTableModel extends AbstractDataTable {
         // Hook to add dynamic WHERE conditions
         add_filter($this->get_filter_hook('where'), [$this, 'filter_where'], 10, 3);
 
-        // Hook to set GROUP BY in QueryBuilder
-        add_filter($this->get_filter_hook('query_builder'), [$this, 'set_query_builder_group_by'], 10, 3);
+        // Hook to set GROUP BY clause
+        add_filter($this->get_filter_hook('group_by'), [$this, 'filter_group_by'], 10, 3);
     }
 
     /**
-     * Set GROUP BY clause in QueryBuilder
+     * Set GROUP BY clause for jurisdiction aggregation
      *
-     * Hooked to: wpapp_datatable_agency_divisions_query_builder
+     * Hooked to: wpapp_datatable_agency_divisions_group_by
      *
-     * @param \WPAppCore\Models\DataTable\DataTableQueryBuilder $query_builder Query builder instance
+     * @param string $group_by Current GROUP BY clause
      * @param array $request_data DataTables request data
-     * @param DataTableModel $model Model instance
-     * @return \WPAppCore\Models\DataTable\DataTableQueryBuilder Modified query builder
+     * @param AbstractDataTable $model Model instance
+     * @return string GROUP BY clause
      */
-    public function set_query_builder_group_by($query_builder, $request_data, $model) {
-        // Set GROUP BY for jurisdiction aggregation
-        $query_builder->set_group_by('d.id');
-        return $query_builder;
+    public function filter_group_by($group_by, $request_data, $model) {
+        // Set GROUP BY for jurisdiction aggregation with GROUP_CONCAT
+        return 'GROUP BY d.id';
     }
 
     /**
@@ -130,16 +129,17 @@ class DivisionDataTableModel extends AbstractDataTable {
 
         global $wpdb;
 
-        // Use MAX() for non-aggregated columns when using GROUP BY
+        // When using GROUP BY d.id, wrap non-aggregated columns in MAX() for MySQL compatibility
+        // Since all d.* columns are functionally dependent on d.id, MAX() will return the actual value
         $columns = [
-            'd.code as code',
-            'd.name as name',
-            'd.type as type',
-            'd.status as status',
-            "COALESCE(u.display_name, '-') as admin_name",
+            'MAX(d.code) as code',
+            'MAX(d.name) as name',
+            'MAX(d.type) as type',
+            'MAX(d.status) as status',
+            "MAX(COALESCE(u.display_name, '-')) as admin_name",
             "GROUP_CONCAT(DISTINCT wr.name ORDER BY wr.name SEPARATOR ', ') as wilayah_kerja",
             "GROUP_CONCAT(DISTINCT wr.name ORDER BY wr.name SEPARATOR ', ') as jurisdictions",
-            'd.id as id'
+            'MAX(d.id) as id'
         ];
 
         error_log('[DivisionDataTableModel] Columns: ' . print_r($columns, true));
@@ -171,8 +171,10 @@ class DivisionDataTableModel extends AbstractDataTable {
         // Return associative array like wp-customer BranchDataTableModel
         return [
             'DT_RowId' => 'division-' . $division_id,
+            'DT_RowClass' => 'wpdt-clickable-row', // Required for row highlight
             'DT_RowData' => [
                 'id' => $division_id,
+                'entity' => 'division', // Required for panel entity detection
                 'status' => $row->status ?? 'active'
             ],
             'code' => esc_html($row->code ?? ''),

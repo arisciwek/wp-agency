@@ -87,9 +87,9 @@ defined('ABSPATH') || exit;
                             </label>
                             <select id="employee-roles" name="roles[]" multiple required>
                                 <?php
-                                $available_roles = \WP_Agency_Activator::getRoles();
-                                // Exclude administrator from selection
-                                unset($available_roles['administrator']);
+                                $available_roles = \WP_Agency_Role_Manager::getRoles();
+                                // Exclude 'agency' role - reserved for agency owner/admin
+                                unset($available_roles['agency']);
                                 foreach ($available_roles as $role_slug => $role_name) : ?>
                                     <option value="<?php echo esc_attr($role_slug); ?>">
                                         <?php echo esc_html($role_name); ?>
@@ -102,17 +102,17 @@ defined('ABSPATH') || exit;
                         </div>
                     </div>
 
-                    <!-- Division -->
+                    <!-- Unit Kerja -->
                     <div class="employee-form-section">
                         <div class="section-header">
-                            <h4><?php _e('Informasi Division', 'wp-agency'); ?></h4>
+                            <h4><?php _e('Unit Kerja', 'wp-agency'); ?></h4>
                         </div>
                         <div class="employee-form-group">
                             <label for="employee-division" class="required-field">
-                                <?php _e('Cabang', 'wp-agency'); ?>
+                                <?php _e('Unit Kerja', 'wp-agency'); ?>
                             </label>
                             <select id="employee-division" name="division_id" required>
-                                <option value=""><?php _e('Pilih Division', 'wp-agency'); ?></option>
+                                <option value=""><?php _e('Pilih Unit Kerja', 'wp-agency'); ?></option>
                             </select>
                         </div>
                     </div>

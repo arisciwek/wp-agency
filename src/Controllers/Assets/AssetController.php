@@ -295,21 +295,33 @@ class AssetController {
         wp_enqueue_script('jquery-inputmask', 'https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.8/jquery.inputmask.min.js', ['jquery'], null, true);
         wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js', ['jquery'], '4.1.0', true);
 
-        // Leaflet
+        // Leaflet & WPApp Map Components (from wp-app-core)
         wp_enqueue_script('leaflet', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', [], '1.9.4', true);
+
+        // WPApp Core Map Picker (shared component)
         wp_enqueue_script(
-            'wp-agency-map-picker',
-            WP_AGENCY_URL . 'assets/js/division/map-picker.js',
+            'wpapp-map-picker',
+            WP_APP_CORE_PLUGIN_URL . 'assets/js/map/wpapp-map-picker.js',
             ['jquery', 'leaflet'],
-            $this->version,
+            '1.0.0',
             true
         );
 
-        // Localize map settings
-        wp_localize_script('wp-agency-map-picker', 'wpAgencyMapSettings', [
+        // WPApp Core Map Adapter (handles WPModal integration)
+        wp_enqueue_script(
+            'wpapp-map-adapter',
+            WP_APP_CORE_PLUGIN_URL . 'assets/js/map/wpapp-map-adapter.js',
+            ['jquery', 'leaflet', 'wpapp-map-picker'],
+            '1.0.0',
+            true
+        );
+
+        // Localize map settings for MapPicker
+        wp_localize_script('wpapp-map-picker', 'wpAgencyMapSettings', [
             'defaultLat' => get_option('wp_agency_settings')['map_default_lat'] ?? -6.200000,
             'defaultLng' => get_option('wp_agency_settings')['map_default_lng'] ?? 106.816666,
-            'defaultZoom' => get_option('wp_agency_settings')['map_default_zoom'] ?? 12
+            'defaultZoom' => get_option('wp_agency_settings')['map_default_zoom'] ?? 12,
+            'debug' => defined('WP_DEBUG') && WP_DEBUG
         ]);
 
         // Components
@@ -367,18 +379,34 @@ class AssetController {
         wp_enqueue_script('edit-agency-form', WP_AGENCY_URL . 'assets/js/agency/edit-agency-form.js', ['jquery', 'jquery-validate', 'wp-agency-toast'], $this->version, true);
 
         // Division scripts
-        wp_enqueue_script('division-datatable', WP_AGENCY_URL . 'assets/js/division/division-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);
-        wp_enqueue_script('create-division-form', WP_AGENCY_URL . 'assets/js/division/create-division-form.js', ['jquery', 'jquery-validate', 'division-toast', 'division-datatable', 'agency'], $this->version, true);
-        wp_enqueue_script('edit-division-form', WP_AGENCY_URL . 'assets/js/division/edit-division-form.js', ['jquery', 'jquery-validate', 'division-toast', 'division-datatable', 'agency'], $this->version, true);
+        wp_enqueue_script('division-datatable', WP_AGENCY_URL . 'assets/js/division/division-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency-datatable'], $this->version, true);
+        wp_enqueue_script('create-division-form', WP_AGENCY_URL . 'assets/js/division/create-division-form.js', ['jquery', 'jquery-validate', 'division-toast', 'division-datatable'], $this->version, true);
+        wp_enqueue_script('edit-division-form', WP_AGENCY_URL . 'assets/js/division/edit-division-form.js', ['jquery', 'jquery-validate', 'division-toast', 'division-datatable'], $this->version, true);
+
+        // Localize division data
+        wp_localize_script('division-datatable', 'wpAgencyData', [
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('wpdt_nonce'),
+            'debug' => defined('WP_DEBUG') && WP_DEBUG,
+            'perPage' => 10
+        ]);
 
         // Employee scripts
-        wp_enqueue_script('employee-datatable', WP_AGENCY_URL . 'assets/js/employee/employee-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);
+        wp_enqueue_script('employee-datatable', WP_AGENCY_URL . 'assets/js/employee/employee-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency-datatable'], $this->version, true);
         wp_enqueue_script('employee-toast', WP_AGENCY_URL . 'assets/js/employee/employee-toast.js', ['jquery'], $this->version, true);
         wp_enqueue_script('create-employee-form', WP_AGENCY_URL . 'assets/js/employee/create-employee-form.js', ['jquery', 'jquery-validate', 'employee-toast', 'employee-datatable'], $this->version, true);
         wp_enqueue_script('edit-employee-form', WP_AGENCY_URL . 'assets/js/employee/edit-employee-form.js', ['jquery', 'jquery-validate', 'employee-toast', 'employee-datatable'], $this->version, true);
 
+        // Localize employee data
+        wp_localize_script('employee-datatable', 'wpAgencyData', [
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('wpdt_nonce'),
+            'debug' => defined('WP_DEBUG') && WP_DEBUG,
+            'perPage' => 10
+        ]);
+
         // New Company scripts
-        wp_enqueue_script('new-company-datatable', WP_AGENCY_URL . 'assets/js/company/new-company-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency'], $this->version, true);
+        wp_enqueue_script('new-company-datatable', WP_AGENCY_URL . 'assets/js/company/new-company-datatable.js', ['jquery', 'datatables', 'wp-agency-toast', 'agency-datatable'], $this->version, true);
 
         // Audit Log scripts (cache busting for recent fixes)
         $audit_log_version = $this->version . '.' . filemtime(WP_AGENCY_PATH . 'assets/js/audit-log/audit-log.js');
@@ -410,14 +438,6 @@ class AssetController {
                     'last' => __('Last', 'wp-agency')
                 ]
             ]
-        ]);
-
-        // Global agency data
-        wp_localize_script('agency', 'wpAgencyData', [
-            'ajaxUrl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('wp_agency_nonce'),
-            'debug' => true,
-            'perPage' => 10
         ]);
     }
 
